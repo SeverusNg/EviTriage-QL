@@ -1,0 +1,41 @@
+name: Gate A CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gate-a-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Python 3.12 quality gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.3"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Synchronize all development dependencies
+        run: uv sync --all-extras
+
+      - name: Run the Gate A quality contract
+        run: make check

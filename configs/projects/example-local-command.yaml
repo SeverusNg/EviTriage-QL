@@ -1,0 +1,46 @@
+schema_version: "1.0"
+
+project:
+  id: example-local-command
+  display_name: Command Runner Maven Fixture
+  language: java
+  license_hint: Apache-2.0
+
+source:
+  type: local
+  path: tests/fixtures/java-microbench/command-app
+  snapshot_mode: copy
+  require_clean_git: false
+  submodules: false
+
+build:
+  adapter: maven
+  jdk: "17"
+  working_directory: "."
+  command: ["mvn", "-q", "-DskipTests", "package"]
+  timeout_seconds: 600
+  network_policy: disabled
+
+codeql:
+  cli_version: "2.26.1"
+  language: java-kotlin
+  query_suites: [security-extended]
+  query_packs: []
+  model_packs: []
+  include_query_help: true
+
+analysis:
+  target_cwes: [CWE-78]
+  context_policy: path_function_slice
+  workflow: evidence_three_agent
+  llm_profile: replay-v0.1
+
+security:
+  source_upload_policy: offline_only
+  allow_build_network: false
+  allow_submodules: false
+  allow_generated_shell: false
+
+storage:
+  workspace_root: workspaces
+  artifact_root: artifacts

@@ -1,0 +1,56 @@
+# Python and uv
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.hypothesis/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.secret
+
+# EviTriage runtime state (may contain private source/model material)
+workspaces/
+artifacts/
+.evitriage/
+replay-cache/
+model-responses/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+configs/projects/private-*.yaml
+configs/projects/*.private.yaml
+configs/llm-profiles/private-*.yaml
+configs/llm-profiles/*.private.yaml
+
+# Test and tool output
+.tox/
+.nox/
+junit.xml
+test-results/
+*.log
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+

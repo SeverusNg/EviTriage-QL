@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: >-
+  If you use EviTriage-QL in research, please cite the software using this
+  metadata and record the exact release or commit used.
+title: "EviTriage-QL: Evidence-Grounded LLM-Agent Triage for CodeQL Alerts"
+type: software
+authors:
+  - name: "EviTriage-QL contributors"
+version: "0.1.0-dev"
+license: Apache-2.0
+abstract: >-
+  A research software system for evidence-grounded, auditable secondary triage
+  of CodeQL alerts. The current development snapshot implements the Gate A
+  engineering, configuration, workspace, diagnostics, and storage foundation.
+keywords:
+  - CodeQL
+  - static analysis
+  - vulnerability triage
+  - software security
+  - reproducible research

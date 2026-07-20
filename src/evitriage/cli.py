@@ -1,0 +1,264 @@
+"""Command-line entry point for the auditable EviTriage workflow."""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Annotated
+
+import typer
+import yaml
+from alembic import command as alembic_command
+from alembic.config import Config as AlembicConfig
+from alembic.util.exc import CommandError as AlembicCommandError
+from sqlalchemy import inspect
+from sqlalchemy.exc import SQLAlchemyError
+from typer._click.exceptions import ClickException as TyperClickException
+
+from evitriage import __version__
+from evitriage.doctor import run_doctor
+from evitriage.errors import (
+    ConfigurationError,
+    EviTriageError,
+    PathSafetyError,
+    StorageError,
+)
+from evitriage.observability import configure_logging, redact
+from evitriage.projects.registry import ProjectRegistry
+from evitriage.storage.database import Database
+
+app = typer.Typer(
+    name="evitriage",
+    help="Evidence-grounded secondary triage for CodeQL alerts.",
+    no_args_is_help=True,
+    pretty_exceptions_enable=False,
+)
+project_app = typer.Typer(help="Validate trusted project boundaries.", no_args_is_help=True)
+db_app = typer.Typer(help="Manage the local metadata database.", no_args_is_help=True)
+app.add_typer(project_app, name="project")
+app.add_typer(db_app, name="db")
+
+
+def _emit_json(payload: object, *, error: bool = False) -> None:
+    stream = sys.stderr if error else sys.stdout
+    typer.echo(
+        json.dumps(redact(payload), ensure_ascii=False, sort_keys=True),
+        file=stream,
+    )
+
+
+def find_repository_root(start: Path | None = None) -> Path:
+    """Find the nearest checkout root containing this project's pyproject file."""
+    configured = os.environ.get("EVITRIAGE_PROJECT_ROOT")
+    candidate = Path(configured) if configured else (start or Path.cwd())
+    try:
+        candidate = candidate.resolve(strict=True)
+    except (OSError, RuntimeError) as error:
+        raise ConfigurationError(f"cannot resolve repository root start: {candidate}") from error
+    if candidate.is_file():
+        candidate = candidate.parent
+    for directory in (candidate, *candidate.parents):
+        pyproject = directory / "pyproject.toml"
+        if pyproject.is_file() and 'name = "evitriage-ql"' in pyproject.read_text(encoding="utf-8"):
+            return directory
+    raise ConfigurationError(
+        "cannot locate EviTriage-QL repository root; run inside the checkout or set "
+        "EVITRIAGE_PROJECT_ROOT"
+    )
+
+
+@app.callback()
+def root(
+    verbose: Annotated[
+        bool,
+        typer.Option("--verbose", "-v", help="Enable debug-level structured logs."),
+    ] = False,
+) -> None:
+    """Configure process-wide, non-secret structured diagnostics."""
+    configure_logging(verbose=verbose)
+
+
+@app.command()
+def doctor(
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit one machine-readable JSON object."),
+    ] = False,
+) -> None:
+    """Check Gate A requirements and report optional CodeQL/Java availability."""
+    report = run_doctor(find_repository_root())
+    if as_json:
+        _emit_json(report)
+    else:
+        typer.echo(f"EviTriage-QL {report['evitriage_version']}: {report['status']}")
+        checks = report["checks"]
+        if isinstance(checks, list):
+            for check in checks:
+                if isinstance(check, dict):
+                    typer.echo(
+                        f"- {check.get('name')}: {check.get('status')} ({check.get('detail')})"
+                    )
+    if report["status"] != "ok":
+        raise typer.Exit(code=1)
+
+
+@project_app.command("validate")
+def project_validate(
+    config: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            exists=False,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=False,
+            help="ProjectSpec YAML path, relative to the repository root or absolute.",
+        ),
+    ],
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit the resolved, sanitized config as JSON."),
+    ] = False,
+    allowed_source_root: Annotated[
+        list[Path] | None,
+        typer.Option(
+            "--allowed-source-root",
+            help=(
+                "Trusted local source root; repeat to allow sources outside the checkout. "
+                "Defaults to the repository root."
+            ),
+        ),
+    ] = None,
+) -> None:
+    """Strictly validate and resolve a ProjectSpec without executing repository code."""
+    repository_root = find_repository_root()
+    allowed_roots = tuple(allowed_source_root) if allowed_source_root else None
+    resolved = ProjectRegistry(repository_root, allowed_source_roots=allowed_roots).validate_path(
+        config
+    )
+    payload: dict[str, object] = {
+        "status": "ok",
+        "schema_version": resolved.spec.schema_version,
+        "project_id": resolved.project_id,
+        "config_path": resolved.config_path,
+        "digest": resolved.digest,
+        "resolved": resolved.sanitized,
+    }
+    if as_json:
+        _emit_json(payload)
+    else:
+        typer.echo(f"valid project: {resolved.project_id}")
+        typer.echo(f"digest: {resolved.digest}")
+        typer.echo(yaml.safe_dump(resolved.sanitized, sort_keys=True).rstrip())
+
+
+def _managed_database_path(repository_root: Path, requested: Path) -> Path:
+    requested_artifact_root = repository_root / "artifacts"
+    if requested_artifact_root.is_symlink():
+        raise PathSafetyError("managed artifact root must not be a symbolic link")
+    requested_artifact_root.mkdir(parents=True, exist_ok=True)
+    requested_artifact_root.chmod(0o700, follow_symlinks=False)
+    artifact_root = requested_artifact_root.resolve(strict=True)
+    candidate = requested if requested.is_absolute() else repository_root / requested
+    absolute_candidate = Path(os.path.abspath(candidate))
+    current = Path(absolute_candidate.anchor)
+    for part in absolute_candidate.parts[1:]:
+        current /= part
+        if current.is_symlink():
+            raise PathSafetyError(f"database path contains a symbolic link: {current}")
+        if not current.exists():
+            break
+    database_path = candidate.resolve(strict=False)
+    if database_path == artifact_root or not database_path.is_relative_to(artifact_root):
+        raise PathSafetyError(
+            "Gate A database must be a file below the managed artifact root",
+            details={"path": str(database_path), "artifact_root": str(artifact_root)},
+        )
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+    database_path.parent.chmod(0o700, follow_symlinks=False)
+    return database_path
+
+
+@db_app.command("migrate")
+def db_migrate(
+    database: Annotated[
+        Path,
+        typer.Option(
+            "--database",
+            help="SQLite file below artifacts/, relative to the repository root by default.",
+        ),
+    ] = Path("artifacts/evitriage.db"),
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit migration metadata as JSON."),
+    ] = False,
+) -> None:
+    """Upgrade the managed SQLite metadata database to the latest revision."""
+    repository_root = find_repository_root()
+    database_path = _managed_database_path(repository_root, database)
+    configuration = AlembicConfig(str(repository_root / "alembic.ini"))
+    configuration.set_main_option(
+        "sqlalchemy.url", f"sqlite+pysqlite:///{database_path.as_posix()}"
+    )
+    try:
+        alembic_command.upgrade(configuration, "head")
+        database_path.chmod(0o600, follow_symlinks=False)
+        storage = Database.from_path(database_path)
+        try:
+            table_names = sorted(inspect(storage.engine).get_table_names())
+        finally:
+            storage.dispose()
+    except (OSError, SQLAlchemyError, AlembicCommandError) as error:
+        raise StorageError(f"database migration failed: {error}") from error
+    payload: dict[str, object] = {
+        "status": "ok",
+        "database": str(database_path),
+        "revision": "0001_gate_a",
+        "tables": table_names,
+    }
+    if as_json:
+        _emit_json(payload)
+    else:
+        typer.echo(f"database upgraded to 0001_gate_a: {database_path}")
+
+
+@app.command("version")
+def version() -> None:
+    """Print the package version."""
+    typer.echo(__version__)
+
+
+def main() -> None:
+    """Run Typer with stable handling for expected operational errors."""
+    try:
+        app(standalone_mode=False)
+    except EviTriageError as error:
+        if "--json" in sys.argv:
+            _emit_json(error.as_dict(), error=True)
+        else:
+            typer.echo(f"{error.code}: {error.message}", err=True)
+        raise SystemExit(error.exit_code) from error
+    except TyperClickException as error:
+        if "--json" in sys.argv:
+            _emit_json(
+                {
+                    "error": {
+                        "code": "CLI_USAGE_ERROR",
+                        "message": error.format_message(),
+                        "details": {},
+                    }
+                },
+                error=True,
+            )
+        else:
+            error.show()
+        raise SystemExit(error.exit_code) from error
+    except typer.Exit as error:
+        raise SystemExit(error.exit_code) from error
+
+
+if __name__ == "__main__":
+    main()

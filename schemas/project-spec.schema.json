@@ -1,0 +1,454 @@
+{
+  "$defs": {
+    "AnalysisSpec": {
+      "additionalProperties": false,
+      "description": "Project-selected analysis goals, without provider or prompt overrides.",
+      "properties": {
+        "context_policy": {
+          "enum": [
+            "fixed_window",
+            "path_function_slice",
+            "adaptive_slice"
+          ],
+          "title": "Context Policy",
+          "type": "string"
+        },
+        "llm_profile": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$",
+          "title": "Llm Profile",
+          "type": "string"
+        },
+        "target_cwes": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Target Cwes",
+          "type": "array"
+        },
+        "workflow": {
+          "const": "evidence_three_agent",
+          "title": "Workflow",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target_cwes",
+        "context_policy",
+        "workflow",
+        "llm_profile"
+      ],
+      "title": "AnalysisSpec",
+      "type": "object"
+    },
+    "BuildSpec": {
+      "additionalProperties": false,
+      "description": "A build plan expressed exclusively as an argv vector.",
+      "properties": {
+        "adapter": {
+          "const": "maven",
+          "title": "Adapter",
+          "type": "string"
+        },
+        "command": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "title": "Command",
+          "type": "array"
+        },
+        "jdk": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Jdk",
+          "type": "string"
+        },
+        "network_policy": {
+          "default": "disabled",
+          "enum": [
+            "disabled",
+            "allowed"
+          ],
+          "title": "Network Policy",
+          "type": "string"
+        },
+        "timeout_seconds": {
+          "default": 1800,
+          "maximum": 86400,
+          "minimum": 1,
+          "title": "Timeout Seconds",
+          "type": "integer"
+        },
+        "working_directory": {
+          "default": ".",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Working Directory",
+          "type": "string"
+        }
+      },
+      "required": [
+        "adapter",
+        "jdk",
+        "command"
+      ],
+      "title": "BuildSpec",
+      "type": "object"
+    },
+    "CodeQLSpec": {
+      "additionalProperties": false,
+      "description": "Pinned CodeQL inputs that affect alert generation.",
+      "properties": {
+        "cli_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?$",
+          "title": "Cli Version",
+          "type": "string"
+        },
+        "include_query_help": {
+          "default": true,
+          "title": "Include Query Help",
+          "type": "boolean"
+        },
+        "language": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Language",
+          "type": "string"
+        },
+        "model_packs": {
+          "default": [],
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Model Packs",
+          "type": "array"
+        },
+        "query_packs": {
+          "default": [],
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Query Packs",
+          "type": "array"
+        },
+        "query_suites": {
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Query Suites",
+          "type": "array"
+        }
+      },
+      "required": [
+        "cli_version",
+        "language",
+        "query_suites"
+      ],
+      "title": "CodeQLSpec",
+      "type": "object"
+    },
+    "DatasetSource": {
+      "additionalProperties": false,
+      "description": "A case materialized by a named, deterministic dataset adapter.",
+      "properties": {
+        "adapter": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Adapter",
+          "type": "string"
+        },
+        "case_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "title": "Case Id",
+          "type": "string"
+        },
+        "dataset": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Dataset",
+          "type": "string"
+        },
+        "release": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Release"
+        },
+        "type": {
+          "const": "dataset",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "adapter",
+        "dataset",
+        "case_id"
+      ],
+      "title": "DatasetSource",
+      "type": "object"
+    },
+    "GitSource": {
+      "additionalProperties": false,
+      "description": "A remote repository pinned to a reproducible, full object id.",
+      "properties": {
+        "commit": {
+          "pattern": "^[0-9a-fA-F]{40}$",
+          "title": "Commit",
+          "type": "string"
+        },
+        "submodules": {
+          "default": false,
+          "title": "Submodules",
+          "type": "boolean"
+        },
+        "type": {
+          "const": "git",
+          "title": "Type",
+          "type": "string"
+        },
+        "url": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "url",
+        "commit"
+      ],
+      "title": "GitSource",
+      "type": "object"
+    },
+    "LocalSource": {
+      "additionalProperties": false,
+      "description": "An existing local source tree, resolved by :class:`ProjectRegistry`.",
+      "properties": {
+        "path": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "require_clean_git": {
+          "default": true,
+          "title": "Require Clean Git",
+          "type": "boolean"
+        },
+        "snapshot_mode": {
+          "default": "copy",
+          "enum": [
+            "copy",
+            "git-worktree"
+          ],
+          "title": "Snapshot Mode",
+          "type": "string"
+        },
+        "submodules": {
+          "default": false,
+          "title": "Submodules",
+          "type": "boolean"
+        },
+        "type": {
+          "const": "local",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "path"
+      ],
+      "title": "LocalSource",
+      "type": "object"
+    },
+    "ProjectMetadata": {
+      "additionalProperties": false,
+      "description": "Human-facing metadata and the safe identifier used in managed paths.",
+      "properties": {
+        "display_name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "language": {
+          "maxLength": 32,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9+-]*$",
+          "title": "Language",
+          "type": "string"
+        },
+        "license_hint": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License Hint"
+        }
+      },
+      "required": [
+        "id",
+        "display_name",
+        "language"
+      ],
+      "title": "ProjectMetadata",
+      "type": "object"
+    },
+    "ProjectSource": {
+      "discriminator": {
+        "mapping": {
+          "dataset": "#/$defs/DatasetSource",
+          "git": "#/$defs/GitSource",
+          "local": "#/$defs/LocalSource"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/LocalSource"
+        },
+        {
+          "$ref": "#/$defs/GitSource"
+        },
+        {
+          "$ref": "#/$defs/DatasetSource"
+        }
+      ]
+    },
+    "SecuritySpec": {
+      "additionalProperties": false,
+      "description": "Restrictive project security declarations.\n\nTool allowlists, prompts, credentials, endpoints, and model identifiers are\nintentionally absent.  Generated shell is a literal ``false`` in v0.1.",
+      "properties": {
+        "allow_build_network": {
+          "default": false,
+          "title": "Allow Build Network",
+          "type": "boolean"
+        },
+        "allow_generated_shell": {
+          "const": false,
+          "default": false,
+          "title": "Allow Generated Shell",
+          "type": "boolean"
+        },
+        "allow_submodules": {
+          "default": false,
+          "title": "Allow Submodules",
+          "type": "boolean"
+        },
+        "source_upload_policy": {
+          "const": "offline_only",
+          "default": "offline_only",
+          "title": "Source Upload Policy",
+          "type": "string"
+        }
+      },
+      "title": "SecuritySpec",
+      "type": "object"
+    },
+    "StorageSpec": {
+      "additionalProperties": false,
+      "description": "Repository-relative roots resolved and confined by the registry.",
+      "properties": {
+        "artifact_root": {
+          "default": "artifacts",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Artifact Root",
+          "type": "string"
+        },
+        "workspace_root": {
+          "default": "workspaces",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Workspace Root",
+          "type": "string"
+        }
+      },
+      "title": "StorageSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Complete, strictly validated project-controlled configuration.",
+  "properties": {
+    "analysis": {
+      "$ref": "#/$defs/AnalysisSpec"
+    },
+    "build": {
+      "$ref": "#/$defs/BuildSpec"
+    },
+    "codeql": {
+      "$ref": "#/$defs/CodeQLSpec"
+    },
+    "project": {
+      "$ref": "#/$defs/ProjectMetadata"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "security": {
+      "$ref": "#/$defs/SecuritySpec"
+    },
+    "source": {
+      "$ref": "#/$defs/ProjectSource"
+    },
+    "storage": {
+      "$ref": "#/$defs/StorageSpec"
+    }
+  },
+  "required": [
+    "schema_version",
+    "project",
+    "source",
+    "build",
+    "codeql",
+    "analysis"
+  ],
+  "title": "ProjectSpec",
+  "type": "object"
+}

@@ -1,0 +1,36 @@
+schema_version: "1.0"
+
+codeql:
+  required_cli_version: "2.26.1"
+  include_query_help: true
+  timeout_seconds: 1800
+
+context:
+  policy: path_function_slice
+  maximum_token_budget: 24000
+  include_tests: false
+  include_config: false
+
+agents:
+  workflow: evidence_three_agent
+  llm_profile: replay-v0.1
+  temperature: 0.0
+  maximum_schema_repairs_per_agent: 1
+  maximum_model_calls_per_alert: 6
+  require_evidence_ids: true
+  allow_repository_instructions: false
+
+policy:
+  labels: [TP, FP, NMC]
+  auto_dismiss: false
+  fp_requires_decisive_rebuttal: true
+  conflict_or_missing_evidence: NMC
+
+verification:
+  enabled: false
+
+reproducibility:
+  cache_llm_responses: true
+  persist_prompts: true
+  persist_tool_versions: true
+  seed: 20260720

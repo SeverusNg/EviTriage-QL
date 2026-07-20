@@ -1,0 +1,93 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "evitriage-ql"
+version = "0.1.0"
+description = "Evidence-grounded LLM-agent triage for CodeQL alerts"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = { file = "LICENSE" }
+authors = [{ name = "EviTriage-QL contributors" }]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Security",
+]
+dependencies = [
+  "alembic>=1.14,<2",
+  "pydantic>=2.10,<3",
+  "PyYAML>=6.0.2,<7",
+  "SQLAlchemy>=2.0.36,<3",
+  "typer>=0.15,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "hypothesis>=6.122,<7",
+  "jsonschema>=4.23,<5",
+  "mypy>=1.14,<2",
+  "pytest>=8.3,<9",
+  "pytest-cov>=6,<8",
+  "ruff>=0.9,<1",
+  "types-jsonschema>=4.23,<5",
+  "types-PyYAML>=6.0.12,<7",
+]
+
+[project.scripts]
+evitriage = "evitriage.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/evitriage"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "S", "RUF"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"migrations/versions/*.py" = ["INP001"]
+"tests/**/*.py" = ["S101", "S603"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["evitriage"]
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["alembic.*", "yaml.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+addopts = [
+  "--strict-config",
+  "--strict-markers",
+  "--cov=evitriage",
+  "--cov-branch",
+  "--cov-report=term-missing",
+  "--cov-fail-under=80",
+]
+testpaths = ["tests"]
+markers = [
+  "integration: crosses package boundaries without external network access",
+]
+
+[tool.coverage.run]
+source = ["evitriage"]
+omit = ["migrations/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "if __name__ == .__main__.:",
+]
