@@ -1,0 +1,15 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {"driver": {"name": "CodeQL", "rules": [{"id": "rule/invalid-region"}]}},
+      "results": [
+        {
+          "ruleId": "rule/invalid-region",
+          "message": {"text": "Invalid region"},
+          "locations": [{"physicalLocation": {"artifactLocation": {"uri": "src/Invalid.java"}, "region": {"startLine": 0}}}]
+        }
+      ]
+    }
+  ]
+}

@@ -63,6 +63,8 @@ def _executable_check(
             check=False,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=10,
             shell=False,
         )
@@ -132,7 +134,7 @@ def _system_config_check(repository_root: Path) -> DoctorCheck:
 
 
 def run_doctor(repository_root: Path) -> dict[str, object]:
-    """Inspect requirements needed for Gate A and report optional future tools."""
+    """Inspect required foundations and optional real CodeQL scan tools."""
     root = repository_root.resolve(strict=True)
     checks = [
         _python_check(),
@@ -142,6 +144,7 @@ def run_doctor(repository_root: Path) -> dict[str, object]:
         _writable_directory_check("workspace_root", root / "workspaces"),
         _writable_directory_check("artifact_root", root / "artifacts"),
         _executable_check("java", arguments=("-version",), required=False),
+        _executable_check("javac", arguments=("-version",), required=False),
         _executable_check("codeql", arguments=("version", "--format=terse"), required=False),
     ]
     failed = any(check.required and check.status == "error" for check in checks)

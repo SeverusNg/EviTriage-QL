@@ -25,6 +25,15 @@ from pydantic import (
 SAFE_SLUG_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 FULL_GIT_SHA_PATTERN = r"^[0-9a-fA-F]{40}$"
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
+_SECRET_ARGUMENT_NAME = re.compile(
+    r"(?:^|[._-])(?:api[-_]?key|access[-_]?key|authorization|credential|password|passwd|"
+    r"private[-_]?key|secret|token)(?:$|[._-])",
+    re.IGNORECASE,
+)
+_PINNED_QLPACK = re.compile(
+    r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9]+\.[0-9]+\.[0-9]+"
+    r"(?:[-+][A-Za-z0-9.-]+)?$"
+)
 
 
 class FrozenStrictModel(BaseModel):
@@ -81,7 +90,7 @@ class LocalSource(FrozenStrictModel):
 
     type: Literal["local"]
     path: Annotated[str, Field(min_length=1, max_length=4096)]
-    snapshot_mode: Literal["copy", "git-worktree"] = "copy"
+    snapshot_mode: Literal["copy"] = "copy"
     require_clean_git: bool = True
     submodules: bool = False
 
@@ -108,6 +117,13 @@ class GitSource(FrozenStrictModel):
             raise ValueError("source.url must not contain whitespace")
         if not value.startswith(("https://", "ssh://", "git@")):
             raise ValueError("source.url must use https, ssh, or git scp syntax")
+        authority = (
+            value.split("://", maxsplit=1)[1].split("/", maxsplit=1)[0] if "://" in value else ""
+        )
+        if "@" in authority and (
+            value.startswith("https://") or ":" in authority.rsplit("@", maxsplit=1)[0]
+        ):
+            raise ValueError("source.url must not contain embedded credentials")
         return value
 
     @field_validator("commit")
@@ -148,10 +164,17 @@ class BuildSpec(FrozenStrictModel):
     """A build plan expressed exclusively as an argv vector."""
 
     adapter: Literal["maven"]
-    jdk: Annotated[str, Field(min_length=1, max_length=32)]
+    jdk: Annotated[
+        str,
+        Field(
+            min_length=1,
+            max_length=32,
+            pattern=r"^(?:1\.)?[1-9][0-9]*(?:\.[0-9]+)*(?:[-+][A-Za-z0-9._-]+)?$",
+        ),
+    ]
     working_directory: Annotated[str, Field(min_length=1, max_length=4096)] = "."
     command: Annotated[
-        tuple[str, ...],
+        tuple[Annotated[str, Field(max_length=4096)], ...],
         Field(min_length=1, max_length=256),
         BeforeValidator(_list_to_tuple),
     ]
@@ -175,8 +198,15 @@ class BuildSpec(FrozenStrictModel):
         if not value[0].strip():
             raise ValueError("build.command executable must not be empty")
         for argument in value:
-            if "\x00" in argument:
-                raise ValueError("build.command arguments must not contain NUL")
+            _reject_control_characters(argument, field_name="build.command arguments")
+            candidate = argument.lstrip("-")
+            if candidate.startswith("D"):
+                candidate = candidate[1:]
+            key = candidate.split("=", maxsplit=1)[0]
+            if _SECRET_ARGUMENT_NAME.search(key):
+                raise ValueError("build.command must not contain credential-like arguments")
+            if re.search(r"(?i)https?://[^/@\s]+@", argument):
+                raise ValueError("build.command must not contain URL userinfo")
         return value
 
     @model_validator(mode="after")
@@ -198,10 +228,17 @@ class BuildSpec(FrozenStrictModel):
         }
         if executable in shell_executables:
             raise ValueError("build.command must not invoke a shell interpreter")
-        allowed = {"mvn", "mvn.cmd", "mvnw", "mvnw.cmd", "./mvnw", "./mvnw.cmd"}
+        allowed = {"./mvnw", "./mvnw.cmd"}
         if command_token not in allowed:
             raise ValueError(
-                f"build.command executable {command_token!r} is not valid for {self.adapter}"
+                f"build.command executable {command_token!r} is not a checked-in "
+                f"wrapper for {self.adapter}"
+            )
+        if self.network_policy == "disabled" and not {"--offline", "-o"}.intersection(
+            self.command[1:]
+        ):
+            raise ValueError(
+                "build.network_policy=disabled requires Maven's --offline (or -o) option"
             )
         return self
 
@@ -223,7 +260,10 @@ class CodeQLSpec(FrozenStrictModel):
             pattern=r"^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?$",
         ),
     ]
-    language: Annotated[str, Field(min_length=1, max_length=64)]
+    language: Annotated[
+        str,
+        Field(min_length=1, max_length=64, pattern=r"^[a-z][a-z0-9+-]*$"),
+    ]
     query_suites: Annotated[
         tuple[Annotated[str, Field(min_length=1, max_length=200)], ...],
         Field(min_length=1),
@@ -237,7 +277,40 @@ class CodeQLSpec(FrozenStrictModel):
         tuple[Annotated[str, Field(min_length=1, max_length=200)], ...],
         BeforeValidator(_list_to_tuple),
     ] = ()
-    include_query_help: bool = True
+    include_query_help: Literal[True] = True
+
+    @field_validator("query_suites", "query_packs", "model_packs")
+    @classmethod
+    def validate_query_inputs(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        """Reject values that could be reinterpreted as CodeQL CLI options."""
+
+        if len(value) != len(set(value)):
+            raise ValueError("CodeQL query inputs must not contain duplicates")
+        for item in value:
+            _reject_control_characters(item, field_name="codeql query input")
+            if item.strip() != item or any(character.isspace() for character in item):
+                raise ValueError("CodeQL query inputs must not contain whitespace")
+            normalized = PurePosixPath(item.replace("\\", "/"))
+            if (
+                item.startswith("-")
+                or normalized.is_absolute()
+                or re.match(r"^[A-Za-z]:", item)
+                or ".." in normalized.parts
+                or "://" in item
+                or "\\" in item
+            ):
+                raise ValueError(
+                    "CodeQL query inputs must be safe relative specifiers, not options or paths "
+                    "outside the source snapshot"
+                )
+        return value
+
+    @field_validator("query_packs", "model_packs")
+    @classmethod
+    def validate_pinned_packs(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        if any(_PINNED_QLPACK.fullmatch(item) is None for item in value):
+            raise ValueError("CodeQL query and model packs must use an exact scope/name@x.y.z pin")
+        return value
 
 
 class AnalysisSpec(FrozenStrictModel):
@@ -304,6 +377,10 @@ class ProjectSpec(FrozenStrictModel):
 
     @model_validator(mode="after")
     def validate_security_consistency(self) -> ProjectSpec:
+        if self.project.language != "java" or self.codeql.language != "java-kotlin":
+            raise ValueError(
+                "v0.1 supports project.language=java with codeql.language=java-kotlin only"
+            )
         if (
             isinstance(self.source, (LocalSource, GitSource))
             and self.source.submodules

@@ -1,0 +1,16 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {"driver": {"name": "CodeQL", "rules": [{"id": "rule/windows"}]}},
+      "originalUriBaseIds": {"SRC": {"uri": "file:///C:/checkout/"}},
+      "results": [
+        {
+          "ruleId": "rule/windows",
+          "message": {"text": "Windows path"},
+          "locations": [{"physicalLocation": {"artifactLocation": {"uri": "src\\Win.java", "uriBaseId": "SRC"}, "region": {"startLine": 9}}}]
+        }
+      ]
+    }
+  ]
+}

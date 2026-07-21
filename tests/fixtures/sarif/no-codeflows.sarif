@@ -1,0 +1,17 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {"driver": {"name": "CodeQL", "rules": [{"id": "java/example"}]}},
+      "results": [
+        {
+          "ruleIndex": 0,
+          "message": {"markdown": "A result with no path."},
+          "locations": [
+            {"physicalLocation": {"artifactLocation": {"uri": "src/NoPath.java"}, "region": {"startLine": 4}}}
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -4,7 +4,7 @@
 
 EviTriage-QL is pre-release research software. Until a tagged release exists,
 only the latest revision on the primary development branch receives security
-fixes. Gate A is an engineering foundation and must not be treated as a
+fixes. The Gate B input pipeline is a research foundation and must not be treated as a
 production vulnerability-classification service.
 
 ## Reporting a vulnerability
@@ -30,9 +30,9 @@ coordinated disclosure before publishing details.
 
 ## Relevant trust boundaries
 
-Project configuration is trusted operator input, while target source trees,
-comments, build files, future SARIF documents, and future model output are
-untrusted. Security-relevant reports include, but are not limited to:
+The operator chooses a ProjectSpec, but its contents, target source trees,
+comments, build files, SARIF documents, and future model output cross untrusted
+boundaries. Security-relevant reports include, but are not limited to:
 
 - path traversal or symlink escape from managed roots;
 - modification of an original target source tree;
@@ -43,9 +43,11 @@ untrusted. Security-relevant reports include, but are not limited to:
 - falsely reporting a CodeQL scan or evidence-backed decision;
 - a future model or repository changing tool permissions or workflow goals.
 
-Gate A does not execute target builds or CodeQL. If you experimentally extend
-it, use disposable environments and do not run untrusted repositories with
-network access or valuable credentials.
+`ingest-sarif` never executes the target. `scan` can execute only the explicitly
+configured, checked-in Maven Wrapper through the constrained CodeQL runner, but
+Gate B does not yet provide a complete OS filesystem/network/resource sandbox.
+Run real scans only for trusted fixtures or inside a disposable external
+sandbox without valuable credentials.
 
 ## Responsible use
 
@@ -53,4 +55,3 @@ Use this software only on systems and code for which you have authorization.
 The project does not automatically dismiss alerts, generate exploits, or
 authorize offensive testing. Follow applicable law, target-project disclosure
 policies, dataset licenses, and CodeQL's own license terms.
-

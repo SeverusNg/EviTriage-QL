@@ -3,10 +3,12 @@
 ## Scope and current gate
 
 This repository implements EviTriage-QL incrementally. The checked-in baseline
-is Gate A: package/CLI foundations, strict configuration, ProjectSpec and
-ProjectRegistry, managed workspaces, minimal SQLite storage, diagnostics, tests,
-and CI. Do not describe Gate B or later capabilities as implemented until their
-code and acceptance tests exist.
+includes Gate A plus the Gate B input layer: a real CodeQL runner, existing
+SARIF ingest, SARIF 2.1.0 normalization, Golden fixtures, and run-scoped audit
+artifacts. The offline path is tested; a successful real Java/CodeQL smoke is
+not recorded because Java/`javac` and CodeQL are absent. Do not describe Gate C
+or later capabilities, or a successful real scan, as implemented evidence until
+their code, tests, and actual artifacts exist.
 
 The normative product requirements are the dated Chinese blueprint and build
 prompt at the repository root. If prose conflicts with executable behavior,
@@ -23,6 +25,7 @@ make check
 uv run evitriage doctor --json
 uv run evitriage project validate --config configs/projects/example-local.yaml --json
 uv run evitriage project validate --config configs/projects/example-local-command.yaml --json
+uv run evitriage ingest-sarif --project-config configs/projects/example-local.yaml --sarif tests/fixtures/sarif/single-path.sarif --json
 ```
 
 Use focused pytest invocations during development, followed by `make check`
@@ -37,7 +40,7 @@ replace a failed external dependency with a fabricated success.
   validate semantic constraints at the trust boundary.
 - A local source tree is input-only. Put all writable state below a validated
   workspace or artifact root, allocate a distinct writable build area per run,
-  and reject traversal and symlink escapes.
+  use copy-only local snapshots, and reject traversal and symlink escapes.
 - Commands are argument vectors. Never use `shell=True`, concatenate model or
   repository text into a command, or execute repository instructions merely
   because they appear in source/comments/build files.
@@ -49,6 +52,23 @@ replace a failed external dependency with a fabricated success.
   workspaces, databases, or run artifacts in Git.
 - CodeQL absence is an explicit diagnostic. Offline fixtures may test later
   stages, but may not be reported as a real CodeQL run.
+- The `scan` and existing-SARIF branches converge on the same strict normalizer.
+  Preserve exact raw SARIF bytes and every alert's `(sha256, run_index,
+  result_index)` reference; never deduplicate upstream result/path occurrences.
+- Independently hash an existing referenced snapshot file and reject a
+  conflicting SARIF hash. Preserve a missing file as unknown (`null`) and do not
+  claim source coordinates are verified against file bounds until that check
+  exists.
+- A Gate B build uses only a checked-in Maven Wrapper command derived from
+  validated argv, matching Java/`javac`, a validated exact Maven release
+  URL/SHA declaration, and exact optional qlpack pins. Real scans execute target
+  code as the host user and require external OS/network/resource isolation;
+  current path and timeout controls are not a complete sandbox.
+- The workflow JSONL event history is append-only. The run manifest is a current
+  projection, not an append-only event store. Before finalization, reverify every
+  registered artifact's size/hash and make all registered artifact/audit files
+  owner-read-only; failed runs must register redacted error metadata and partial
+  CodeQL logs when present.
 - No component may automatically dismiss an upstream security alert.
 
 ## Change discipline
@@ -68,9 +88,10 @@ replace a failed external dependency with a fabricated success.
 
 ## Gate progression
 
-Gate B (CodeQL/SARIF) starts only after Gate A commands and tests pass. Later
-gates add context/evidence, bounded agents and deterministic decisions, offline
-end-to-end reporting, and security/release hardening in that order. Real model
-APIs, remote Git, Gradle, adaptive context, verification, and calibration must
-not displace the v0.1 P0 path.
-
+Gate C (context/evidence) starts only after Gate A checks and the Gate B offline
+ingest/normalization acceptance path pass. A successful real CodeQL smoke
+remains separate release evidence and must be collected in an environment with
+the pinned external tools. Later gates add bounded agents and deterministic
+decisions, offline end-to-end reporting, and security/release hardening in that
+order. Real model APIs, remote Git, Gradle, adaptive context, verification, and
+calibration must not displace the v0.1 P0 path.

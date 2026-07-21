@@ -1,0 +1,39 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "CodeQL",
+          "version": "2.26.1",
+          "rules": [{"id": "java/command-line-injection", "properties": {"tags": ["external/cwe/cwe-078"]}}]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "java/command-line-injection",
+          "message": {"text": "Command injection path"},
+          "locations": [{"physicalLocation": {"artifactLocation": {"uri": "src/Cmd.java"}, "region": {"startLine": 20}}}],
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {"locations": [
+                  {"location": {"physicalLocation": {"artifactLocation": {"uri": "src/Cmd.java"}, "region": {"startLine": 5}}}},
+                  {"location": {"physicalLocation": {"artifactLocation": {"uri": "src/Cmd.java"}, "region": {"startLine": 20}}}}
+                ]},
+                {"locations": [
+                  {"location": {"physicalLocation": {"artifactLocation": {"uri": "src/Cmd.java"}, "region": {"startLine": 5}}}},
+                  {"location": {"physicalLocation": {"artifactLocation": {"uri": "src/Cmd.java"}, "region": {"startLine": 20}}}}
+                ]},
+                {"locations": [
+                  {"location": {"physicalLocation": {"artifactLocation": {"uri": "src/Other.java"}, "region": {"startLine": 3}}}},
+                  {"location": {"physicalLocation": {"artifactLocation": {"uri": "src/Cmd.java"}, "region": {"startLine": 20}}}}
+                ]}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -6,7 +6,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import typer
 import yaml
@@ -19,6 +19,7 @@ from typer._click.exceptions import ClickException as TyperClickException
 
 from evitriage import __version__
 from evitriage.doctor import run_doctor
+from evitriage.domain.run import NormalizedRunSummary
 from evitriage.errors import (
     ConfigurationError,
     EviTriageError,
@@ -26,6 +27,7 @@ from evitriage.errors import (
     StorageError,
 )
 from evitriage.observability import configure_logging, redact
+from evitriage.pipeline import run_codeql_scan, run_sarif_ingest
 from evitriage.projects.registry import ProjectRegistry
 from evitriage.storage.database import Database
 
@@ -87,7 +89,7 @@ def doctor(
         typer.Option("--json", help="Emit one machine-readable JSON object."),
     ] = False,
 ) -> None:
-    """Check Gate A requirements and report optional CodeQL/Java availability."""
+    """Check required foundations and optional CodeQL/JDK scan readiness."""
     report = run_doctor(find_repository_root())
     if as_json:
         _emit_json(report)
@@ -153,6 +155,146 @@ def project_validate(
         typer.echo(f"valid project: {resolved.project_id}")
         typer.echo(f"digest: {resolved.digest}")
         typer.echo(yaml.safe_dump(resolved.sanitized, sort_keys=True).rstrip())
+
+
+def _operator_input_path(repository_root: Path, requested: Path) -> Path:
+    """Anchor a relative operator input without resolving away a final symlink."""
+
+    candidate = requested if requested.is_absolute() else repository_root / requested
+    return Path(os.path.abspath(candidate))
+
+
+def _emit_run_summary(payload: NormalizedRunSummary, *, as_json: bool) -> None:
+    serialized = payload.model_dump(mode="json")
+    if as_json:
+        _emit_json(serialized)
+        return
+    typer.echo(f"run: {serialized.get('run_id')}")
+    typer.echo(f"state: {serialized.get('state')}")
+    typer.echo(f"alerts: {serialized.get('alert_count')}")
+    typer.echo(f"artifacts: {serialized.get('artifact_run_root')}")
+
+
+def _execute_sarif_command(
+    *,
+    command_name: Literal["ingest-sarif", "normalize"],
+    project_config: Path,
+    sarif: Path,
+    as_json: bool,
+    allowed_source_root: list[Path] | None,
+) -> None:
+    repository_root = find_repository_root()
+    allowed_roots = tuple(allowed_source_root) if allowed_source_root else None
+    summary = run_sarif_ingest(
+        repository_root,
+        project_config=project_config,
+        sarif_path=_operator_input_path(repository_root, sarif),
+        allowed_source_roots=allowed_roots,
+        command=command_name,
+    )
+    _emit_run_summary(summary, as_json=as_json)
+
+
+@app.command("ingest-sarif")
+def ingest_sarif_command(
+    project_config: Annotated[
+        Path,
+        typer.Option(
+            "--project-config",
+            help="Validated local ProjectSpec used to bind SARIF paths to a source snapshot.",
+        ),
+    ],
+    sarif: Annotated[
+        Path,
+        typer.Option(
+            "--sarif",
+            help="Existing SARIF 2.1.0 file; relative paths are anchored at the checkout root.",
+        ),
+    ],
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit one machine-readable run summary."),
+    ] = False,
+    allowed_source_root: Annotated[
+        list[Path] | None,
+        typer.Option(
+            "--allowed-source-root",
+            help="Trusted local source root; repeat for sources outside the checkout.",
+        ),
+    ] = None,
+) -> None:
+    """Persist and normalize existing SARIF without invoking Java or CodeQL."""
+
+    _execute_sarif_command(
+        command_name="ingest-sarif",
+        project_config=project_config,
+        sarif=sarif,
+        as_json=as_json,
+        allowed_source_root=allowed_source_root,
+    )
+
+
+@app.command("normalize")
+def normalize_command(
+    project_config: Annotated[
+        Path,
+        typer.Option("--project-config", help="Validated local ProjectSpec."),
+    ],
+    sarif: Annotated[
+        Path,
+        typer.Option("--sarif", help="SARIF 2.1.0 input to normalize."),
+    ],
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit one machine-readable run summary."),
+    ] = False,
+    allowed_source_root: Annotated[
+        list[Path] | None,
+        typer.Option(
+            "--allowed-source-root",
+            help="Trusted local source root; repeat for sources outside the checkout.",
+        ),
+    ] = None,
+) -> None:
+    """Run the shared normalizer on an existing SARIF artifact."""
+
+    _execute_sarif_command(
+        command_name="normalize",
+        project_config=project_config,
+        sarif=sarif,
+        as_json=as_json,
+        allowed_source_root=allowed_source_root,
+    )
+
+
+@app.command("scan")
+def scan_command(
+    project_config: Annotated[
+        Path,
+        typer.Option("--project-config", help="Validated local ProjectSpec to scan."),
+    ],
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit one machine-readable run summary."),
+    ] = False,
+    allowed_source_root: Annotated[
+        list[Path] | None,
+        typer.Option(
+            "--allowed-source-root",
+            help="Trusted local source root; repeat for sources outside the checkout.",
+        ),
+    ] = None,
+) -> None:
+    """Run real CodeQL and normalize its SARIF; unavailable tools fail explicitly."""
+
+    repository_root = find_repository_root()
+    allowed_roots = tuple(allowed_source_root) if allowed_source_root else None
+    summary = run_codeql_scan(
+        repository_root,
+        project_config=project_config,
+        allowed_source_roots=allowed_roots,
+    )
+    _emit_run_summary(summary, as_json=as_json)
 
 
 def _managed_database_path(repository_root: Path, requested: Path) -> Path:

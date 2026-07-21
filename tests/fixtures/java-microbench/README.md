@@ -3,14 +3,19 @@
 These projects are original, synthetic EviTriage-QL fixtures distributed under
 the repository's Apache-2.0 license. They are deliberately tiny and use only
 the Java standard library. Gate A uses them to prove that two target
-configurations follow the same validation and workspace paths; it does not run
-CodeQL or emit vulnerability labels.
+configurations follow the same validation and workspace paths. Gate B adds a
+real CodeQL runner but does not report a smoke success unless the external
+tools actually execute.
 
 - `path-app`: direct user-controlled path resolution and file read (planned
   CWE-22 direct-TP case).
 - `command-app`: direct user-controlled command execution (planned CWE-78
   direct-TP case).
 
-Each project is a Maven Java 17 project and can be compiled in an environment
-with Maven/JDK 17 using `mvn -q -DskipTests package`. Maven/JDK availability is
-not assumed by Gate A CI.
+Each project is a Maven Java 17 project. Its checked-in `mvnw` is the Apache
+Maven Wrapper 3.3.4 `only-script` launcher from upstream tag
+`maven-wrapper-3.3.4` (commit `524486aff97d0748926a977665d5befb3251ff17`),
+licensed under Apache-2.0. The wrapper pins Maven 3.9.9 and verifies the
+distribution SHA-256. A controlled bootstrap may populate the wrapper cache;
+the configured scan build itself uses Maven `--offline`. Java, Maven cache,
+and CodeQL availability are not assumed by offline CI.

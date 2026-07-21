@@ -40,7 +40,7 @@ def valid_project_mapping() -> dict[str, Any]:
             "adapter": "maven",
             "jdk": "17",
             "working_directory": ".",
-            "command": ["mvn", "-q", "package"],
+            "command": ["./mvnw", "--offline", "-q", "package"],
             "timeout_seconds": 600,
             "network_policy": "disabled",
         },
@@ -75,7 +75,7 @@ def test_project_spec_is_strict_frozen_and_forbids_extra_fields() -> None:
     spec = ProjectSpec.model_validate(valid_project_mapping())
 
     assert isinstance(spec.source, LocalSource)
-    assert spec.build.argv == ("mvn", "-q", "package")
+    assert spec.build.argv == ("./mvnw", "--offline", "-q", "package")
     assert isinstance(spec.build.command, tuple)
     assert isinstance(spec.analysis.target_cwes, tuple)
     assert spec.model_config["strict"] is True
@@ -134,6 +134,11 @@ def test_source_is_a_discriminated_union() -> None:
     with pytest.raises(ValidationError):
         ProjectSpec.model_validate(mismatched)
 
+    unsupported_snapshot = valid_project_mapping()
+    unsupported_snapshot["source"]["snapshot_mode"] = "git-worktree"
+    with pytest.raises(ValidationError):
+        ProjectSpec.model_validate(unsupported_snapshot)
+
 
 @pytest.mark.parametrize("commit", ["a" * 39, "a" * 41, "main", "g" * 40])
 def test_git_source_requires_a_full_40_hex_commit(commit: str) -> None:
@@ -167,13 +172,18 @@ def test_build_command_must_be_an_argv_array_and_types_are_strict() -> None:
 
     wrong_adapter = valid_project_mapping()
     wrong_adapter["build"]["command"] = ["python3", "build.py"]
-    with pytest.raises(ValidationError, match="not valid for maven"):
+    with pytest.raises(ValidationError, match="checked-in wrapper"):
         ProjectSpec.model_validate(wrong_adapter)
 
     absolute_adapter = valid_project_mapping()
     absolute_adapter["build"]["command"] = ["/untrusted/mvn", "package"]
-    with pytest.raises(ValidationError, match="not valid for maven"):
+    with pytest.raises(ValidationError, match="checked-in wrapper"):
         ProjectSpec.model_validate(absolute_adapter)
+
+    host_maven = valid_project_mapping()
+    host_maven["build"]["command"] = ["mvn", "package"]
+    with pytest.raises(ValidationError, match="checked-in wrapper"):
+        ProjectSpec.model_validate(host_maven)
 
     inline_interpreter = valid_project_mapping()
     inline_interpreter["build"]["adapter"] = "explicit"
@@ -186,6 +196,28 @@ def test_build_command_must_be_an_argv_array_and_types_are_strict() -> None:
     wrapped_shell["build"]["command"] = ["env", "sh", "-c", "touch owned"]
     with pytest.raises(ValidationError):
         ProjectSpec.model_validate(wrapped_shell)
+
+    online_command = valid_project_mapping()
+    online_command["build"]["command"] = ["./mvnw", "-q", "package"]
+    with pytest.raises(ValidationError, match="--offline"):
+        ProjectSpec.model_validate(online_command)
+
+
+@pytest.mark.parametrize(
+    "argument",
+    [
+        "-Dpassword=hunter2",
+        "-Dservice.api_key=hidden",
+        "--access-token=hidden",
+        "https://user:token@example.invalid/archive.zip",
+    ],
+)
+def test_build_command_rejects_embedded_credentials(argument: str) -> None:
+    raw = valid_project_mapping()
+    raw["build"]["command"].insert(-1, argument)
+
+    with pytest.raises(ValidationError, match=r"credential|userinfo"):
+        ProjectSpec.model_validate(raw)
 
 
 @pytest.mark.parametrize(
@@ -206,6 +238,64 @@ def test_project_cannot_inject_secrets_prompts_or_tool_overrides(
     raw[section][field] = "attacker-controlled"
 
     with pytest.raises(ValidationError):
+        ProjectSpec.model_validate(raw)
+
+
+@pytest.mark.parametrize(
+    "query_input",
+    [
+        "--output=/tmp/attacker.sarif",
+        "../outside/query.qls",
+        "/outside/query.qls",
+        r"C:\outside\query.qls",
+        "https://example.invalid/query.qls",
+        "security extended",
+    ],
+)
+def test_codeql_query_inputs_cannot_inject_options_or_escape_snapshot(
+    query_input: str,
+) -> None:
+    raw = valid_project_mapping()
+    raw["codeql"]["query_suites"] = [query_input]
+
+    with pytest.raises(ValidationError, match="CodeQL query inputs"):
+        ProjectSpec.model_validate(raw)
+
+
+def test_codeql_query_inputs_reject_duplicates() -> None:
+    raw = valid_project_mapping()
+    raw["codeql"]["query_suites"] = ["security-extended", "security-extended"]
+
+    with pytest.raises(ValidationError, match="duplicates"):
+        ProjectSpec.model_validate(raw)
+
+
+def test_codeql_packs_require_exact_versions() -> None:
+    raw = valid_project_mapping()
+    raw["codeql"]["query_packs"] = ["acme/java-queries"]
+    with pytest.raises(ValidationError, match="exact"):
+        ProjectSpec.model_validate(raw)
+
+    raw["codeql"]["query_packs"] = ["acme/java-queries@1.2.3"]
+    raw["codeql"]["model_packs"] = ["acme/java-models@4.5.6"]
+    spec = ProjectSpec.model_validate(raw)
+    assert spec.codeql.query_packs == ("acme/java-queries@1.2.3",)
+
+    raw["codeql"]["include_query_help"] = False
+    with pytest.raises(ValidationError):
+        ProjectSpec.model_validate(raw)
+
+
+def test_git_source_rejects_embedded_https_credentials() -> None:
+    raw = valid_project_mapping()
+    raw["source"] = {
+        "type": "git",
+        "url": "https://user:token@example.invalid/project.git",
+        "commit": "a" * 40,
+        "submodules": False,
+    }
+
+    with pytest.raises(ValidationError, match="embedded credentials"):
         ProjectSpec.model_validate(raw)
 
 

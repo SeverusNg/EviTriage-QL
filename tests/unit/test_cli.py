@@ -17,6 +17,14 @@ from evitriage.errors import ConfigurationError, PathSafetyError
 runner = CliRunner()
 
 
+@pytest.mark.parametrize("command", ["scan", "ingest-sarif", "normalize"])
+def test_gate_b_commands_expose_help(command: str) -> None:
+    result = runner.invoke(app, [command, "--help"])
+
+    assert result.exit_code == 0, result.output
+    assert "--project-config" in result.stdout
+
+
 def test_find_repository_root_honors_explicit_environment(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

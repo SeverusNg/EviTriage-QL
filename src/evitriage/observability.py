@@ -16,6 +16,11 @@ _SECRET_KEY = re.compile(
     re.IGNORECASE,
 )
 _BEARER = re.compile(r"(?i)bearer\s+[a-z0-9._~+/=-]+")
+_INLINE_SECRET = re.compile(
+    r"(?i)(?P<prefix>(?:api[_-]?key|authorization|password|passwd|secret|token|"
+    r"credential)\s*[=:]\s*)(?P<value>[^\s,;]+)"
+)
+_HTTP_USERINFO = re.compile(r"(?i)(?P<scheme>https?://)[^/@\s]+@")
 
 
 def redact(value: object) -> object:
@@ -29,7 +34,9 @@ def redact(value: object) -> object:
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         return [redact(item) for item in value]
     if isinstance(value, str):
-        return _BEARER.sub("Bearer [REDACTED]", value)
+        without_bearer = _BEARER.sub("Bearer [REDACTED]", value)
+        without_inline = _INLINE_SECRET.sub(r"\g<prefix>[REDACTED]", without_bearer)
+        return _HTTP_USERINFO.sub(r"\g<scheme>[REDACTED]@", without_inline)
     return value
 
 

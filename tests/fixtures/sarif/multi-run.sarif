@@ -1,0 +1,13 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {"driver": {"name": "CodeQL-A", "rules": [{"id": "rule/a"}]}},
+      "results": [{"ruleId": "rule/a", "message": {"text": "first run"}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": "src/A.java"}, "region": {"startLine": 1}}}]}]
+    },
+    {
+      "tool": {"driver": {"name": "CodeQL-B", "rules": [{"id": "rule/b"}]}},
+      "results": [{"ruleId": "rule/b", "message": {"text": "second run"}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": "src/B.java"}, "region": {"startLine": 2}}}]}]
+    }
+  ]
+}

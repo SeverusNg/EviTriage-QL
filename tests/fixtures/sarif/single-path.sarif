@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "CodeQL",
+          "semanticVersion": "2.26.1",
+          "rules": [
+            {
+              "id": "java/path-injection",
+              "name": "PathInjection",
+              "fullDescription": {"text": "Uncontrolled data used in a file path."},
+              "helpUri": "https://codeql.github.com/codeql-query-help/java/java-path-injection/",
+              "defaultConfiguration": {"level": "error"},
+              "properties": {
+                "tags": ["security", "external/cwe/cwe-022"],
+                "security-severity": "7.5"
+              }
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {"uri": "file:///virtual/repository/"}
+      },
+      "artifacts": [
+        {
+          "location": {
+            "uri": "src/main/java/org/evitriage/fixture/PathReader.java",
+            "uriBaseId": "%SRCROOT%"
+          },
+          "hashes": {
+            "sha-256": "0c9e4d2cd28996cb4e937fd1e58d80035e9dd77d5d9eb26c541589fbce1b1dc8"
+          }
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "java/path-injection",
+          "ruleIndex": 0,
+          "message": {"text": "A user-controlled path reaches Files.readString."},
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {"index": 0},
+                "region": {
+                  "startLine": 15,
+                  "startColumn": 16,
+                  "endLine": 15,
+                  "endColumn": 71,
+                  "snippet": {
+                    "text": "Files.readString(requestedPath, StandardCharsets.UTF_8)"
+                  }
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "id": 7,
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/main/java/org/evitriage/fixture/PathReader.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {"startLine": 15, "startColumn": 16}
+              }
+            }
+          ],
+          "codeFlows": [
+            {
+              "message": {"text": "source to sink"},
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {"index": 0},
+                          "region": {"startLine": 12, "startColumn": 70}
+                        },
+                        "message": {"text": "request parameter"}
+                      },
+                      "kinds": ["source"],
+                      "executionOrder": 0
+                    },
+                    {
+                      "location": {"id": 7, "message": {"text": "file open"}},
+                      "kinds": ["sink"],
+                      "executionOrder": 1,
+                      "importance": "essential"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "fingerprints": {"stable": "stable-result-v1"},
+          "partialFingerprints": {"primaryLocationLineHash": "line-hash-v1"},
+          "properties": {"precision": "high", "kind": "path-problem"}
+        }
+      ]
+    }
+  ]
+}

@@ -13,9 +13,9 @@ make check
 uv run evitriage doctor --json
 ```
 
-Gate A tests and CI require no model API key and do not require a real CodeQL
-scan. CodeQL may be installed separately for diagnostics and later-gate smoke
-runs, but its absence must not be hidden.
+Gate B tests and CI require no model API key, Java, or real CodeQL installation:
+they use synthetic Golden SARIF. CodeQL and a matching JDK may be installed for
+the separate real-scan smoke path, but their absence must not be hidden.
 
 ## Make a focused change
 
@@ -74,4 +74,3 @@ undisclosed vulnerability into a pull request or public issue.
 - Commands, hashes, timestamps, and errors are structured and reproducible.
 - Tests and `make check` pass with real reported results.
 - User-facing behavior and limitations are documented.
-

@@ -24,13 +24,23 @@ def test_typed_error_has_stable_machine_representation() -> None:
 def test_redaction_handles_nested_secrets_and_bearer_values() -> None:
     value = {
         "api_key": "top-secret",
-        "nested": [{"password": "hidden"}, "Bearer abc.def"],
+        "nested": [
+            {"password": "hidden"},
+            "Bearer abc.def",
+            "password=hunter2 token:secret-value",
+            "https://user:token@example.invalid/repository.git",
+        ],
         "safe": "visible",
     }
 
     assert redact(value) == {
         "api_key": "[REDACTED]",
-        "nested": [{"password": "[REDACTED]"}, "Bearer [REDACTED]"],
+        "nested": [
+            {"password": "[REDACTED]"},
+            "Bearer [REDACTED]",
+            "password=[REDACTED] token:[REDACTED]",
+            "https://[REDACTED]@example.invalid/repository.git",
+        ],
         "safe": "visible",
     }
 

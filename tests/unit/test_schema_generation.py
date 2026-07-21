@@ -14,6 +14,12 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 def test_schema_generation_is_deterministic(tmp_path: Path) -> None:
     write_schemas(tmp_path)
     first = (tmp_path / "schemas" / "project-spec.schema.json").read_bytes()
+    assert {path.name for path in (tmp_path / "schemas").iterdir()} == {
+        "alert-bundle.schema.json",
+        "normalized-run-summary.schema.json",
+        "project-spec.schema.json",
+        "run-manifest.schema.json",
+    }
 
     write_schemas(tmp_path)
 

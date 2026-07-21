@@ -1,0 +1,15 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {"driver": {"name": "CodeQL", "rules": [{"id": "rule/unsafe"}]}},
+      "results": [
+        {
+          "ruleId": "rule/unsafe",
+          "message": {"text": "Unsafe path"},
+          "locations": [{"physicalLocation": {"artifactLocation": {"uri": "%2e%2e/etc/passwd"}, "region": {"startLine": 1}}}]
+        }
+      ]
+    }
+  ]
+}

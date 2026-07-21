@@ -1,0 +1,20 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {"driver": {"name": "CodeQL", "rules": [{"id": "rule/duplicate"}]}},
+      "results": [
+        {
+          "ruleId": "rule/duplicate",
+          "message": {"text": "same occurrence"},
+          "locations": [{"physicalLocation": {"artifactLocation": {"uri": "src/Duplicate.java"}, "region": {"startLine": 7}}}]
+        },
+        {
+          "ruleId": "rule/duplicate",
+          "message": {"text": "same occurrence"},
+          "locations": [{"physicalLocation": {"artifactLocation": {"uri": "src/Duplicate.java"}, "region": {"startLine": 7}}}]
+        }
+      ]
+    }
+  ]
+}

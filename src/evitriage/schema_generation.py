@@ -6,12 +6,29 @@ import argparse
 import json
 from pathlib import Path
 
+from pydantic import BaseModel
+
+from evitriage.domain.alerts import AlertBundle
 from evitriage.domain.project import ProjectSpec
+from evitriage.domain.run import NormalizedRunSummary, RunManifest
+
+_SCHEMA_MODELS: dict[str, type[BaseModel]] = {
+    "alert-bundle.schema.json": AlertBundle,
+    "normalized-run-summary.schema.json": NormalizedRunSummary,
+    "project-spec.schema.json": ProjectSpec,
+    "run-manifest.schema.json": RunManifest,
+}
 
 
 def rendered_project_schema() -> str:
     """Return the canonical ProjectSpec JSON Schema representation."""
-    return json.dumps(ProjectSpec.model_json_schema(), indent=2, sort_keys=True) + "\n"
+    return rendered_schema(ProjectSpec)
+
+
+def rendered_schema(model: type[BaseModel]) -> str:
+    """Return one canonical public Pydantic JSON Schema."""
+
+    return json.dumps(model.model_json_schema(), indent=2, sort_keys=True) + "\n"
 
 
 def schema_path(repository_root: Path) -> Path:
@@ -20,18 +37,22 @@ def schema_path(repository_root: Path) -> Path:
 
 
 def write_schemas(repository_root: Path) -> None:
-    """Write all public schemas implemented by Gate A."""
-    destination = schema_path(repository_root)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(rendered_project_schema(), encoding="utf-8")
+    """Write all public schemas implemented through Gate B."""
+
+    schema_directory = repository_root / "schemas"
+    schema_directory.mkdir(parents=True, exist_ok=True)
+    for name, model in _SCHEMA_MODELS.items():
+        (schema_directory / name).write_text(rendered_schema(model), encoding="utf-8")
 
 
 def schemas_match(repository_root: Path) -> bool:
     """Return whether generated schemas match committed files exactly."""
-    destination = schema_path(repository_root)
-    return (
-        destination.is_file()
-        and destination.read_text(encoding="utf-8") == rendered_project_schema()
+
+    schema_directory = repository_root / "schemas"
+    return all(
+        (schema_directory / name).is_file()
+        and (schema_directory / name).read_text(encoding="utf-8") == rendered_schema(model)
+        for name, model in _SCHEMA_MODELS.items()
     )
 
 
@@ -44,12 +65,13 @@ def main() -> int:
     root = arguments.root.resolve()
     if arguments.check:
         if schemas_match(root):
-            print("ProjectSpec schema is current")
+            print("Public schemas are current")
             return 0
-        print("ProjectSpec schema is missing or stale")
+        print("Public schemas are missing or stale")
         return 1
     write_schemas(root)
-    print(schema_path(root))
+    for name in _SCHEMA_MODELS:
+        print(root / "schemas" / name)
     return 0
 
 

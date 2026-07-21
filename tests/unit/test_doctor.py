@@ -22,5 +22,6 @@ def test_doctor_reports_managed_roots_and_optional_codeql(tmp_path: Path) -> Non
     assert checks["artifact_root"]["status"] == "ok"
     assert checks["system_config"]["status"] == "ok"
     assert checks["codeql"]["required"] is False
+    assert checks["javac"]["required"] is False
     assert (tmp_path / "workspaces").is_dir()
     assert (tmp_path / "artifacts").is_dir()

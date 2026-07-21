@@ -1,4 +1,4 @@
-name: Gate A CI
+name: Gate B CI
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: gate-a-ci-${{ github.workflow }}-${{ github.ref }}
+  group: gate-b-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -37,5 +37,5 @@ jobs:
       - name: Synchronize all development dependencies
         run: uv sync --all-extras
 
-      - name: Run the Gate A quality contract
+      - name: Run the Gate B quality contract
         run: make check

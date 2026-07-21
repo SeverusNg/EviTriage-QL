@@ -1,0 +1,15 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {"driver": {"name": "CodeQL", "rules": [{"id": "rule/no-snippet"}]}},
+      "results": [
+        {
+          "ruleId": "rule/no-snippet",
+          "message": {"text": "No embedded source text"},
+          "locations": [{"physicalLocation": {"artifactLocation": {"uri": "src/Missing.java"}, "region": {"startLine": 3, "startColumn": 2}}}]
+        }
+      ]
+    }
+  ]
+}

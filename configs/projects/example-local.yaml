@@ -17,7 +17,7 @@ build:
   adapter: maven
   jdk: "17"
   working_directory: "."
-  command: ["mvn", "-q", "-DskipTests", "package"]
+  command: ["./mvnw", "--offline", "-q", "-DskipTests", "package"]
   timeout_seconds: 600
   network_policy: disabled
 

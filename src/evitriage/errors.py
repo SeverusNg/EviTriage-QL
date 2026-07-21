@@ -73,8 +73,15 @@ class StorageError(EviTriageError):
     exit_code = 5
 
 
+class WorkflowError(EviTriageError):
+    """A run attempted an invalid state transition or artifact operation."""
+
+    code = "WORKFLOW_ERROR"
+    exit_code = 6
+
+
 class FeatureNotAvailableError(EviTriageError):
     """A versioned feature is deliberately unavailable in this release."""
 
     code = "FEATURE_NOT_AVAILABLE"
-    exit_code = 6
+    exit_code = 7
