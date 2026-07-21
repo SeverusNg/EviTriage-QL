@@ -2,6 +2,7 @@
   "version": "2.1.0",
   "runs": [
     {
+      "columnKind": "utf16CodeUnits",
       "tool": {"driver": {"name": "CodeQL", "rules": [{"id": "rule/duplicate"}]}},
       "results": [
         {

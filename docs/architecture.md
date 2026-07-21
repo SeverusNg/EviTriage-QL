@@ -1,12 +1,12 @@
-# Gate B input-layer architecture
+# Gate C context/evidence architecture
 
 ## Status and scope
 
-This document describes the executable Gate A foundation and Gate B CodeQL/
-SARIF input layer. The current system makes target selection, filesystem
-ownership, external-tool execution, raw-input provenance, SARIF normalization,
-and per-run audit state explicit before any context extraction or model call is
-introduced.
+This document describes the executable Gate A foundation, Gate B CodeQL/SARIF
+input layer, and Gate C context/evidence layer. The current system makes target
+selection, filesystem ownership, external-tool execution, raw-input provenance,
+SARIF normalization, bounded source extraction, evidence references, and
+per-run audit state explicit before any model call is introduced.
 
 The checked-in implementation includes:
 
@@ -19,15 +19,20 @@ The checked-in implementation includes:
 - bounded existing-SARIF ingest plus strict parsing of the supported SARIF
   2.1.0 subset;
 - deterministic normalized alert/path contracts and generated JSON Schemas;
+- bounded Level 0 normalized metadata and Level 1 fixed-window/lexical Java
+  callable slices, one strict `SliceArtifact` per alert occurrence;
+- a closed Evidence Registry whose items cite registered artifacts, Claim
+  reference validation, a deterministic DOT graph, and escaped source-map HTML;
 - exact raw SARIF preservation, snapshot-file hash verification, finalized
   registered artifacts, an append-only workflow event log, and a current/final
   run manifest;
 - original Golden SARIF inputs and offline unit/integration/security tests.
 
-Gate B does **not** construct program context or evidence, call an LLM,
-classify an alert, publish a report, or modify/dismiss an upstream CodeQL alert.
-A real Java/CodeQL smoke is also unverified in the current environment because
-the required external tools are absent.
+Gate C does **not** call an LLM, generate claims, classify an alert, publish a
+decision report, or modify/dismiss an upstream CodeQL alert.
+A real Java/CodeQL smoke completed in one development environment and is
+recorded in the dated evidence log. Its zero-result SARIF validates the external
+runner path but does not establish findings or clean-room reproducibility.
 
 ## System context
 
@@ -53,8 +58,13 @@ flowchart TB
     PARSE --> NORM[Shared SarifNormalizer]
     SNAP --> NORM
     NORM --> ALERT[(Normalized AlertBundle)]
-    ALERT --> AUDIT[(Manifest + event log)]
-    ALERT -. Gate C .-> NEXT[Context / evidence]
+    ALERT --> CTX[ContextBuilder]
+    SNAP --> CTX
+    CTX --> SLICE[(SliceArtifacts)]
+    ALERT --> EVID[Evidence Registry]
+    SLICE --> EVID
+    EVID --> GRAPH[(JSON + DOT + source map)]
+    GRAPH --> AUDIT[(Manifest + event log)]
 
     CLI --> DOC[Doctor probes]
     CLI --> DBM[Database migration]
@@ -77,6 +87,8 @@ normalize boundary; only their recorded source kind and tool provenance differ.
 | `WorkspaceManager` | Allocate owned per-run paths, create/reverify a copy-only snapshot, create a distinct writable build copy | Write into the original source, follow escaping links, delete broad roots |
 | `CodeQLRunner` | Validate wrapper/JDK/pack pins, require same-JDK Java/`javac`, construct argv/environment, create/analyze a database, record commands/logs/results | Use a shell, inherit credential/proxy environment variables, accept repository/model text as commands, report a failed tool as success |
 | SARIF parser/normalizer | Bound and parse raw bytes, resolve snapshot paths, independently hash existing files, preserve occurrences, emit deterministic domain records | Fetch URIs, invent missing files/facts, deduplicate alerts or paths |
+| `ContextBuilder` | Consume normalized locations, safely open bounded snapshot files, validate coordinates, select fixed-window or lexical Java callable context, record token/omission metadata | Reparse SARIF paths, read the whole repository, execute source text, claim AST/CFG semantics |
+| Evidence Registry/exporters | Bind evidence to registered artifact hashes and raw result references, reject dangling artifact/evidence/claim IDs, export deterministic JSON/DOT and escaped source navigation | Treat names/comments as facts, generate a verdict, accept unknown evidence IDs, emit active HTML content |
 | `RunJournal` | Register config/descriptor and run artifacts, hash/reverify/finalize content, validate states, append events, publish a current/final manifest | Overwrite named artifacts, leave a failed run marked successful, claim the manifest itself is append-only |
 | diagnostics | Report versions/availability and configuration/storage readiness | Treat “not installed” as a successful scan or log secrets |
 | storage/migration | Initialize the minimal SQLite metadata schema through SQLAlchemy | Claim normalized-alert indexing, PostgreSQL, or team-service semantics |
@@ -141,7 +153,12 @@ artifacts/
     ├── codeql/*.command.json
     ├── codeql/*.stdout.log
     ├── codeql/*.stderr.log
-    └── normalized/alerts.json
+    ├── normalized/alerts.json
+    ├── context/index.json
+    ├── context/slices/run-<run>-result-<result>.json
+    ├── context/source-map.html
+    ├── evidence/registry.json
+    └── evidence/graph.dot
 ```
 
 The original source directory is input-only. A content-addressed copy snapshot
@@ -166,7 +183,7 @@ code and link the registered, redacted `metadata/error.json` digest. Recognized
 CodeQL command metadata and bounded logs produced before a runner failure are
 registered before the failed run is finalized.
 
-## Gate B command flows
+## Gate B/C command flows
 
 ### Existing SARIF ingest and explicit normalize
 
@@ -180,7 +197,9 @@ CLI operator path + validated ProjectSpec
   → hash each existing regular snapshot file; reject conflicting SARIF hash
   → shared deterministic normalizer
   → normalized/alerts.json + artifact SHA-256
-  → terminal NORMALIZED manifest
+  → per-alert Level 0/1 SliceArtifact + source-coordinate validation
+  → Evidence Registry + DOT graph + escaped source map
+  → terminal CONTEXT_READY manifest
 ```
 
 `ingest-sarif` and `normalize` intentionally share this implementation. They
@@ -194,22 +213,23 @@ validated ProjectSpec + managed build copy
   → safe Maven Wrapper plan + exact release URL/SHA declaration
   → discover CodeQL, Java, and javac
   → verify pinned CodeQL and same-JDK configured Java/javac major versions
+  → resolve the Java security-extended alias to its bundle-pinned suite
   → validate exact optional query/model pack pins
   → pass only the non-secret subprocess environment allowlist
   → CodeQL database create with timeout
   → CodeQL database analyze to managed SARIF with timeout
   → record command argv, exit, duration, redacted logs, and hashes
   → validate/register raw SARIF
-  → the same parser and normalizer as ingest
-  → terminal NORMALIZED manifest
+  → the same parser, normalizer, context builder, and evidence registry as ingest
+  → terminal CONTEXT_READY manifest
 ```
 
 Every external invocation uses `shell=False`. CodeQL/Java/`javac` absence, a
 version mismatch, timeout, non-zero exit, missing or unsafe output, and invalid
 SARIF are typed failures. They end in `CODEQL_FAILED` or `INVALID_SARIF`, retain
 structured error/partial tool artifacts, and never produce a successful
-summary. The real runner is tested with controlled process doubles, but a real
-external smoke remains unrun in this tool-less environment.
+summary. The real runner is tested with controlled process doubles; the dated
+evidence log separately records one environment-specific real external smoke.
 
 ### State convergence
 
@@ -218,13 +238,14 @@ CREATED → PROJECT_VALIDATED → WORKSPACE_READY → SOURCE_READY
   ├─→ SARIF_INGESTED ────────────────────────────────┐
   └─→ BUILD_READY → CODEQL_DB_READY → SCANNED ──────┤
                                                      └─→ NORMALIZED
+                                                          └─→ CONTEXT_READY
 
-Terminal failures: INVALID_SARIF, CODEQL_FAILED
+Terminal failures: INVALID_SARIF, CODEQL_FAILED, CONTEXT_INCOMPLETE
 ```
 
-Both successful branches converge before downstream processing. Gate C must
-consume the normalized bundle and its raw provenance, not branch on Golden
-versus real input to create two evidence systems.
+Both successful branches converge before context/evidence processing. Gate C
+consumes the normalized bundle and its raw provenance; it does not branch on
+Golden versus real input to create two evidence systems.
 
 ## Normalized SARIF contract
 
@@ -233,7 +254,9 @@ non-finite numbers rejected. The supported SARIF models retain runs, driver
 rules, results, artifacts, URI bases, primary/additional/related locations,
 thread-flow paths, messages, properties, fingerprints, and partial
 fingerprints. Unknown SARIF extension fields are ignored rather than allowed to
-change domain behavior.
+change domain behavior. A run with results must declare `columnKind` as either
+`utf16CodeUnits` or `unicodeCodePoints`; the value is retained on every
+normalized source location.
 
 The selected source snapshot supplies a safe root for URI interpretation. This
 is a containment boundary, not proof that the snapshot revision produced the
@@ -247,30 +270,61 @@ Normalization has the following semantics:
 
 - every source path is snapshot-relative POSIX text;
 - local/file URI bases and Windows drive paths are normalized without fetching
-  content;
+  content; CodeQL's exact case-insensitive `%SRCROOT%` convention maps only to
+  the validated snapshot root, while other undeclared bases fail closed;
 - parent traversal, remote schemes/authorities, UNC paths, control characters,
   source-root escape, and snapshot symlinks fail closed;
 - all runs, results, code flows, thread flows, and repeated occurrences remain
   in input order; duplicate alerts and duplicate paths are not collapsed;
 - a missing `codeFlows` remains an explicit pathless alert and a missing
   snippet remains unknown rather than invented;
-- coordinates must be positive and ordered, but are not yet checked against
-  actual file line/column bounds;
+- coordinates must be positive and ordered; an omitted region `endLine` uses
+  SARIF's same-line default when `endColumn` is present. Gate C checks line/
+  column bounds in the declared SARIF column unit before including an existing
+  source file and records other cases as partial;
 - stable domain-separated SHA-256 values identify normalized alerts and paths;
 - every alert points back to the exact raw artifact by SHA-256, `run_index`,
   and `result_index`.
 
 An existing file's normalized artifact digest is independently verified rather
 than copied from SARIF. For a missing file it is `null`, even if SARIF declares
-a hash. Coordinates remain upstream declarations until Gate C checks them
-against file contents. The primary Golden fixture is aligned to the checked-in
+a hash. Gate C rechecks available file content/coordinates before extracting a
+slice. The primary Golden fixture is aligned to the checked-in
 `PathReader.java` path, line positions, snippet, and SHA-256, but it remains
 synthetic rather than real CodeQL output.
 
-The domain layer sees strict, frozen top-level `AlertBundle`, `NormalizedAlert`,
-and path/location models, not raw vendor dictionaries. JSON Schemas for
-ProjectSpec, `AlertBundle`, `RunManifest`, and the CLI-facing
-`NormalizedRunSummary` are generated and checked for drift.
+The domain layer sees strict, frozen top-level alert, context, evidence, claim,
+manifest, and summary models, not raw vendor dictionaries. JSON Schemas for
+ProjectSpec, `AlertBundle`, `SliceArtifact`, `ContextIndex`, `EvidenceRegistry`,
+`RunManifest`, and CLI summaries are generated and checked for drift.
+
+## Gate C context and evidence contract
+
+`ContextBuilder` consumes only `AlertBundle` primary, additional, related, and
+path locations plus the validated source snapshot. It opens no-follow regular
+files up to 1 MiB, accepts UTF-8 text, checks the normalized digest and line/
+column bounds using each location's declared measurement, and never scans
+unrelated repository files. `path_function_slice` uses a brace/comment/string-aware
+lexical Java callable boundary finder; unresolved syntax falls back to a five-
+line window and records the precision loss. `fixed_window` is independently
+executable. `adaptive_slice` fails explicitly because it belongs to V0.3+.
+
+Each alert occurrence receives one canonical `SliceArtifact`, including Level
+0 rule/message/primary/additional/related/path facts, selected source ranges
+and content hashes, raw SARIF reference, token estimate, completeness, and
+omissions. The default budget is
+24,000 estimated tokens using a deterministic UTF-8 byte heuristic. Missing,
+binary, oversized, changed, out-of-bounds, and over-budget context remains
+`partial`; no source text or path edge is invented.
+
+The Evidence Registry allowlists cited artifact hashes and binds every item to
+an alert fingerprint plus exact raw result reference. CodeQL paths are medium
+supporting observations, not exploitability proof. Repository excerpts and
+lexical guard/sanitizer matches are neutral. Relationship endpoints, Claim
+evidence IDs, and artifact hashes must resolve inside the registry. Gate C
+generates no Claims; those contracts are the fail-closed boundary for Gate D.
+DOT and HTML exports contain the same validated identities, while HTML escapes
+all untrusted text and contains no script or verdict.
 
 ## Failure, observability, and remaining security boundary
 
@@ -304,11 +358,10 @@ Wrapper cache bootstrap is a separate controlled supply-chain step.
 
 ## Gate boundary and extension points
 
-Gate C may consume only a completed normalized bundle, validated snapshot,
-manifest identities, and raw result references. It must not reparse source
-paths permissively, infer missing CodeQL edges, or create a second normalization
-path. Context and evidence artifacts must be hashed and added through the same
-run-scoped ownership model.
+Gate D may consume only the completed normalized bundle, validated Gate C
+context/evidence artifacts, manifest identities, and raw result references. It
+must not introduce new facts outside the registry, accept dangling evidence
+IDs, or create a branch-specific downstream workflow.
 
 Later Fake/Replay providers, bounded Analyst/Rebuttal/Judge agents,
 deterministic TP/FP/NMC policy, and escaped JSONL/HTML reporting must preserve
@@ -331,11 +384,15 @@ Current acceptance evidence consists of:
   command artifacts, timeouts, non-zero exits, missing tools, and pre-existing
   outputs;
 - integration tests proving offline ingest and controlled real-runner output
-  converge on the same normalizer and audit state machine, including structured
-  failed-run artifacts;
-- a real offline CLI ingest plus an actual missing-CodeQL `scan` failure,
-  recorded with commands and exit codes in the dated progress log.
+  converge on the same normalizer, context/evidence builders, and audit state
+  machine, including structured failed-run artifacts;
+- Gate C unit/security tests for callable/window selection, token omissions,
+  missing and symlinked source, unsupported adaptive context, content hashes,
+  dangling relationship/claim/artifact references, and DOT/HTML navigation;
+- a real offline CLI ingest, an actual missing-CodeQL `scan` failure, and a
+  successful pinned Java/CodeQL smoke, recorded with commands, exit codes, and
+  artifact hashes in the dated progress log.
 
-A successful external Java/CodeQL smoke, hosted CI result, and clean-room
-reproduction remain separate evidence that must be recorded honestly when the
-required environment exists.
+The recorded external Java/CodeQL smoke is environment-specific. A hosted CI
+result and clean-room reproduction remain separate evidence that must be
+recorded honestly when those environments exist.

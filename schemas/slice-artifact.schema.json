@@ -1,5 +1,134 @@
 {
   "$defs": {
+    "ContextCandidate": {
+      "additionalProperties": false,
+      "description": "A lexical guard or sanitizer candidate, never a semantic fact.",
+      "properties": {
+        "excerpt": {
+          "maxLength": 100000,
+          "minLength": 1,
+          "title": "Excerpt",
+          "type": "string"
+        },
+        "extractor": {
+          "const": "java-lexical-candidate@1",
+          "default": "java-lexical-candidate@1",
+          "title": "Extractor",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "guard",
+            "sanitizer"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/SourceLocation"
+        }
+      },
+      "required": [
+        "kind",
+        "location",
+        "excerpt"
+      ],
+      "title": "ContextCandidate",
+      "type": "object"
+    },
+    "ContextOmission": {
+      "additionalProperties": false,
+      "description": "One explicit reason requested context could not be included.",
+      "properties": {
+        "code": {
+          "enum": [
+            "source_file_missing",
+            "source_not_regular",
+            "source_too_large",
+            "binary_source",
+            "unsupported_encoding",
+            "coordinate_out_of_bounds",
+            "source_digest_mismatch",
+            "function_boundary_unresolved",
+            "token_budget_exceeded"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "detail": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "path",
+        "detail"
+      ],
+      "title": "ContextOmission",
+      "type": "object"
+    },
+    "ContextReference": {
+      "additionalProperties": false,
+      "description": "Why one normalized source location selected a source slice.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "primary",
+            "additional",
+            "related",
+            "source",
+            "sink",
+            "path_step"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/SourceLocation"
+        },
+        "path_ordinal": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path Ordinal"
+        },
+        "step_index": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step Index"
+        }
+      },
+      "required": [
+        "kind",
+        "location"
+      ],
+      "title": "ContextReference",
+      "type": "object"
+    },
     "DataFlowPath": {
       "additionalProperties": false,
       "description": "One threadFlow, preserved in original occurrence order.",
@@ -63,40 +192,9 @@
       "title": "DataFlowPath",
       "type": "object"
     },
-    "JsonValue": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "integer"
-        },
-        {
-          "type": "number"
-        },
-        {
-          "type": "boolean"
-        },
-        {
-          "items": {
-            "$ref": "#/$defs/JsonValue"
-          },
-          "type": "array"
-        },
-        {
-          "additionalProperties": {
-            "$ref": "#/$defs/JsonValue"
-          },
-          "type": "object"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "NormalizedAlert": {
+    "LevelZeroContext": {
       "additionalProperties": false,
-      "description": "Provider-neutral normalized representation of one SARIF result.",
+      "description": "Normalized alert facts included without reparsing SARIF.",
       "properties": {
         "additional_locations": {
           "default": [],
@@ -106,64 +204,13 @@
           "title": "Additional Locations",
           "type": "array"
         },
-        "alert_fingerprint": {
-          "pattern": "^[0-9a-f]{64}$",
-          "title": "Alert Fingerprint",
-          "type": "string"
-        },
-        "commit_sha": {
-          "anyOf": [
-            {
-              "pattern": "^[0-9a-f]{40}$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Commit Sha"
-        },
-        "fingerprints": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "title": "Fingerprints",
-          "type": "object"
-        },
-        "has_code_flows": {
-          "title": "Has Code Flows",
-          "type": "boolean"
-        },
-        "level": {
-          "anyOf": [
-            {
-              "maxLength": 64,
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Level"
-        },
         "message": {
           "maxLength": 1000000,
           "minLength": 1,
           "title": "Message",
           "type": "string"
         },
-        "partial_fingerprints": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "title": "Partial Fingerprints",
-          "type": "object"
-        },
         "paths": {
-          "default": [],
           "items": {
             "$ref": "#/$defs/DataFlowPath"
           },
@@ -173,9 +220,6 @@
         "primary_location": {
           "$ref": "#/$defs/SourceLocation"
         },
-        "raw_result_reference": {
-          "$ref": "#/$defs/RawResultReference"
-        },
         "related_locations": {
           "default": [],
           "items": {
@@ -184,46 +228,17 @@
           "title": "Related Locations",
           "type": "array"
         },
-        "repository_identity": {
-          "maxLength": 4096,
-          "minLength": 1,
-          "title": "Repository Identity",
-          "type": "string"
-        },
-        "result_properties": {
-          "additionalProperties": {
-            "$ref": "#/$defs/JsonValue"
-          },
-          "title": "Result Properties",
-          "type": "object"
-        },
         "rule": {
           "$ref": "#/$defs/RuleMetadata"
-        },
-        "run_id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "title": "Run Id",
-          "type": "string"
-        },
-        "schema_version": {
-          "const": "1.0",
-          "default": "1.0",
-          "title": "Schema Version",
-          "type": "string"
         }
       },
       "required": [
-        "run_id",
-        "repository_identity",
         "rule",
         "message",
         "primary_location",
-        "has_code_flows",
-        "alert_fingerprint",
-        "raw_result_reference"
+        "paths"
       ],
-      "title": "NormalizedAlert",
+      "title": "LevelZeroContext",
       "type": "object"
     },
     "PathStep": {
@@ -489,6 +504,98 @@
       "title": "RuleMetadata",
       "type": "object"
     },
+    "SliceContent": {
+      "additionalProperties": false,
+      "description": "Hashable payload for one alert's Level 0/1 context.",
+      "properties": {
+        "alert_fingerprint": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Alert Fingerprint",
+          "type": "string"
+        },
+        "candidate_sanitizers": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ContextCandidate"
+          },
+          "title": "Candidate Sanitizers",
+          "type": "array"
+        },
+        "completeness": {
+          "enum": [
+            "complete",
+            "partial"
+          ],
+          "title": "Completeness",
+          "type": "string"
+        },
+        "context_policy": {
+          "enum": [
+            "fixed_window",
+            "path_function_slice"
+          ],
+          "title": "Context Policy",
+          "type": "string"
+        },
+        "context_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Context Version",
+          "type": "string"
+        },
+        "guards": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ContextCandidate"
+          },
+          "title": "Guards",
+          "type": "array"
+        },
+        "level_zero": {
+          "$ref": "#/$defs/LevelZeroContext"
+        },
+        "maximum_token_budget": {
+          "minimum": 1,
+          "title": "Maximum Token Budget",
+          "type": "integer"
+        },
+        "omitted": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ContextOmission"
+          },
+          "title": "Omitted",
+          "type": "array"
+        },
+        "raw_result_reference": {
+          "$ref": "#/$defs/RawResultReference"
+        },
+        "source_slices": {
+          "items": {
+            "$ref": "#/$defs/SourceSlice"
+          },
+          "title": "Source Slices",
+          "type": "array"
+        },
+        "token_estimate": {
+          "minimum": 0,
+          "title": "Token Estimate",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "alert_fingerprint",
+        "raw_result_reference",
+        "context_policy",
+        "level_zero",
+        "source_slices",
+        "token_estimate",
+        "maximum_token_budget",
+        "completeness"
+      ],
+      "title": "SliceContent",
+      "type": "object"
+    },
     "SourceLocation": {
       "additionalProperties": false,
       "description": "A validated source-root-relative physical location.",
@@ -578,61 +685,115 @@
       ],
       "title": "SourceLocation",
       "type": "object"
+    },
+    "SourceSlice": {
+      "additionalProperties": false,
+      "description": "One bounded source excerpt selected for one or more alert locations.",
+      "properties": {
+        "artifact_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Artifact Sha256",
+          "type": "string"
+        },
+        "content": {
+          "maxLength": 1000000,
+          "title": "Content",
+          "type": "string"
+        },
+        "content_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Content Sha256",
+          "type": "string"
+        },
+        "enclosing_symbol": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enclosing Symbol"
+        },
+        "end_line": {
+          "minimum": 1,
+          "title": "End Line",
+          "type": "integer"
+        },
+        "path": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "references": {
+          "items": {
+            "$ref": "#/$defs/ContextReference"
+          },
+          "minItems": 1,
+          "title": "References",
+          "type": "array"
+        },
+        "selection": {
+          "enum": [
+            "fixed_window",
+            "enclosing_function"
+          ],
+          "title": "Selection",
+          "type": "string"
+        },
+        "slice_id": {
+          "pattern": "^slice_[0-9a-f]{64}$",
+          "title": "Slice Id",
+          "type": "string"
+        },
+        "start_line": {
+          "minimum": 1,
+          "title": "Start Line",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "slice_id",
+        "selection",
+        "path",
+        "start_line",
+        "end_line",
+        "artifact_sha256",
+        "content_sha256",
+        "content",
+        "references"
+      ],
+      "title": "SourceSlice",
+      "type": "object"
     }
   },
   "additionalProperties": false,
-  "description": "All normalized results from one raw SARIF artifact.",
+  "description": "One reproducible alert context with a digest over its canonical content.",
   "properties": {
-    "alerts": {
-      "items": {
-        "$ref": "#/$defs/NormalizedAlert"
-      },
-      "title": "Alerts",
-      "type": "array"
-    },
-    "commit_sha": {
-      "anyOf": [
-        {
-          "pattern": "^[0-9a-f]{40}$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Commit Sha"
-    },
-    "raw_sarif_sha256": {
-      "pattern": "^[0-9a-f]{64}$",
-      "title": "Raw Sarif Sha256",
-      "type": "string"
-    },
-    "repository_identity": {
-      "maxLength": 4096,
-      "minLength": 1,
-      "title": "Repository Identity",
-      "type": "string"
-    },
-    "run_id": {
-      "maxLength": 128,
-      "minLength": 1,
-      "title": "Run Id",
-      "type": "string"
+    "content": {
+      "$ref": "#/$defs/SliceContent"
     },
     "schema_version": {
       "const": "1.0",
       "default": "1.0",
       "title": "Schema Version",
       "type": "string"
+    },
+    "slice_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Slice Sha256",
+      "type": "string"
     }
   },
   "required": [
-    "run_id",
-    "repository_identity",
-    "raw_sarif_sha256",
-    "alerts"
+    "slice_sha256",
+    "content"
   ],
-  "title": "AlertBundle",
+  "title": "SliceArtifact",
   "type": "object"
 }

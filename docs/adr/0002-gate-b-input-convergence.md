@@ -31,7 +31,9 @@ one parser and normalizer:
    Java/`javac` through validated argv with `shell=False`, applies timeouts,
    checks the configured CodeQL version and same-JDK Java/`javac`, validates the
    wrapper's exact Apache Maven release URL/SHA declaration and exact optional
-   qlpack pins,
+   qlpack pins, resolves the Java `security-extended` blueprint alias to
+   `codeql/java-queries:codeql-suites/java-security-extended.qls` in the pinned
+   bundle,
    passes an explicit non-secret environment allowlist, and records commands,
    exits, durations, bounded/redacted stdout/stderr, and hashes.
 2. `ingest-sarif` copies an operator-selected bounded regular file into the run
@@ -49,6 +51,10 @@ one parser and normalizer:
 6. SARIF locations are interpreted relative to the validated source snapshot
    root. The resolver never fetches a URI and rejects traversal, remote/UNC
    authorities, unsafe schemes, containment escapes, and symlink crossings.
+   CodeQL's exact case-insensitive `%SRCROOT%` base convention maps to that
+   already validated root even when `originalUriBaseIds` omits it; every other
+   undeclared base still fails closed. An omitted region `endLine` uses SARIF's
+   same-line default when `endColumn` is present.
    The operator remains responsible for selecting the source revision that
    actually produced an ingested SARIF artifact. If a referenced regular file
    exists, its SHA-256 is independently computed and a conflicting SARIF hash
@@ -161,8 +167,9 @@ external controls appropriate to the environment.
 SARIF-declared artifact hashes and coordinates are preserved as provenance. An
 existing regular snapshot file is independently hashed and a conflict is
 rejected; a missing file remains allowed with no verified digest. Coordinates
-are not yet checked against actual file line/column bounds. Downstream evidence
-must keep those distinctions explicit.
+were not checked against actual file line/column bounds in Gate B. Gate C now
+keeps those distinctions explicit and validates available files using the
+run-declared SARIF `columnKind`.
 
 Golden fixtures must be labelled as original synthetic inputs. They may prove
 parser, normalizer, state, and downstream replay behavior, but they may never be
@@ -186,7 +193,9 @@ This decision is satisfied when:
 - a tool-less real `scan` produces an explicit `CODEQL_TOOL_UNAVAILABLE`
   failure and a failed manifest;
 - a successful real Java/CodeQL smoke is recorded separately when its external
-  prerequisites exist.
+  prerequisites exist. Run `20260721T114113190209Z-8d9afd2ef3b7` satisfies
+  this environment-specific criterion with `NORMALIZED` zero-result SARIF;
+  clean-room reproduction remains separate evidence.
 
 ## Revisit criteria
 

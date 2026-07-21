@@ -39,6 +39,9 @@ dev = [
 [project.scripts]
 evitriage = "evitriage.cli:main"
 
+[tool.uv]
+required-version = "==0.8.3"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/evitriage"]
 

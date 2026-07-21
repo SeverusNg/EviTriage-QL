@@ -3,14 +3,17 @@
 **Evidence-Grounded LLM-Agent Triage for CodeQL Alerts**  
 基于 CodeQL 路径证据与大模型 Agent 的可审计漏洞告警二次筛选系统
 
-> Current implementation status: **Gate B input layer**. The checked-in code
-> supports strict local project configuration, managed source snapshots and
-> workspaces, a real CodeQL command runner, existing-SARIF ingest, deterministic
-> SARIF 2.1.0 normalization, and run-scoped audit artifacts. The offline Golden
-> SARIF path is tested without Java or CodeQL. A real Java/CodeQL smoke has not
-> been run in the current environment because those external tools are absent.
-> Gate C context/evidence, LLM agents, TP/FP/NMC decisions, and reports are not
-> implemented.
+> Current implementation status: **Gate C-Extra query-positive readiness**. The
+> checked-in code supports strict local project configuration, managed source
+> snapshots and workspaces, a real CodeQL command runner, existing-SARIF ingest,
+> deterministic SARIF 2.1.0 normalization, bounded Level 0/1 Java context, an
+> artifact-addressed evidence registry, and run-scoped audit artifacts. The
+> offline Golden SARIF path is tested without Java or CodeQL. A pinned Java
+> 17/CodeQL 2.26.1 scan of the original Socket-based CWE-22 case produced one
+> `java/path-injection` result with an eight-step path and reached
+> `CONTEXT_READY` on 2026-07-22. That is real query/pipeline evidence, not a
+> vulnerability verdict or a substitute for clean-room reproduction.
+> LLM agents, TP/FP/NMC decisions, and decision reports are not implemented.
 
 ## Problem
 
@@ -22,12 +25,14 @@ produce one of three auditable outcomes: true positive (`TP`), false positive
 (`FP`), or needs more context (`NMC`). It will never automatically dismiss an
 upstream alert.
 
-Gate B establishes the two input branches for that later workflow. A real
+Gate B establishes the two input branches. Gate C consumes their shared output:
+a real
 `scan` and an operator-supplied `ingest-sarif` both preserve and hash their raw
-SARIF, then enter the same normalizer. This keeps offline reproduction useful
-without presenting Golden data as a real CodeQL result.
+SARIF, enter the same normalizer, and then use the same context/evidence path.
+This keeps offline reproduction useful without presenting Golden data as a real
+CodeQL result.
 
-## Gate B input architecture
+## Gate C input-to-evidence architecture
 
 ```mermaid
 flowchart LR
@@ -41,24 +46,37 @@ flowchart LR
     I -->|operator input copy| RAW
     RAW --> N[Shared SARIF 2.1.0 normalizer]
     N --> A[Normalized AlertBundle]
-    A --> J[Run manifest + append-only event log]
-    A -. Gate C input .-> E[Context and evidence]:::future
-    classDef future fill:#f5f5f5,stroke:#777,stroke-dasharray: 5 5;
+    A --> X[Level 0/1 SliceArtifact per alert]
+    X --> E[Evidence Registry + DOT + source map]
+    E --> J[Run manifest + append-only event log]
 ```
 
 The detailed boundaries and trust assumptions are documented in
-[`docs/architecture.md`](docs/architecture.md). The foundation and Gate B input
-decisions are recorded in
+[`docs/architecture.md`](docs/architecture.md). The foundation, input
+convergence, and context/evidence decisions are recorded in
 [`ADR 0001`](docs/adr/0001-initial-architecture.md) and
-[`ADR 0002`](docs/adr/0002-gate-b-input-convergence.md).
+[`ADR 0002`](docs/adr/0002-gate-b-input-convergence.md),
+[`ADR 0003`](docs/adr/0003-gate-c-context-evidence.md), and
+[`ADR 0004`](docs/adr/0004-gate-c-extra-query-positive-benchmark.md).
 
 ## Five-minute offline quickstart
 
 Prerequisites for the tested Golden SARIF path:
 
 - Python 3.12;
-- [`uv`](https://docs.astral.sh/uv/) on `PATH`;
+- [`uv 0.8.3`](https://docs.astral.sh/uv/) installed in a persistent location
+  and available on `PATH` in a fresh login shell;
 - GNU Make (or a compatible `make`).
+
+The executable `tool.uv.required-version` gate in `pyproject.toml` rejects a
+different uv version. A temporary bootstrap below `/tmp` is useful for recovery
+but is not a completed development-environment installation. Verify the
+environment before synchronization:
+
+```bash
+command -v uv
+uv --version  # expected: uv 0.8.3
+```
 
 Java, Maven, CodeQL, and API keys are not required for this Golden path. Once
 the locked Python dependencies are available, the ingest command itself makes
@@ -83,8 +101,10 @@ uv run evitriage doctor --json
 
 `ingest-sarif` creates a managed source snapshot and a distinct run directory,
 copies the exact input bytes to `input/source.sarif`, records their SHA-256,
-and writes `normalized/alerts.json`, the resolved ProjectSpec/workspace
-descriptor, `workflow-events.jsonl`, and `run-manifest.json`. Before finalizing,
+and writes `normalized/alerts.json`, one `context/slices/*.json` per alert,
+`context/index.json`, `evidence/registry.json`, `evidence/graph.dot`, and an
+escaped `context/source-map.html`, plus the resolved ProjectSpec/workspace
+descriptor and audit files. Before finalizing,
 the journal reopens every registered artifact, verifies its size and SHA-256,
 then makes the artifact and audit files owner-read-only (`0400`). The
 `normalize` command accepts the same arguments and deliberately exercises the
@@ -112,7 +132,7 @@ uv run pytest tests/unit/test_sarif_normalizer.py -q
 Use `uv run pytest --collect-only -q` to discover the exact test names present
 in the current checkout.
 
-## Implemented Gate B outputs
+## Implemented Gate B/C outputs
 
 The two example ProjectSpecs select different original synthetic Java 17
 fixtures through one `ProjectRegistry`. Their build plans invoke only the
@@ -132,22 +152,37 @@ The SARIF boundary currently supports:
 - an exact raw reference `(raw SARIF SHA-256, run index, result index)` on every
   normalized alert;
 - rejection of malformed coordinates, duplicate JSON keys, traversal, remote
-  or UNC source URIs, and symlink escapes.
+  or UNC source URIs, symlink escapes, and missing/unsupported `columnKind` on
+  non-empty result runs.
 
 Snapshot binding here is a path-containment rule, not a source-revision proof.
 For existing SARIF, the operator must select the corresponding source revision;
 when a referenced regular file exists, Gate B independently computes its
 SHA-256 and rejects a conflicting SARIF assertion. A missing file remains
 allowed with normalized `artifact_sha256=null`. Coordinates are validated for
-positive/order semantics but not yet checked against actual file line/column
-bounds. The primary Golden SARIF path, lines, snippet, and declared hash match
+positive/order semantics; Gate C checks coordinates against a safely opened
+regular UTF-8 file before including source, using the run-declared UTF-16-code-
+unit or Unicode-code-point measurement. A missing, binary, oversized, or out-
+of-bounds source remains an explicit `partial` omission rather than an invented
+excerpt. The primary Golden SARIF path, lines, snippet, and declared hash match
 the checked-in `PathReader.java` fixture.
 
-Successful input runs end at `NORMALIZED`. They do **not** create source
-context, evidence, vulnerability classifications, or reports. A normalized
-alert remains a CodeQL/SARIF candidate, not an EviTriage verdict. Generated
-schemas cover ProjectSpec, `AlertBundle`, `RunManifest`, and the CLI-facing
-`NormalizedRunSummary`.
+Successful input runs end at `CONTEXT_READY`. `path_function_slice` selects the
+smallest lexically identified Java callable for primary/additional/related and
+source/sink/path locations; `fixed_window` is also executable. The 24,000-token
+estimate is a deterministic byte-based budget, and over-budget ranges are
+recorded as omissions. `adaptive_slice` remains explicitly unavailable.
+Evidence items cite only registered normalized/slice artifact hashes;
+relationships and Claim contracts reject dangling evidence IDs. Generated
+claims, vulnerability classifications, and decision reports do **not** exist
+yet. The source-map HTML is escaped navigation, not a verdict or Gate E report.
+
+Gate C-Extra completed its bounded acceptance follow-up with real run
+`20260721T201029897333Z-849cee21ce99`: the original Socket-based CWE-22 case
+produced one CodeQL `java/path-injection` result, one complete eight-step path,
+one complete `readRequestedFile` slice, four evidence items, and zero claims at
+`CONTEXT_READY`. Its Golden equivalent could not satisfy this gate. See ADR
+0004 and the dated progress log for the frozen boundary and artifact hashes.
 
 The Gate A commands remain available:
 
@@ -201,8 +236,15 @@ the terminal event, and register any bounded CodeQL command/log artifacts that
 were produced before failure. Golden SARIF fixtures are original test data and
 are not evidence that CodeQL analyzed either Java fixture.
 
-No successful real scan is claimed by this checkout yet. The dated evidence log
-records the actual unavailable-tool result from the current environment.
+A successful local smoke is recorded as run
+`20260721T114113190209Z-8d9afd2ef3b7`: CodeQL database creation and
+`java-security-extended.qls` analysis both exited 0, the run reached
+`NORMALIZED`, and the preserved SARIF SHA-256 is
+`f6ba2d5bacc5bf6ca88e9a66063a2bff9579cddcb0e0176d40c3d4185ded62c1`.
+Its 120 rule descriptors and zero results prove that the fixture completed the
+real tool path; they do not prove that other code is vulnerability-free. The
+dated evidence log also retains the earlier missing-tool and invalid-suite
+failures instead of rewriting that history.
 
 ## Reproducibility
 
@@ -227,11 +269,11 @@ research artifacts. See the dated evidence log in
 ## Limitations, safety, and ethics
 
 The current boundary is enumerated in
-[`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md). Gate C and later capabilities—
-path/function context, evidence and claims, Fake/Replay or real LLM adapters,
-deterministic TP/FP/NMC policy, JSONL/HTML reports, and `make demo`—remain
-unavailable. Remote Git acquisition, Gradle, and automatic verification are
-also outside this gate.
+[`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md). Gate D and later capabilities—
+generated claims, Fake/Replay or real LLM adapters, deterministic TP/FP/NMC
+policy, decision JSONL/HTML reports, and `make demo`—remain unavailable. Remote
+Git acquisition, Gradle, adaptive context, and automatic verification are also
+outside this gate.
 
 Target repositories, source comments, build files, and SARIF documents are
 untrusted data. They must not select model endpoints, supply secrets, expand

@@ -249,9 +249,13 @@ def test_duplicate_yaml_keys_are_rejected(tmp_path: Path) -> None:
 def test_java_microbench_is_a_minimal_maven_project(fixture_name: str) -> None:
     fixture = REPOSITORY_ROOT / "tests/fixtures/java-microbench" / fixture_name
     pom = (fixture / "pom.xml").read_text(encoding="utf-8")
+    expected_sources = {
+        "path-app": {"PathReader.java", "SocketPathReader.java"},
+        "command-app": {"CommandRunner.java"},
+    }
 
     assert "<modelVersion>4.0.0</modelVersion>" in pom
     assert "<maven.compiler.release>17</maven.compiler.release>" in pom
     sources = list((fixture / "src/main/java").rglob("*.java"))
-    assert len(sources) == 1
+    assert {source.name for source in sources} == expected_sources[fixture_name]
     assert "public static void main" in sources[0].read_text(encoding="utf-8")

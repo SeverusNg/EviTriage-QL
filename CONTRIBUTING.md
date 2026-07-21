@@ -5,9 +5,14 @@ should make their trust assumptions, evidence, and current gate explicit.
 
 ## Set up the development environment
 
-Install Python 3.12, `uv`, and Make, then run:
+Install Python 3.12, `uv 0.8.3`, and Make. Required tools must live in a
+persistent user or system location and resolve from `PATH` in a fresh login
+shell; a `/tmp` bootstrap is not an accepted handoff environment. The uv version
+is enforced by `pyproject.toml`. Verify it, then run:
 
 ```bash
+command -v uv
+uv --version
 uv sync --all-extras
 make check
 uv run evitriage doctor --json

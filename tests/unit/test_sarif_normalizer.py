@@ -32,6 +32,7 @@ def test_single_path_normalizes_rule_locations_and_raw_reference(tmp_path: Path)
     assert alert.rule.query_pack is None
     assert alert.rule.query_pack_version is None
     assert alert.primary_location.path == "src/main/java/org/evitriage/fixture/PathReader.java"
+    assert alert.primary_location.column_kind == "utf16CodeUnits"
     assert alert.primary_location.artifact_sha256 is None
     assert (
         alert.primary_location.snippet == "Files.readString(requestedPath, StandardCharsets.UTF_8)"
@@ -130,6 +131,10 @@ def test_multiple_runs_have_precise_raw_result_references(tmp_path: Path) -> Non
     assert [alert.rule.rule_id for alert in bundle.alerts] == ["rule/a", "rule/b"]
     assert [alert.raw_result_reference.run_index for alert in bundle.alerts] == [0, 1]
     assert [alert.raw_result_reference.result_index for alert in bundle.alerts] == [0, 0]
+    assert [alert.primary_location.column_kind for alert in bundle.alerts] == [
+        "utf16CodeUnits",
+        "unicodeCodePoints",
+    ]
 
 
 def test_windows_uri_base_normalizes_to_portable_relative_path(tmp_path: Path) -> None:

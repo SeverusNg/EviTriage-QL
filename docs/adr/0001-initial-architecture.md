@@ -22,7 +22,8 @@ external tools and models are introduced.
 We will build a typed Python 3.12 modular monolith with the following choices:
 
 1. Use a `src/` package, Typer CLI, Pydantic v2 strict models, SQLAlchemy 2,
-   SQLite by default, `uv`, pytest, Ruff, and mypy strict.
+   SQLite by default, `uv 0.8.3`, pytest, Ruff, and mypy strict. Enforce the uv
+   version through project configuration.
 2. Make ProjectSpec the only target-selection boundary. Gate A supports local
    sources only. Two different fixture configurations must pass through the
    same ProjectRegistry; core modules contain no target names or target-specific
@@ -43,7 +44,12 @@ We will build a typed Python 3.12 modular monolith with the following choices:
 8. Keep CI offline with respect to models. Its canonical steps are
    `uv sync --all-extras` and `make check`; a real CodeQL smoke is a separately
    recorded later-gate requirement.
-9. Do not create empty packages or placeholder success paths for Gate B+. Add an
+9. Install gate-required tools in persistent user/system locations that are
+   discoverable on a fresh login-shell `PATH`. An ephemeral bootstrap may be
+   used for recovery, but cannot satisfy deployment, reproduction, or handoff
+   evidence. Record the source, version, integrity verification, install path,
+   command, and exit code for environment provisioning.
+10. Do not create empty packages or placeholder success paths for Gate B+. Add an
    interface only with executable behavior needed by the current gate, or
    document the future seam without claiming implementation.
 
@@ -135,4 +141,3 @@ Revisit this ADR if a supported platform cannot safely provide the required
 canonical-path/locking semantics, if multi-user experiments justify a service
 backend, or if later adapters reveal a domain dependency on a vendor SDK. Such a
 change requires a new ADR; it must not silently weaken the invariants above.
-

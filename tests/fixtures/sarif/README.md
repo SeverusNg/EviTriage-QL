@@ -12,7 +12,7 @@ are deliberately synthetic structural or adversarial variants used to test:
 
 - multiple, duplicate, and absent code-flow paths;
 - multiple SARIF runs and duplicate results;
-- missing snippets and Windows URI bases;
+- both allowed `columnKind` values, missing snippets, and Windows URI bases;
 - invalid regions, traversal/remote URIs, and other unsafe input.
 
 Tests preserve each input's exact bytes and identify normalized results with

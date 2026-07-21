@@ -1,8 +1,8 @@
 # Known limitations
 
-This document describes the checked-in **Gate B input-layer** baseline. Items
-below are intentional scope boundaries or unresolved verification gaps, not
-implicit claims that the complete v0.1 research workflow exists.
+This document describes the checked-in **Gate C-Extra query-positive** baseline.
+Items below are intentional scope boundaries or unresolved verification gaps,
+not implicit claims that the complete v0.1 research workflow exists.
 
 ## Functional boundary
 
@@ -27,26 +27,59 @@ implicit claims that the complete v0.1 research workflow exists.
   `mvnw --version`, hash an already cached distribution, or prove that a
   pre-existing wrapper cache matches the declared checksum. Cache integrity is
   an external supply-chain prerequisite.
-- The CodeQL runner exists and is pinned to CLI `2.26.1`, but a successful real
-  Java/CodeQL smoke has **not** been executed in the recorded environment:
-  Java/`javac`, CodeQL, and a prepared Maven cache were unavailable. The
-  checked-in Golden SARIF is synthetic test input, not captured evidence from
-  either Java fixture.
+- The original Gate B CodeQL CLI `2.26.1`/Java 17 smoke produced valid SARIF
+  with 120 rule descriptors and zero results. Gate C-Extra then added a distinct
+  real scan of the SHA-bound Socket case: one `java/path-injection` result, one
+  complete eight-step path, and complete context reached `CONTEXT_READY`. These
+  environment-specific runs validate the runner/query/pipeline combination;
+  they are not an EviTriage classification, proof of exploitability, evidence
+  about arbitrary repositories, or clean-room reproduction. Golden SARIF
+  remains separate synthetic input, not captured output from either run.
+- The built-in `security-extended` shorthand is currently mapped only for the
+  v0.1 `java-kotlin` path. Adding another CodeQL language requires an explicit,
+  tested bundle-suite mapping rather than guessing a pack or filename.
 - The SARIF parser intentionally normalizes a supported SARIF 2.1.0 subset:
   runs, driver rules, results, artifacts, URI bases, physical/related
   locations, code flows/thread flows, fingerprints, and properties. Unknown
-  extension fields are ignored, while a result without a resolvable physical
-  source location is rejected instead of guessed.
+  extension fields are ignored. A non-empty result run without the required
+  `columnKind`, an unsupported column unit, or a result without a resolvable
+  physical source location is rejected instead of guessed. The exact
+  case-insensitive `%SRCROOT%` convention is mapped to the validated snapshot
+  root; other undeclared URI bases are rejected. An omitted `endLine` uses the
+  SARIF same-line default when `endColumn` is present.
 - `ingest-sarif` requires a selected local source tree so source URIs can be
   interpreted relative to a validated snapshot root. Gate B does not prove that
   the operator selected the source revision that produced the SARIF, nor does
   it require every referenced file to exist. It is not a source-free SARIF
   viewer; source/SARIF correspondence remains operator-supplied provenance.
-- Path/function context, evidence registries, claims, and artifact-addressed
-  evidence graphs are not implemented.
+- Gate C's Java callable boundary finder is a dependency-free lexical extractor,
+  not an AST/CFG or compiler analysis. It handles the checked-in fixtures and
+  ignores braces in comments/string literals, but complex Java syntax may fall
+  back to a fixed window with `function_boundary_unresolved`. It does not infer
+  missing CodeQL edges or semantic reachability.
+- Gate C accepts only bounded regular UTF-8 source files up to 1 MiB. Its token
+  estimate is deterministic UTF-8 bytes divided by four, not a provider
+  tokenizer. The default per-alert budget is 24,000 estimated tokens.
+- Level 1 does not yet include caller/callee expansion, AST-resolved guards,
+  sanitizer definitions, configuration/test summaries, overrides, framework
+  binding, or dynamic dispatch. Lexically matched guard/sanitizer lines are
+  explicitly neutral candidates. `adaptive_slice` returns
+  `FEATURE_NOT_AVAILABLE` rather than pretending to work.
+- Missing, binary, oversized, changed, out-of-bounds, or over-budget source
+  produces a hashed `partial` SliceArtifact with omissions; it does not make the
+  whole alert disappear and does not fabricate source. Existing locations are
+  checked against the current snapshot using the run-declared UTF-16-code-unit
+  or Unicode-code-point column semantics during context extraction, while
+  absent files remain unknown. A leading UTF-8 BOM is excluded from coordinate
+  and excerpt text but remains covered by the raw artifact digest. Visual
+  columns and tab expansion are not inferred because SARIF columns are
+  measurement units, not rendered offsets.
+- The Evidence Registry and Claim schemas enforce artifact/evidence references,
+  but Gate C generates evidence only and emits no claims. The DOT graph and
+  escaped source-map HTML are navigation artifacts, not vulnerability reports.
 - Fake/Replay/real LLM adapters and Analyst/Rebuttal/Judge are not implemented.
-- Deterministic TP/FP/NMC policy and JSONL/HTML reports are not implemented;
-  therefore Gate B produces no security classification and cannot dismiss an
+- Deterministic TP/FP/NMC policy and decision JSONL/HTML reports are not
+  implemented; therefore Gate C produces no security classification and cannot dismiss an
   upstream alert.
 - The complete offline `make demo`, verification sandboxes, calibration,
   benchmark datasets, paper statistics, PostgreSQL, and GitHub alert
@@ -54,7 +87,12 @@ implicit claims that the complete v0.1 research workflow exists.
 
 ## Operational boundary
 
-- SQLite remains a deliberately minimal local metadata backend. Gate B audit
+- `pyproject.toml` enforces `uv 0.8.3`, but the repository does not vendor the
+  uv executable or an installer. Operators must install the pinned release in a
+  persistent location, verify its upstream integrity, and expose it on the
+  login-shell `PATH`; an ephemeral bootstrap is not clean-room evidence. A uv
+  upgrade requires an explicit pin, lock, documentation, and evidence update.
+- SQLite remains a deliberately minimal local metadata backend. Gate C audit
   artifacts and workflow state are file-backed under each managed run root;
   normalized alerts and events are not yet transactionally indexed in SQLite.
 - `workflow-events.jsonl` is append-only for a run. `run-manifest.json` is a
@@ -70,9 +108,9 @@ implicit claims that the complete v0.1 research workflow exists.
   detectable but are not a tamper-proof ledger: the filesystem owner or root
   can change permissions and rewrite artifacts. Research retention should copy
   completed runs into an independently controlled, content-addressed archive.
-- The Gate B manifest covers the input/normalization stage and its artifact
-  hashes. It is not yet the complete v0.1 manifest for context, prompts,
-  provider/model identity, decisions, and reports.
+- The manifest now covers input, normalization, context, evidence, and their
+  artifact hashes. It does not yet cover prompts, provider/model identity,
+  decisions, or reports.
 - Public Pydantic records are frozen against top-level field reassignment, but
   nested mapping values such as fingerprints, properties, and tool versions are
   ordinary mutable Python dictionaries. Callers must not treat in-process
@@ -102,15 +140,18 @@ implicit claims that the complete v0.1 research workflow exists.
   database metadata inventory are not yet complete research provenance.
 - A referenced regular snapshot file is independently SHA-256 hashed and a
   conflicting SARIF declaration is rejected. Missing referenced files remain
-  allowed with no verified normalized digest, and coordinates are not checked
-  against actual file line/column bounds. Later evidence extraction must retain
-  those unknown/unverified distinctions.
+  allowed with no verified normalized digest. Gate C checks coordinates only
+  for source files it can safely open; absent files retain the unknown/unverified
+  distinction.
 - SARIF input is bounded to 128 MiB, normalization to 100,000 results and
   100,000 path steps, and source snapshotting has separate entry/depth/byte
   bounds. Very large production analyses may require explicit policy changes.
 - The example fixtures demonstrate configuration switching, isolation, and an
   intended CWE-22/CWE-78 source pattern; they are not a representative
   vulnerability benchmark and have no EviTriage TP/FP/NMC labels at this gate.
+- Gate C-Extra covers only one real query-positive CWE-22 path. Its completion
+  does not replace the pending six-case TP/FP/NMC/prompt-injection matrix or
+  establish generalization to public or real-project benchmarks.
 - No hosted CI result or clean-room real-tool reproduction should be inferred
   until its actual command, exit code, tool versions, and artifacts are
   recorded in the progress log.

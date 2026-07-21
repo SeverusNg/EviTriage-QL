@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "case_id": "cwe22-socket-direct-tp",
+  "cwe_id": "CWE-22",
+  "language": "java",
+  "provenance": {
+    "kind": "original-synthetic",
+    "license_spdx": "Apache-2.0",
+    "description": "Original EviTriage-QL Gate C-Extra fixture; no third-party source was copied."
+  },
+  "source": {
+    "project_relative_path": "src/main/java/org/evitriage/fixture/SocketPathReader.java",
+    "sha256": "afc720db5add40a3bccb127f52a3ceaea5643904796d324a1811f34bad43bc5f",
+    "callable": "readRequestedFile",
+    "source_line": 20,
+    "sink_line": 26,
+    "source_fact": "Socket.getInputStream supplies remote data that BufferedReader.readLine consumes as a filename.",
+    "sink_fact": "The unvalidated filename reaches Path.resolve and Files.readString without a containment check."
+  },
+  "expected_codeql": {
+    "cli_version": "2.26.1",
+    "query_suite": "security-extended",
+    "rule_id": "java/path-injection",
+    "minimum_result_count": 1,
+    "require_code_flows": true
+  },
+  "ground_truth": {
+    "label": "TP",
+    "rationale": "A remote peer can supply an absolute or parent-traversing path and the fixture performs no normalization, allowlist, or document-root containment check before reading it."
+  },
+  "execution": {
+    "build_only": true,
+    "runtime_exploit_required": false
+  }
+}

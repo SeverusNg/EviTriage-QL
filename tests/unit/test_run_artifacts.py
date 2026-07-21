@@ -56,11 +56,17 @@ def test_run_journal_persists_artifacts_events_and_final_manifest(tmp_path: Path
         input_sha256=raw_record.sha256,
         output_sha256=normalized_record.sha256,
     )
+    journal.transition(
+        WorkflowState.CONTEXT_READY,
+        event_type="context_evidence_ready",
+        input_sha256=normalized_record.sha256,
+        output_sha256=normalized_record.sha256,
+    )
     manifest = journal.complete()
 
     assert manifest.status == "completed"
-    assert manifest.state is WorkflowState.NORMALIZED
-    assert [event.sequence for event in manifest.events] == list(range(6))
+    assert manifest.state is WorkflowState.CONTEXT_READY
+    assert [event.sequence for event in manifest.events] == list(range(7))
     assert [artifact.relative_path for artifact in manifest.artifacts] == [
         ".evitriage-workspace.json",
         "project-spec.resolved.yaml",
@@ -72,7 +78,7 @@ def test_run_journal_persists_artifacts_events_and_final_manifest(tmp_path: Path
     persisted = RunManifest.model_validate_json((run_root / "run-manifest.json").read_bytes())
     assert persisted == manifest
     event_lines = (run_root / "workflow-events.jsonl").read_text(encoding="utf-8").splitlines()
-    assert [json.loads(line)["sequence"] for line in event_lines] == list(range(6))
+    assert [json.loads(line)["sequence"] for line in event_lines] == list(range(7))
     assert stat.S_IMODE((run_root / "run-manifest.json").stat().st_mode) == 0o400
     assert stat.S_IMODE((run_root / "workflow-events.jsonl").stat().st_mode) == 0o400
     assert stat.S_IMODE((run_root / "input/source.sarif").stat().st_mode) == 0o400
@@ -221,6 +227,12 @@ def test_run_journal_refuses_to_finalize_a_tampered_artifact(tmp_path: Path) -> 
         WorkflowState.NORMALIZED,
         event_type="sarif_normalized",
         input_sha256=raw.sha256,
+        output_sha256=normalized.sha256,
+    )
+    journal.transition(
+        WorkflowState.CONTEXT_READY,
+        event_type="context_evidence_ready",
+        input_sha256=normalized.sha256,
         output_sha256=normalized.sha256,
     )
     (allocation.workspace.artifact_run_root / raw.relative_path).write_bytes(b"tampered")

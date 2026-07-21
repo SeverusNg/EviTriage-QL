@@ -12,7 +12,13 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
-from evitriage.domain.run import ArtifactRecord, RunManifest, WorkflowEvent, WorkflowState
+from evitriage.domain.run import (
+    ArtifactRecord,
+    ArtifactRole,
+    RunManifest,
+    WorkflowEvent,
+    WorkflowState,
+)
 from evitriage.domain.workspace import WorkspaceAllocation
 from evitriage.errors import PathSafetyError, WorkflowError, WorkspaceConflictError
 
@@ -31,9 +37,11 @@ _ALLOWED_TRANSITIONS: dict[WorkflowState, frozenset[WorkflowState]] = {
     WorkflowState.CODEQL_DB_READY: frozenset({WorkflowState.SCANNED}),
     WorkflowState.SCANNED: frozenset({WorkflowState.NORMALIZED}),
     WorkflowState.SARIF_INGESTED: frozenset({WorkflowState.NORMALIZED}),
-    WorkflowState.NORMALIZED: frozenset(),
+    WorkflowState.NORMALIZED: frozenset({WorkflowState.CONTEXT_READY}),
+    WorkflowState.CONTEXT_READY: frozenset(),
     WorkflowState.INVALID_SARIF: frozenset(),
     WorkflowState.CODEQL_FAILED: frozenset(),
+    WorkflowState.CONTEXT_INCOMPLETE: frozenset(),
 }
 
 
@@ -158,7 +166,7 @@ class RunJournal:
         relative_path: str,
         content: bytes,
         *,
-        role: Literal["input", "normalized", "tool-log", "tool-output", "metadata"],
+        role: ArtifactRole,
         media_type: str,
     ) -> ArtifactRecord:
         """Atomically write one new run-confined artifact and record its digest."""
@@ -182,7 +190,7 @@ class RunJournal:
         source: Path,
         relative_path: str,
         *,
-        role: Literal["input", "normalized", "tool-log", "tool-output", "metadata"] = "input",
+        role: ArtifactRole = "input",
         media_type: str = "application/octet-stream",
         maximum_bytes: int = _DEFAULT_MAXIMUM_INPUT_BYTES,
     ) -> tuple[ArtifactRecord, bytes]:
@@ -203,7 +211,7 @@ class RunJournal:
         self,
         relative_path: str,
         *,
-        role: Literal["input", "normalized", "tool-log", "tool-output", "metadata"],
+        role: ArtifactRole,
         media_type: str,
         maximum_bytes: int = _DEFAULT_MAXIMUM_INPUT_BYTES,
     ) -> tuple[ArtifactRecord, bytes]:
@@ -226,10 +234,10 @@ class RunJournal:
         return record, content
 
     def complete(self) -> RunManifest:
-        """Finalize a successfully normalized run."""
+        """Finalize a run only after Gate C context and evidence are ready."""
 
-        if self._status != "running" or self._state is not WorkflowState.NORMALIZED:
-            raise WorkflowError("only a NORMALIZED run can be completed")
+        if self._status != "running" or self._state is not WorkflowState.CONTEXT_READY:
+            raise WorkflowError("only a CONTEXT_READY run can be completed")
         self._finalize_registered_artifacts()
         self._status = "completed"
         self._completed_at = datetime.now(UTC)
@@ -245,10 +253,14 @@ class RunJournal:
         error_code: str,
         error_artifact_sha256: str | None = None,
     ) -> RunManifest:
-        """Record one terminal Gate B failure without fabricating output artifacts."""
+        """Record one terminal input/context failure without fabricating success."""
 
-        if state not in {WorkflowState.INVALID_SARIF, WorkflowState.CODEQL_FAILED}:
-            raise WorkflowError("unsupported Gate B failure state")
+        if state not in {
+            WorkflowState.INVALID_SARIF,
+            WorkflowState.CODEQL_FAILED,
+            WorkflowState.CONTEXT_INCOMPLETE,
+        }:
+            raise WorkflowError("unsupported input/context failure state")
         if self._status != "running":
             raise WorkflowError("cannot fail a finalized run")
         self._finalize_registered_artifacts()

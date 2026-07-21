@@ -17,6 +17,7 @@ def _document_with_uri(uri: str) -> bytes:
         "version": "2.1.0",
         "runs": [
             {
+                "columnKind": "utf16CodeUnits",
                 "tool": {"driver": {"name": "CodeQL", "rules": [{"id": "rule"}]}},
                 "results": [
                     {
@@ -101,6 +102,16 @@ def test_parser_rejects_wrong_version_duplicate_keys_and_invalid_coordinates(
         parse_sarif_bytes(b'{"version":"2.1.0","version":"2.1.0","runs":[]}')
     with pytest.raises(InvalidSarifError):
         parse_sarif_bytes(b'{"version":"2.0.0","runs":[]}')
+
+    missing_column_kind = json.loads(_document_with_uri("src/Main.java"))
+    del missing_column_kind["runs"][0]["columnKind"]
+    with pytest.raises(InvalidSarifError, match="columnKind"):
+        parse_sarif_bytes(json.dumps(missing_column_kind).encode())
+
+    invalid_column_kind = json.loads(_document_with_uri("src/Main.java"))
+    invalid_column_kind["runs"][0]["columnKind"] = "bytes"
+    with pytest.raises(InvalidSarifError, match="columnKind"):
+        parse_sarif_bytes(json.dumps(invalid_column_kind).encode())
 
     invalid = json.loads(_document_with_uri("src/Main.java"))
     invalid["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["region"]["startLine"] = 0
@@ -192,5 +203,43 @@ def test_uri_base_chain_has_a_deterministic_depth_limit(tmp_path: Path) -> None:
             sarif_path,
             source_root=tmp_path,
             run_id="deep-run",
+            repository_identity="fixture",
+        )
+
+
+def test_configured_srcroot_convention_is_bounded_but_other_unknown_bases_fail(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "src/Main.java"
+    source.parent.mkdir()
+    source.write_text("class Main {}\n", encoding="utf-8")
+    document = json.loads(_document_with_uri("src/Main.java"))
+    artifact_location = document["runs"][0]["results"][0]["locations"][0]["physicalLocation"][
+        "artifactLocation"
+    ]
+    region = document["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["region"]
+    region["endColumn"] = 6
+    artifact_location["uriBaseId"] = "%SRCROOT%"
+    sarif_path = tmp_path / "srcroot.sarif"
+    sarif_path.write_text(json.dumps(document), encoding="utf-8")
+
+    alert = ingest_sarif(
+        sarif_path,
+        source_root=tmp_path,
+        run_id="srcroot-run",
+        repository_identity="fixture",
+    ).alerts[0]
+    assert alert.primary_location.path == "src/Main.java"
+    assert alert.primary_location.end_line == 1
+    assert alert.primary_location.end_column == 6
+    assert alert.primary_location.artifact_sha256 == hashlib.sha256(source.read_bytes()).hexdigest()
+
+    artifact_location["uriBaseId"] = "UNCONFIGURED"
+    sarif_path.write_text(json.dumps(document), encoding="utf-8")
+    with pytest.raises(InvalidSarifError, match="unknown SARIF uriBaseId"):
+        ingest_sarif(
+            sarif_path,
+            source_root=tmp_path,
+            run_id="unknown-base-run",
             repository_identity="fixture",
         )

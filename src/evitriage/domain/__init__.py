@@ -17,6 +17,7 @@ from evitriage.domain.project import (
 )
 from evitriage.domain.run import (
     ArtifactRecord,
+    ContextRunSummary,
     NormalizedRunSummary,
     RunManifest,
     WorkflowEvent,
@@ -33,6 +34,7 @@ __all__ = [
     "ArtifactRecord",
     "BuildSpec",
     "CodeQLSpec",
+    "ContextRunSummary",
     "DatasetSource",
     "GitSource",
     "LocalSource",

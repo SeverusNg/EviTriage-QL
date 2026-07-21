@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evitriage.local/schemas/microbench-case-1.0.json",
+  "title": "EviTriage Java microbenchmark case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_id",
+    "cwe_id",
+    "language",
+    "provenance",
+    "source",
+    "expected_codeql",
+    "ground_truth",
+    "execution"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "case_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "maxLength": 128
+    },
+    "cwe_id": {"type": "string", "pattern": "^CWE-[1-9][0-9]*$"},
+    "language": {"const": "java"},
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "license_spdx", "description"],
+      "properties": {
+        "kind": {"const": "original-synthetic"},
+        "license_spdx": {"const": "Apache-2.0"},
+        "description": {"type": "string", "minLength": 1, "maxLength": 1000}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_relative_path",
+        "sha256",
+        "callable",
+        "source_line",
+        "sink_line",
+        "source_fact",
+        "sink_fact"
+      ],
+      "properties": {
+        "project_relative_path": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*\\.\\./)[A-Za-z0-9_.$/-]+\\.java$",
+          "maxLength": 4096
+        },
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "callable": {"type": "string", "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$"},
+        "source_line": {"type": "integer", "minimum": 1},
+        "sink_line": {"type": "integer", "minimum": 1},
+        "source_fact": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "sink_fact": {"type": "string", "minLength": 1, "maxLength": 1000}
+      }
+    },
+    "expected_codeql": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cli_version",
+        "query_suite",
+        "rule_id",
+        "minimum_result_count",
+        "require_code_flows"
+      ],
+      "properties": {
+        "cli_version": {"const": "2.26.1"},
+        "query_suite": {"const": "security-extended"},
+        "rule_id": {"type": "string", "minLength": 1, "maxLength": 512},
+        "minimum_result_count": {"type": "integer", "minimum": 1},
+        "require_code_flows": {"const": true}
+      }
+    },
+    "ground_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "rationale"],
+      "properties": {
+        "label": {"enum": ["TP", "FP", "NMC"]},
+        "rationale": {"type": "string", "minLength": 1, "maxLength": 2000}
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["build_only", "runtime_exploit_required"],
+      "properties": {
+        "build_only": {"const": true},
+        "runtime_exploit_required": {"const": false}
+      }
+    }
+  }
+}

@@ -19,7 +19,7 @@ from typer._click.exceptions import ClickException as TyperClickException
 
 from evitriage import __version__
 from evitriage.doctor import run_doctor
-from evitriage.domain.run import NormalizedRunSummary
+from evitriage.domain.run import ContextRunSummary
 from evitriage.errors import (
     ConfigurationError,
     EviTriageError,
@@ -164,7 +164,7 @@ def _operator_input_path(repository_root: Path, requested: Path) -> Path:
     return Path(os.path.abspath(candidate))
 
 
-def _emit_run_summary(payload: NormalizedRunSummary, *, as_json: bool) -> None:
+def _emit_run_summary(payload: ContextRunSummary, *, as_json: bool) -> None:
     serialized = payload.model_dump(mode="json")
     if as_json:
         _emit_json(serialized)
@@ -223,7 +223,7 @@ def ingest_sarif_command(
         ),
     ] = None,
 ) -> None:
-    """Persist and normalize existing SARIF without invoking Java or CodeQL."""
+    """Ingest SARIF and build normalized Gate C context/evidence offline."""
 
     _execute_sarif_command(
         command_name="ingest-sarif",
@@ -256,7 +256,7 @@ def normalize_command(
         ),
     ] = None,
 ) -> None:
-    """Run the shared normalizer on an existing SARIF artifact."""
+    """Normalize SARIF and build the shared Gate C context/evidence artifacts."""
 
     _execute_sarif_command(
         command_name="normalize",
@@ -285,7 +285,7 @@ def scan_command(
         ),
     ] = None,
 ) -> None:
-    """Run real CodeQL and normalize its SARIF; unavailable tools fail explicitly."""
+    """Run CodeQL, normalization, and Gate C context/evidence extraction."""
 
     repository_root = find_repository_root()
     allowed_roots = tuple(allowed_source_root) if allowed_source_root else None

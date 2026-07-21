@@ -31,6 +31,11 @@ from evitriage.sarif.ingest import parse_sarif_bytes, read_sarif_bytes
 _ARTIFACT_DIRECTORY = "codeql"
 _SARIF_NAME = "results.sarif"
 _MAXIMUM_LOG_CHARACTERS = 1_000_000
+_BUILTIN_QUERY_SUITE_ALIASES = {
+    ("java-kotlin", "security-extended"): (
+        "codeql/java-queries:codeql-suites/java-security-extended.qls"
+    ),
+}
 _ENVIRONMENT_ALLOWLIST = frozenset(
     {
         "COMSPEC",
@@ -229,7 +234,7 @@ class CodeQLCommandBuilder:
             "database",
             "analyze",
             str(database_path),
-            *spec.query_suites,
+            *(_resolve_query_suite(spec.language, suite) for suite in spec.query_suites),
             *spec.query_packs,
             "--format=sarif-latest",
             f"--output={sarif_path}",
@@ -663,6 +668,20 @@ def _quote_argv_for_codeql(argv: tuple[str, ...]) -> str:
     if os.name == "nt":
         return subprocess.list2cmdline(list(argv))
     return shlex_join(argv)
+
+
+def _resolve_query_suite(language: str, suite: str) -> str:
+    """Resolve blueprint suite aliases to bundle-pinned CodeQL pack suites."""
+
+    resolved = _BUILTIN_QUERY_SUITE_ALIASES.get((language, suite))
+    if resolved is not None:
+        return resolved
+    if suite == "security-extended":
+        raise CodeQLBuildPlanError(
+            "security-extended is not mapped for the configured CodeQL language",
+            details={"language": language, "query_suite": suite},
+        )
+    return suite
 
 
 def shlex_join(argv: tuple[str, ...]) -> str:

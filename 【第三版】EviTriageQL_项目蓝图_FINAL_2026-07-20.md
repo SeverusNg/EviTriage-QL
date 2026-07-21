@@ -8,9 +8,11 @@
 **科研 PoC 节点**：2026-10-12 前形成可复现实验与论文初稿  
 **首发语言**：Java；Kotlin、Python、JavaScript/TypeScript 后续扩展  
 **首发 CWE**：CWE-22、CWE-78；随后加入 CWE-89、CWE-79；CWE-918 作为路径可行性扩展案例  
-**参考工具链锁定**：CodeQL CLI `2.26.1`，具体 CLI/query pack/model pack 版本必须进入每次运行的 manifest
+**参考工具链锁定**：Python `3.12`、uv `0.8.3`、CodeQL CLI `2.26.1`；具体 CLI/query pack/model pack 版本必须进入每次运行的 manifest
 
 > 本文档中的“目标软件”不是写死在系统中的某一个项目。系统通过 `ProjectSpec` 接收本地目录、固定 Git commit、数据集样本或既有 SARIF；正式科研实验则冻结项目、commit、构建环境和工具版本，以保证可复现。
+
+> **工程环境持久性要求**：Gate 与发布验收依赖的工具必须安装在持久化的用户级或系统级目录，并能在全新 login shell 的 `PATH` 中发现。`/tmp` 或其他自动清理目录中的 bootstrap 只能用于临时解阻，不能作为已部署、clean-room 复现或交付证据。工具安装必须记录来源、固定版本、完整性校验、安装路径、验证命令和真实退出码；升级必须同步更新版本门禁、锁文件验证、文档与进度证据。
 
 ---
 

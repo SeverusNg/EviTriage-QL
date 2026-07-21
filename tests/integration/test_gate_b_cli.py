@@ -8,11 +8,13 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 from typer.testing import CliRunner
 
 from evitriage.cli import app
 from evitriage.codeql import CodeQLVersionMismatchError
-from evitriage.pipeline import run_codeql_scan
+from evitriage.errors import FeatureNotAvailableError
+from evitriage.pipeline import run_codeql_scan, run_sarif_ingest
 from evitriage.sarif import InvalidSarifError
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "sarif"
@@ -135,6 +137,11 @@ def test_ingest_and_normalize_cli_share_one_auditable_pipeline(
     assert first["real_codeql"] is second["real_codeql"] is False
     assert first["alert_count"] == second["alert_count"] == 1
     assert first["path_count"] == second["path_count"] == 1
+    assert first["state"] == second["state"] == "CONTEXT_READY"
+    assert first["complete_context_count"] == second["complete_context_count"] == 1
+    assert first["partial_context_count"] == second["partial_context_count"] == 0
+    assert first["evidence_count"] >= 3
+    assert first["claim_count"] == 0
     assert first["run_id"] != second["run_id"]
 
     first_root = Path(first["artifact_run_root"])
@@ -156,7 +163,7 @@ def test_ingest_and_normalize_cli_share_one_auditable_pipeline(
 
     manifest = json.loads((first_root / "run-manifest.json").read_text(encoding="utf-8"))
     assert manifest["status"] == "completed"
-    assert manifest["state"] == "NORMALIZED"
+    assert manifest["state"] == "CONTEXT_READY"
     assert [event["to_state"] for event in manifest["events"]] == [
         "CREATED",
         "PROJECT_VALIDATED",
@@ -164,7 +171,24 @@ def test_ingest_and_normalize_cli_share_one_auditable_pipeline(
         "SOURCE_READY",
         "SARIF_INGESTED",
         "NORMALIZED",
+        "CONTEXT_READY",
     ]
+    registered = {artifact["relative_path"]: artifact for artifact in manifest["artifacts"]}
+    assert {
+        "context/index.json",
+        "context/slices/run-000000-result-000000.json",
+        "context/source-map.html",
+        "evidence/graph.dot",
+        "evidence/registry.json",
+    }.issubset(registered)
+    evidence = json.loads((first_root / "evidence/registry.json").read_text(encoding="utf-8"))
+    assert evidence["claims"] == []
+    assert {item["origin"] for item in evidence["items"]} == {"codeql", "repository"}
+    assert all(
+        item["artifact_sha256"]
+        in {artifact["artifact_sha256"] for artifact in evidence["artifacts"]}
+        for item in evidence["items"]
+    )
 
 
 @pytest.mark.integration
@@ -277,6 +301,32 @@ def test_invalid_sarif_and_missing_codeql_are_structured_failed_runs(tmp_path: P
 
 
 @pytest.mark.integration
+def test_unsupported_context_policy_records_context_incomplete(tmp_path: Path) -> None:
+    repository, config, _ = _gate_b_repository(tmp_path)
+    document = yaml.safe_load(config.read_text(encoding="utf-8"))
+    document["analysis"]["context_policy"] = "adaptive_slice"
+    config.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(FeatureNotAvailableError, match="adaptive_slice") as raised:
+        run_sarif_ingest(
+            repository,
+            project_config=config,
+            sarif_path=FIXTURES / "single-path.sarif",
+        )
+
+    run_root = Path(str(raised.value.details["artifact_run_root"]))
+    manifest = json.loads((run_root / "run-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["status"] == "failed"
+    assert manifest["state"] == "CONTEXT_INCOMPLETE"
+    assert manifest["events"][-2]["to_state"] == "NORMALIZED"
+    assert manifest["events"][-1]["error_code"] == "FEATURE_NOT_AVAILABLE"
+    artifacts = {artifact["relative_path"] for artifact in manifest["artifacts"]}
+    assert "normalized/alerts.json" in artifacts
+    assert "metadata/error.json" in artifacts
+    assert "evidence/registry.json" not in artifacts
+
+
+@pytest.mark.integration
 def test_scan_converges_on_the_same_normalizer_after_a_real_runner_result(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -338,6 +388,7 @@ def test_scan_converges_on_the_same_normalizer_after_a_real_runner_result(
         "CODEQL_DB_READY",
         "SCANNED",
         "NORMALIZED",
+        "CONTEXT_READY",
     ]
     artifact_paths = {artifact["relative_path"] for artifact in manifest["artifacts"]}
     assert {

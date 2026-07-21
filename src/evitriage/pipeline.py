@@ -1,22 +1,31 @@
-"""Gate B input pipelines that converge on one SARIF normalizer."""
+"""Input pipelines converging on shared normalization, context, and evidence."""
 
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
+
+from pydantic import BaseModel
 
 from evitriage.codeql import CodeQLRunner, CodeQLRunResult
-from evitriage.domain.alerts import AlertBundle
+from evitriage.context import ContextBuilder
+from evitriage.domain.context import (
+    ContextIndex,
+    ContextPolicyName,
+    SliceArtifact,
+    SliceArtifactReference,
+)
 from evitriage.domain.project import ResolvedProjectSpec
 from evitriage.domain.run import (
     ArtifactRecord,
-    NormalizedRunSummary,
+    ContextRunSummary,
     WorkflowState,
 )
 from evitriage.domain.workspace import WorkspaceAllocation
 from evitriage.errors import EviTriageError, FeatureNotAvailableError
+from evitriage.evidence import build_evidence_registry, evidence_graph_dot, source_map_html
 from evitriage.observability import redact
 from evitriage.projects.registry import ProjectRegistry
 from evitriage.run_artifacts import RunJournal
@@ -24,6 +33,8 @@ from evitriage.sarif import InvalidSarifError, SarifNormalizer, parse_sarif_byte
 from evitriage.workspace import WorkspaceManager
 
 _NORMALIZER_VERSION = "1.0"
+_CONTEXT_VERSION: Literal["1.0"] = "1.0"
+_EVIDENCE_REGISTRY_VERSION = "1.0"
 _SARIF_MEDIA_TYPE = "application/sarif+json"
 _JSON_MEDIA_TYPE = "application/json"
 
@@ -42,8 +53,8 @@ def run_sarif_ingest(
     sarif_path: Path,
     allowed_source_roots: tuple[Path, ...] | None = None,
     command: Literal["ingest-sarif", "normalize"] = "ingest-sarif",
-) -> NormalizedRunSummary:
-    """Copy, hash, validate, and normalize an operator-supplied SARIF file."""
+) -> ContextRunSummary:
+    """Ingest SARIF, then build the shared normalized/context/evidence artifacts."""
 
     prepared = _prepare_run(
         repository_root,
@@ -65,17 +76,17 @@ def run_sarif_ingest(
             input_sha256=raw_record.sha256,
             output_sha256=raw_record.sha256,
         )
-        return _normalize_and_complete(
-            prepared,
-            raw=raw,
-            raw_record=raw_record,
-            command=command,
-            source_kind="ingest",
-            real_codeql=False,
-        )
     except EviTriageError as error:
         _fail_run(prepared, WorkflowState.INVALID_SARIF, error)
         raise
+    return _normalize_context_and_complete(
+        prepared,
+        raw=raw,
+        raw_record=raw_record,
+        command=command,
+        source_kind="ingest",
+        real_codeql=False,
+    )
 
 
 def run_codeql_scan(
@@ -84,8 +95,8 @@ def run_codeql_scan(
     project_config: Path,
     allowed_source_roots: tuple[Path, ...] | None = None,
     runner: CodeQLRunner | None = None,
-) -> NormalizedRunSummary:
-    """Execute a real CodeQL scan, then use the same normalizer as ingest."""
+) -> ContextRunSummary:
+    """Execute CodeQL, then use the same normalize/context path as ingest."""
 
     prepared = _prepare_run(
         repository_root,
@@ -139,18 +150,14 @@ def run_codeql_scan(
         _fail_run(prepared, WorkflowState.CODEQL_FAILED, error)
         raise
 
-    try:
-        return _normalize_and_complete(
-            prepared,
-            raw=raw,
-            raw_record=raw_record,
-            command="scan",
-            source_kind="scan",
-            real_codeql=True,
-        )
-    except EviTriageError as error:
-        _fail_run(prepared, WorkflowState.INVALID_SARIF, error)
-        raise
+    return _normalize_context_and_complete(
+        prepared,
+        raw=raw,
+        raw_record=raw_record,
+        command="scan",
+        source_kind="scan",
+        real_codeql=True,
+    )
 
 
 def _prepare_run(
@@ -193,7 +200,7 @@ def _prepare_run(
     return _PreparedRun(resolved=resolved, allocation=allocation, journal=journal)
 
 
-def _normalize_and_complete(
+def _normalize_context_and_complete(
     prepared: _PreparedRun,
     *,
     raw: bytes,
@@ -201,31 +208,106 @@ def _normalize_and_complete(
     command: Literal["ingest-sarif", "normalize", "scan"],
     source_kind: Literal["ingest", "scan"],
     real_codeql: bool,
-) -> NormalizedRunSummary:
-    document = parse_sarif_bytes(raw)
-    bundle = SarifNormalizer(prepared.allocation.workspace.source_snapshot).normalize(
-        document,
-        run_id=prepared.allocation.workspace.run_id,
-        repository_identity=prepared.allocation.snapshot.source_tree_sha256,
-        commit_sha=prepared.allocation.snapshot.full_commit,
-        raw_sarif_sha256=raw_record.sha256,
-    )
-    normalized = _serialize_bundle(bundle)
-    normalized_record = prepared.journal.write_artifact(
-        "normalized/alerts.json",
-        normalized,
-        role="normalized",
-        media_type=_JSON_MEDIA_TYPE,
-    )
-    prepared.journal.add_tool_versions({"sarif-normalizer": _NORMALIZER_VERSION})
-    prepared.journal.transition(
-        WorkflowState.NORMALIZED,
-        event_type="sarif_normalized",
-        input_sha256=raw_record.sha256,
-        output_sha256=normalized_record.sha256,
-    )
-    manifest = prepared.journal.complete()
-    return NormalizedRunSummary(
+) -> ContextRunSummary:
+    try:
+        document = parse_sarif_bytes(raw)
+        bundle = SarifNormalizer(prepared.allocation.workspace.source_snapshot).normalize(
+            document,
+            run_id=prepared.allocation.workspace.run_id,
+            repository_identity=prepared.allocation.snapshot.source_tree_sha256,
+            commit_sha=prepared.allocation.snapshot.full_commit,
+            raw_sarif_sha256=raw_record.sha256,
+        )
+        normalized_record = prepared.journal.write_artifact(
+            "normalized/alerts.json",
+            _serialize_model(bundle),
+            role="normalized",
+            media_type=_JSON_MEDIA_TYPE,
+        )
+        prepared.journal.add_tool_versions({"sarif-normalizer": _NORMALIZER_VERSION})
+        prepared.journal.transition(
+            WorkflowState.NORMALIZED,
+            event_type="sarif_normalized",
+            input_sha256=raw_record.sha256,
+            output_sha256=normalized_record.sha256,
+        )
+    except EviTriageError as error:
+        _fail_run(prepared, WorkflowState.INVALID_SARIF, error)
+        raise
+
+    try:
+        policy_name = prepared.resolved.spec.analysis.context_policy
+        slices = ContextBuilder(prepared.allocation.workspace.source_snapshot).build(
+            bundle,
+            policy_name=policy_name,
+        )
+        persisted_slices = _record_slice_artifacts(prepared, slices)
+        context_policy = cast(ContextPolicyName, policy_name)
+        context_index = ContextIndex(
+            run_id=bundle.run_id,
+            repository_identity=bundle.repository_identity,
+            raw_sarif_sha256=bundle.raw_sarif_sha256,
+            normalized_bundle_sha256=normalized_record.sha256,
+            context_policy=context_policy,
+            context_version=_CONTEXT_VERSION,
+            slices=tuple(
+                SliceArtifactReference(
+                    alert_fingerprint=slice_artifact.content.alert_fingerprint,
+                    raw_result_reference=slice_artifact.content.raw_result_reference,
+                    relative_path=record.relative_path,
+                    artifact_sha256=record.sha256,
+                    slice_sha256=slice_artifact.slice_sha256,
+                )
+                for slice_artifact, record in persisted_slices
+            ),
+        )
+        context_index_record = prepared.journal.write_artifact(
+            "context/index.json",
+            _serialize_model(context_index),
+            role="context",
+            media_type=_JSON_MEDIA_TYPE,
+        )
+        registry = build_evidence_registry(
+            bundle,
+            normalized_artifact=normalized_record,
+            persisted_slices=persisted_slices,
+        )
+        registry_record = prepared.journal.write_artifact(
+            "evidence/registry.json",
+            _serialize_model(registry),
+            role="evidence",
+            media_type=_JSON_MEDIA_TYPE,
+        )
+        graph_record = prepared.journal.write_artifact(
+            "evidence/graph.dot",
+            evidence_graph_dot(registry).encode("utf-8"),
+            role="evidence",
+            media_type="text/vnd.graphviz",
+        )
+        source_map_record = prepared.journal.write_artifact(
+            "context/source-map.html",
+            source_map_html(slices, registry).encode("utf-8"),
+            role="context",
+            media_type="text/html",
+        )
+        prepared.journal.add_tool_versions(
+            {
+                "context-extractor": _CONTEXT_VERSION,
+                "evidence-registry": _EVIDENCE_REGISTRY_VERSION,
+            }
+        )
+        prepared.journal.transition(
+            WorkflowState.CONTEXT_READY,
+            event_type="context_evidence_ready",
+            input_sha256=normalized_record.sha256,
+            output_sha256=registry_record.sha256,
+        )
+        manifest = prepared.journal.complete()
+    except EviTriageError as error:
+        _fail_run(prepared, WorkflowState.CONTEXT_INCOMPLETE, error)
+        raise
+
+    return ContextRunSummary(
         command=command,
         source_kind=source_kind,
         real_codeql=real_codeql,
@@ -236,17 +318,30 @@ def _normalize_and_complete(
         artifact_run_root=str(prepared.allocation.workspace.artifact_run_root),
         raw_sarif=raw_record,
         normalized_bundle=normalized_record,
+        slice_artifacts=tuple(record for _slice, record in persisted_slices),
+        context_index=context_index_record,
+        evidence_registry=registry_record,
+        evidence_graph=graph_record,
+        source_map=source_map_record,
         alert_count=len(bundle.alerts),
         path_count=sum(len(alert.paths) for alert in bundle.alerts),
         no_path_alert_count=sum(not alert.has_code_flows for alert in bundle.alerts),
+        complete_context_count=sum(
+            slice_artifact.content.completeness == "complete" for slice_artifact in slices
+        ),
+        partial_context_count=sum(
+            slice_artifact.content.completeness == "partial" for slice_artifact in slices
+        ),
+        evidence_count=len(registry.items),
+        claim_count=len(registry.claims),
         tool_versions=manifest.tool_versions,
     )
 
 
-def _serialize_bundle(bundle: AlertBundle) -> bytes:
+def _serialize_model(model: BaseModel) -> bytes:
     return (
         json.dumps(
-            bundle.model_dump(mode="json"),
+            model.model_dump(mode="json"),
             allow_nan=False,
             ensure_ascii=False,
             indent=2,
@@ -254,6 +349,26 @@ def _serialize_bundle(bundle: AlertBundle) -> bytes:
         ).encode("utf-8")
         + b"\n"
     )
+
+
+def _record_slice_artifacts(
+    prepared: _PreparedRun,
+    slices: tuple[SliceArtifact, ...],
+) -> tuple[tuple[SliceArtifact, ArtifactRecord], ...]:
+    persisted: list[tuple[SliceArtifact, ArtifactRecord]] = []
+    for slice_artifact in slices:
+        reference = slice_artifact.content.raw_result_reference
+        relative_path = (
+            f"context/slices/run-{reference.run_index:06d}-result-{reference.result_index:06d}.json"
+        )
+        record = prepared.journal.write_artifact(
+            relative_path,
+            _serialize_model(slice_artifact),
+            role="context",
+            media_type=_JSON_MEDIA_TYPE,
+        )
+        persisted.append((slice_artifact, record))
+    return tuple(persisted)
 
 
 def _record_codeql_artifacts(

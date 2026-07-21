@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 PositiveCoordinate = Annotated[int, Field(ge=1)]
+ColumnKind = Literal["utf16CodeUnits", "unicodeCodePoints"]
 type JsonValue = str | int | float | bool | None | list[JsonValue] | dict[str, JsonValue]
 
 
@@ -25,6 +26,7 @@ class SourceLocation(AlertDomainModel):
     """A validated source-root-relative physical location."""
 
     path: Annotated[str, Field(min_length=1, max_length=4096)]
+    column_kind: ColumnKind
     start_line: PositiveCoordinate
     start_column: PositiveCoordinate = 1
     end_line: PositiveCoordinate | None = None
@@ -194,6 +196,7 @@ class AlertBundle(AlertDomainModel):
 
 __all__ = [
     "AlertBundle",
+    "ColumnKind",
     "DataFlowPath",
     "JsonValue",
     "NormalizedAlert",

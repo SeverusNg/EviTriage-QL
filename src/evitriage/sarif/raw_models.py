@@ -130,6 +130,15 @@ class Run(SarifInputModel):
     original_uri_base_ids: dict[str, ArtifactLocation] = Field(
         default_factory=dict, alias="originalUriBaseIds"
     )
+    column_kind: Literal["utf16CodeUnits", "unicodeCodePoints"] | None = Field(
+        default=None, alias="columnKind"
+    )
+
+    @model_validator(mode="after")
+    def require_column_kind_for_results(self) -> Self:
+        if self.results and self.column_kind is None:
+            raise ValueError("run with text results requires columnKind")
+        return self
 
 
 class SarifDocument(SarifInputModel):

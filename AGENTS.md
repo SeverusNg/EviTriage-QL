@@ -3,12 +3,16 @@
 ## Scope and current gate
 
 This repository implements EviTriage-QL incrementally. The checked-in baseline
-includes Gate A plus the Gate B input layer: a real CodeQL runner, existing
-SARIF ingest, SARIF 2.1.0 normalization, Golden fixtures, and run-scoped audit
-artifacts. The offline path is tested; a successful real Java/CodeQL smoke is
-not recorded because Java/`javac` and CodeQL are absent. Do not describe Gate C
-or later capabilities, or a successful real scan, as implemented evidence until
-their code, tests, and actual artifacts exist.
+includes Gate A, the Gate B input layer, Gate C context/evidence, and the bounded
+Gate C-Extra query-positive acceptance: a real CodeQL runner, existing SARIF
+ingest, SARIF 2.1.0 normalization, bounded Java Level 0/1 context, an
+artifact-addressed evidence registry, Golden fixtures, and run-scoped audit
+artifacts. A pinned CodeQL 2.26.1 scan of the original Socket-based CWE-22 case
+produced one `java/path-injection` result with an eight-step path and reached
+`CONTEXT_READY`; the exact run is recorded in the 2026-07-22 evidence log. This
+is query and pipeline evidence, not an EviTriage TP/FP/NMC decision or evidence
+about arbitrary code. Do not describe Gate D or later capabilities as
+implemented until their code, tests, and actual artifacts exist.
 
 The normative product requirements are the dated Chinese blueprint and build
 prompt at the repository root. If prose conflicts with executable behavior,
@@ -31,6 +35,16 @@ uv run evitriage ingest-sarif --project-config configs/projects/example-local.ya
 Use focused pytest invocations during development, followed by `make check`
 before handing work off. Report the real command, exit code, and result; never
 replace a failed external dependency with a fabricated success.
+
+Gate-required development tools must be installed in a persistent user or
+system location and discoverable on `PATH` in a fresh login shell. A bootstrap
+under `/tmp` or another automatically cleaned directory may unblock one command,
+but does not satisfy environment deployment, clean-room reproduction, or
+handoff acceptance. Pin the required version where the tool supports an
+executable version gate, and record the source, integrity check, install path,
+verification command, and exit code. This checkout requires `uv 0.8.3` through
+`tool.uv.required-version`; upgrades must update the pin, documentation, lock
+validation, and progress evidence together.
 
 ## Architectural invariants
 
@@ -55,10 +69,13 @@ replace a failed external dependency with a fabricated success.
 - The `scan` and existing-SARIF branches converge on the same strict normalizer.
   Preserve exact raw SARIF bytes and every alert's `(sha256, run_index,
   result_index)` reference; never deduplicate upstream result/path occurrences.
+  Require `run.columnKind` for non-empty SARIF result runs, preserve it on
+  normalized locations, and use its declared measurement for source bounds.
 - Independently hash an existing referenced snapshot file and reject a
   conflicting SARIF hash. Preserve a missing file as unknown (`null`) and do not
-  claim source coordinates are verified against file bounds until that check
-  exists.
+  claim missing-source coordinates are verified. Gate C verifies bounds only
+  for safely opened snapshot files and records other cases as explicit partial
+  omissions.
 - A Gate B build uses only a checked-in Maven Wrapper command derived from
   validated argv, matching Java/`javac`, a validated exact Maven release
   URL/SHA declaration, and exact optional qlpack pins. Real scans execute target
@@ -88,10 +105,12 @@ replace a failed external dependency with a fabricated success.
 
 ## Gate progression
 
-Gate C (context/evidence) starts only after Gate A checks and the Gate B offline
-ingest/normalization acceptance path pass. A successful real CodeQL smoke
-remains separate release evidence and must be collected in an environment with
-the pinned external tools. Later gates add bounded agents and deterministic
-decisions, offline end-to-end reporting, and security/release hardening in that
-order. Real model APIs, remote Git, Gradle, adaptive context, verification, and
-calibration must not displace the v0.1 P0 path.
+Gate D (bounded agents/policy) starts only after Gate A checks, the Gate B/C
+offline ingest/normalization/context/evidence acceptance path, and Gate C-Extra
+query-positive acceptance pass. Those conditions now pass in this checkout.
+The recorded real zero-result smoke and positive-query scan remain
+environment-specific evidence; clean-room/release validation must still
+reproduce them with the pinned external tools. Later gates add bounded agents
+and deterministic decisions, offline end-to-end reporting, and security/release
+hardening in that order. Real model APIs, remote Git, Gradle, adaptive context,
+verification, and calibration must not displace the v0.1 P0 path.

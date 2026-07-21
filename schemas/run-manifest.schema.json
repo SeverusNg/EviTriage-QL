@@ -20,6 +20,8 @@
           "enum": [
             "input",
             "normalized",
+            "context",
+            "evidence",
             "tool-log",
             "tool-output",
             "metadata"
@@ -164,7 +166,7 @@
       "type": "object"
     },
     "WorkflowState": {
-      "description": "Gate states implemented by the two Gate B input branches.",
+      "description": "Gate states implemented through the shared Gate C evidence stage.",
       "enum": [
         "CREATED",
         "PROJECT_VALIDATED",
@@ -175,8 +177,10 @@
         "SCANNED",
         "SARIF_INGESTED",
         "NORMALIZED",
+        "CONTEXT_READY",
         "INVALID_SARIF",
-        "CODEQL_FAILED"
+        "CODEQL_FAILED",
+        "CONTEXT_INCOMPLETE"
       ],
       "title": "WorkflowState",
       "type": "string"

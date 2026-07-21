@@ -14,10 +14,19 @@ SafeIdentifier = Annotated[
     str,
     Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$"),
 ]
+ArtifactRole = Literal[
+    "input",
+    "normalized",
+    "context",
+    "evidence",
+    "tool-log",
+    "tool-output",
+    "metadata",
+]
 
 
 class WorkflowState(StrEnum):
-    """Gate states implemented by the two Gate B input branches."""
+    """Gate states implemented through the shared Gate C evidence stage."""
 
     CREATED = "CREATED"
     PROJECT_VALIDATED = "PROJECT_VALIDATED"
@@ -28,8 +37,10 @@ class WorkflowState(StrEnum):
     SCANNED = "SCANNED"
     SARIF_INGESTED = "SARIF_INGESTED"
     NORMALIZED = "NORMALIZED"
+    CONTEXT_READY = "CONTEXT_READY"
     INVALID_SARIF = "INVALID_SARIF"
     CODEQL_FAILED = "CODEQL_FAILED"
+    CONTEXT_INCOMPLETE = "CONTEXT_INCOMPLETE"
 
 
 class _ImmutableModel(BaseModel):
@@ -42,7 +53,7 @@ class ArtifactRecord(_ImmutableModel):
     relative_path: Annotated[str, Field(min_length=1, max_length=4096)]
     sha256: Sha256
     size_bytes: Annotated[int, Field(ge=0)]
-    role: Literal["input", "normalized", "tool-log", "tool-output", "metadata"]
+    role: ArtifactRole
     media_type: Annotated[str, Field(min_length=1, max_length=200)]
 
     @field_validator("relative_path")
@@ -154,13 +165,14 @@ class RunManifest(_ImmutableModel):
         terminal_failure = self.state in {
             WorkflowState.INVALID_SARIF,
             WorkflowState.CODEQL_FAILED,
+            WorkflowState.CONTEXT_INCOMPLETE,
         }
         if self.status == "running" and self.completed_at is not None:
             raise ValueError("running manifests must not have completed_at")
         if self.status == "completed" and (
-            self.state is not WorkflowState.NORMALIZED or self.completed_at is None
+            self.state is not WorkflowState.CONTEXT_READY or self.completed_at is None
         ):
-            raise ValueError("completed manifests must terminate at NORMALIZED")
+            raise ValueError("completed manifests must terminate at CONTEXT_READY")
         if self.status == "failed" and (not terminal_failure or self.completed_at is None):
             raise ValueError("failed manifests must terminate in a failure state")
         if self.status != "failed" and terminal_failure:
@@ -217,11 +229,83 @@ class NormalizedRunSummary(_ImmutableModel):
         return self
 
 
+class ContextRunSummary(_ImmutableModel):
+    """Stable CLI-facing summary of a completed Gate C input/context run."""
+
+    schema_version: Literal["1.0"] = "1.0"
+    status: Literal["ok"] = "ok"
+    command: Literal["ingest-sarif", "normalize", "scan"]
+    source_kind: Literal["ingest", "scan"]
+    real_codeql: bool
+    run_id: SafeIdentifier
+    project_id: SafeIdentifier
+    project_spec_sha256: Sha256
+    snapshot_identity: Sha256
+    state: Literal["CONTEXT_READY"] = "CONTEXT_READY"
+    artifact_run_root: Annotated[str, Field(min_length=1, max_length=4096)]
+    raw_sarif: ArtifactRecord
+    normalized_bundle: ArtifactRecord
+    slice_artifacts: tuple[ArtifactRecord, ...]
+    context_index: ArtifactRecord
+    evidence_registry: ArtifactRecord
+    evidence_graph: ArtifactRecord
+    source_map: ArtifactRecord
+    alert_count: Annotated[int, Field(ge=0)]
+    path_count: Annotated[int, Field(ge=0)]
+    no_path_alert_count: Annotated[int, Field(ge=0)]
+    complete_context_count: Annotated[int, Field(ge=0)]
+    partial_context_count: Annotated[int, Field(ge=0)]
+    evidence_count: Annotated[int, Field(ge=0)]
+    claim_count: Annotated[int, Field(ge=0)] = 0
+    tool_versions: dict[str, str] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_gate_c_outputs(self) -> Self:
+        is_scan = self.command == "scan"
+        if is_scan != (self.source_kind == "scan") or is_scan != self.real_codeql:
+            raise ValueError("scan provenance fields are inconsistent")
+        if self.no_path_alert_count > self.alert_count:
+            raise ValueError("no_path_alert_count exceeds alert_count")
+        if self.complete_context_count + self.partial_context_count != self.alert_count:
+            raise ValueError("context completeness counts must equal alert_count")
+        if len(self.slice_artifacts) != self.alert_count:
+            raise ValueError("every alert occurrence must have one slice artifact")
+        expected_roles = {
+            self.normalized_bundle.relative_path: "normalized",
+            self.context_index.relative_path: "context",
+            self.evidence_registry.relative_path: "evidence",
+            self.evidence_graph.relative_path: "evidence",
+            self.source_map.relative_path: "context",
+        }
+        expected_roles.update(
+            {artifact.relative_path: "context" for artifact in self.slice_artifacts}
+        )
+        records = (
+            self.normalized_bundle,
+            self.context_index,
+            self.evidence_registry,
+            self.evidence_graph,
+            self.source_map,
+            *self.slice_artifacts,
+        )
+        if any(record.role != expected_roles[record.relative_path] for record in records):
+            raise ValueError("Gate C artifact roles are inconsistent")
+        expected_raw_role = "tool-output" if is_scan else "input"
+        if self.raw_sarif.role != expected_raw_role:
+            raise ValueError("raw SARIF artifact role does not match input provenance")
+        return self
+
+
 def _workflow_transition_is_allowed(previous: WorkflowState, following: WorkflowState) -> bool:
-    if following in {WorkflowState.INVALID_SARIF, WorkflowState.CODEQL_FAILED}:
+    if following in {
+        WorkflowState.INVALID_SARIF,
+        WorkflowState.CODEQL_FAILED,
+        WorkflowState.CONTEXT_INCOMPLETE,
+    }:
         return previous not in {
             WorkflowState.INVALID_SARIF,
             WorkflowState.CODEQL_FAILED,
+            WorkflowState.CONTEXT_INCOMPLETE,
         }
     allowed: dict[WorkflowState, frozenset[WorkflowState]] = {
         WorkflowState.CREATED: frozenset({WorkflowState.PROJECT_VALIDATED}),
@@ -234,15 +318,19 @@ def _workflow_transition_is_allowed(previous: WorkflowState, following: Workflow
         WorkflowState.CODEQL_DB_READY: frozenset({WorkflowState.SCANNED}),
         WorkflowState.SCANNED: frozenset({WorkflowState.NORMALIZED}),
         WorkflowState.SARIF_INGESTED: frozenset({WorkflowState.NORMALIZED}),
-        WorkflowState.NORMALIZED: frozenset(),
+        WorkflowState.NORMALIZED: frozenset({WorkflowState.CONTEXT_READY}),
+        WorkflowState.CONTEXT_READY: frozenset(),
         WorkflowState.INVALID_SARIF: frozenset(),
         WorkflowState.CODEQL_FAILED: frozenset(),
+        WorkflowState.CONTEXT_INCOMPLETE: frozenset(),
     }
     return following in allowed[previous]
 
 
 __all__ = [
     "ArtifactRecord",
+    "ArtifactRole",
+    "ContextRunSummary",
     "NormalizedRunSummary",
     "RunManifest",
     "WorkflowEvent",

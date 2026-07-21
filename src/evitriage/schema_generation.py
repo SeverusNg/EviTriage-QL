@@ -9,14 +9,20 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from evitriage.domain.alerts import AlertBundle
+from evitriage.domain.context import ContextIndex, SliceArtifact
+from evitriage.domain.evidence import EvidenceRegistry
 from evitriage.domain.project import ProjectSpec
-from evitriage.domain.run import NormalizedRunSummary, RunManifest
+from evitriage.domain.run import ContextRunSummary, NormalizedRunSummary, RunManifest
 
 _SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "alert-bundle.schema.json": AlertBundle,
+    "context-index.schema.json": ContextIndex,
+    "context-run-summary.schema.json": ContextRunSummary,
+    "evidence.schema.json": EvidenceRegistry,
     "normalized-run-summary.schema.json": NormalizedRunSummary,
     "project-spec.schema.json": ProjectSpec,
     "run-manifest.schema.json": RunManifest,
+    "slice-artifact.schema.json": SliceArtifact,
 }
 
 
@@ -37,7 +43,7 @@ def schema_path(repository_root: Path) -> Path:
 
 
 def write_schemas(repository_root: Path) -> None:
-    """Write all public schemas implemented through Gate B."""
+    """Write all public schemas implemented through Gate C."""
 
     schema_directory = repository_root / "schemas"
     schema_directory.mkdir(parents=True, exist_ok=True)

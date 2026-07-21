@@ -52,7 +52,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Stable CLI-facing summary of a completed SARIF input run.",
+  "description": "Stable CLI-facing summary of a completed Gate C input/context run.",
   "properties": {
     "alert_count": {
       "minimum": 0,
@@ -65,6 +65,12 @@
       "title": "Artifact Run Root",
       "type": "string"
     },
+    "claim_count": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Claim Count",
+      "type": "integer"
+    },
     "command": {
       "enum": [
         "ingest-sarif",
@@ -74,6 +80,25 @@
       "title": "Command",
       "type": "string"
     },
+    "complete_context_count": {
+      "minimum": 0,
+      "title": "Complete Context Count",
+      "type": "integer"
+    },
+    "context_index": {
+      "$ref": "#/$defs/ArtifactRecord"
+    },
+    "evidence_count": {
+      "minimum": 0,
+      "title": "Evidence Count",
+      "type": "integer"
+    },
+    "evidence_graph": {
+      "$ref": "#/$defs/ArtifactRecord"
+    },
+    "evidence_registry": {
+      "$ref": "#/$defs/ArtifactRecord"
+    },
     "no_path_alert_count": {
       "minimum": 0,
       "title": "No Path Alert Count",
@@ -81,6 +106,11 @@
     },
     "normalized_bundle": {
       "$ref": "#/$defs/ArtifactRecord"
+    },
+    "partial_context_count": {
+      "minimum": 0,
+      "title": "Partial Context Count",
+      "type": "integer"
     },
     "path_count": {
       "minimum": 0,
@@ -119,6 +149,13 @@
       "title": "Schema Version",
       "type": "string"
     },
+    "slice_artifacts": {
+      "items": {
+        "$ref": "#/$defs/ArtifactRecord"
+      },
+      "title": "Slice Artifacts",
+      "type": "array"
+    },
     "snapshot_identity": {
       "pattern": "^[0-9a-f]{64}$",
       "title": "Snapshot Identity",
@@ -132,9 +169,12 @@
       "title": "Source Kind",
       "type": "string"
     },
+    "source_map": {
+      "$ref": "#/$defs/ArtifactRecord"
+    },
     "state": {
-      "const": "NORMALIZED",
-      "default": "NORMALIZED",
+      "const": "CONTEXT_READY",
+      "default": "CONTEXT_READY",
       "title": "State",
       "type": "string"
     },
@@ -163,10 +203,18 @@
     "artifact_run_root",
     "raw_sarif",
     "normalized_bundle",
+    "slice_artifacts",
+    "context_index",
+    "evidence_registry",
+    "evidence_graph",
+    "source_map",
     "alert_count",
     "path_count",
-    "no_path_alert_count"
+    "no_path_alert_count",
+    "complete_context_count",
+    "partial_context_count",
+    "evidence_count"
   ],
-  "title": "NormalizedRunSummary",
+  "title": "ContextRunSummary",
   "type": "object"
 }

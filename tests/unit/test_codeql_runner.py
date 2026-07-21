@@ -151,12 +151,30 @@ def test_command_builder_uses_argv_and_quotes_only_the_codeql_command_value() ->
     assert create[:4] == ("/tools/codeql", "database", "create", "/managed/database")
     assert "--command=./mvnw '-Dmessage=two words' package" in create
     assert "--threads=0" in create
-    assert "security-extended" in analyze
+    assert "codeql/java-queries:codeql-suites/java-security-extended.qls" in analyze
+    assert "security-extended" not in analyze
     assert "--sarif-include-query-help=always" in analyze
     assert "--threads=0" in analyze
     assert "acme/java-queries@1.2.3" in analyze
     assert not any(argument.startswith("--additional-packs=") for argument in analyze)
     assert "--model-packs=acme/java-models@1.2.3" in analyze
+
+
+def test_command_builder_rejects_unmapped_builtin_suite_alias() -> None:
+    builder = CodeQLCommandBuilder("/tools/codeql")
+    spec = _codeql_spec().model_copy(update={"language": "python"})
+
+    with pytest.raises(CodeQLBuildPlanError, match="not mapped") as raised:
+        builder.database_analyze(
+            spec=spec,
+            database_path=Path("/managed/database"),
+            sarif_path=Path("/managed/results.sarif"),
+        )
+
+    assert raised.value.details == {
+        "language": "python",
+        "query_suite": "security-extended",
+    }
 
 
 def test_runner_records_real_command_metadata_and_sarif_hash(

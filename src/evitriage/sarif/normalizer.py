@@ -46,6 +46,7 @@ _CWE = re.compile(r"(?i)(?:^|[/_-])cwe[-/](?:cwe-)?0*([1-9][0-9]*)(?:$|[/_-])")
 _HASH_DOMAIN_PATH = b"EviTriage-QL normalized SARIF path v1\0"
 _HASH_DOMAIN_ALERT = b"EviTriage-QL normalized SARIF alert v1\0"
 _MAXIMUM_URI_BASE_DEPTH = 64
+_CONFIGURED_SOURCE_ROOT_BASE_ID = "%srcroot%"
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,12 +142,20 @@ class _LocationResolver:
         snippet_message = region.snippet
         if snippet_message is None and physical.context_region is not None:
             snippet_message = physical.context_region.snippet
+        column_kind = self._run.column_kind
+        if column_kind is None:
+            raise InvalidSarifError("SARIF run with text results requires columnKind")
+        normalized_end_line = region.end_line
+        if normalized_end_line is None and region.end_column is not None:
+            # SARIF 2.1.0 section 3.30.7 defaults endLine to startLine.
+            normalized_end_line = region.start_line
         try:
             return SourceLocation(
                 path=relative_path,
+                column_kind=column_kind,
                 start_line=region.start_line,
                 start_column=region.start_column if region.start_column is not None else 1,
-                end_line=region.end_line,
+                end_line=normalized_end_line,
                 end_column=region.end_column,
                 artifact_sha256=artifact_sha256,
                 snippet=_message_text(snippet_message),
@@ -272,6 +281,13 @@ class _LocationResolver:
         if base_id in active:
             raise InvalidSarifError(f"cyclic SARIF uriBaseId reference: {base_id!r}")
         if base_id not in self._run.original_uri_base_ids:
+            if base_id.casefold() == _CONFIGURED_SOURCE_ROOT_BASE_ID:
+                value = _BasePath(
+                    path=_UriPath(flavor="posix", absolute=False, parts=()),
+                    absolute_anchor=None,
+                )
+                self._base_cache[base_id] = value
+                return value
             raise InvalidSarifError(f"unknown SARIF uriBaseId: {base_id!r}")
         location = self._run.original_uri_base_ids[base_id]
         if location.uri is None:
