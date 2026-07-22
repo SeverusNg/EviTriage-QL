@@ -16,11 +16,13 @@ def test_schema_generation_is_deterministic(tmp_path: Path) -> None:
     first = (tmp_path / "schemas" / "project-spec.schema.json").read_bytes()
     assert {path.name for path in (tmp_path / "schemas").iterdir()} == {
         "alert-bundle.schema.json",
+        "alert-report.schema.json",
         "analyst-output.schema.json",
         "analyst-run-artifact.schema.json",
         "context-index.schema.json",
         "context-run-summary.schema.json",
         "evidence.schema.json",
+        "evidence-supplement.schema.json",
         "final-decision.schema.json",
         "judge-output.schema.json",
         "judged-run-artifact.schema.json",
@@ -32,6 +34,7 @@ def test_schema_generation_is_deterministic(tmp_path: Path) -> None:
         "run-manifest.schema.json",
         "slice-artifact.schema.json",
         "triage-result.schema.json",
+        "triage-report-bundle.schema.json",
         "triage-run-summary.schema.json",
     }
 

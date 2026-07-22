@@ -56,6 +56,7 @@ def test_registry_loads_by_declared_id_and_lists_projects() -> None:
         "example-local-command",
         "example-local-deepseek-v4",
         "example-local",
+        "gate-e-demo",
     )
     with pytest.raises(ConfigurationError):
         registry.load("../escape")

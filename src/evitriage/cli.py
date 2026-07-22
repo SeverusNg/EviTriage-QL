@@ -35,7 +35,12 @@ from evitriage.errors import (
 )
 from evitriage.llm import DeepSeekLLM, ReplayLLM, StructuredLLM
 from evitriage.observability import configure_logging, redact
-from evitriage.pipeline import run_codeql_scan, run_sarif_ingest, run_sarif_triage
+from evitriage.pipeline import (
+    run_codeql_scan,
+    run_codeql_triage,
+    run_sarif_ingest,
+    run_sarif_triage,
+)
 from evitriage.projects.registry import ProjectRegistry
 from evitriage.storage.database import Database
 
@@ -328,14 +333,28 @@ def triage_command(
         typer.Option("--project-config", help="Validated local ProjectSpec."),
     ],
     sarif: Annotated[
-        Path,
+        Path | None,
         typer.Option("--sarif", help="Existing SARIF 2.1.0 input to triage."),
-    ],
+    ] = None,
+    scan: Annotated[
+        bool,
+        typer.Option("--scan", help="Run CodeQL first, then continue through triage/report."),
+    ] = False,
     replay_cache: Annotated[
         Path | None,
         typer.Option(
             "--replay-cache",
             help="Required only for Replay; directory of request-hash JSON responses.",
+        ),
+    ] = None,
+    evidence_supplement: Annotated[
+        Path | None,
+        typer.Option(
+            "--evidence-supplement",
+            help=(
+                "Optional trusted human/test/verifier evidence JSON bound to the exact "
+                "source and SARIF identities."
+            ),
         ),
     ] = None,
     llm_profile: Annotated[
@@ -360,6 +379,8 @@ def triage_command(
     """Run bounded Replay or DeepSeek Analyst/Rebuttal/Judge triage."""
 
     repository_root = find_repository_root()
+    if (sarif is None) == (not scan):
+        raise ConfigurationError("triage requires exactly one of --sarif or --scan")
     profile = load_llm_profile(_operator_input_path(repository_root, llm_profile))
     llm: StructuredLLM
     if profile.provider == "replay":
@@ -373,14 +394,32 @@ def triage_command(
     else:
         raise ConfigurationError("FakeLLM is available only to tests, not the triage CLI")
     allowed_roots = tuple(allowed_source_root) if allowed_source_root else None
-    summary = run_sarif_triage(
-        repository_root,
-        project_config=project_config,
-        sarif_path=_operator_input_path(repository_root, sarif),
-        profile=profile,
-        llm=llm,
-        allowed_source_roots=allowed_roots,
+    supplement_path = (
+        _operator_input_path(repository_root, evidence_supplement)
+        if evidence_supplement is not None
+        else None
     )
+    if scan:
+        summary = run_codeql_triage(
+            repository_root,
+            project_config=project_config,
+            profile=profile,
+            llm=llm,
+            evidence_supplement_path=supplement_path,
+            allowed_source_roots=allowed_roots,
+        )
+    else:
+        if sarif is None:  # pragma: no cover - guarded by the exclusive input check
+            raise ConfigurationError("triage requires --sarif when --scan is absent")
+        summary = run_sarif_triage(
+            repository_root,
+            project_config=project_config,
+            sarif_path=_operator_input_path(repository_root, sarif),
+            profile=profile,
+            llm=llm,
+            evidence_supplement_path=supplement_path,
+            allowed_source_roots=allowed_roots,
+        )
     _emit_run_summary(summary, as_json=as_json)
 
 

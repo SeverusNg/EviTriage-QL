@@ -29,6 +29,7 @@ EvidenceType = Literal[
 EvidencePolarity = Literal["supports_tp", "supports_fp", "neutral"]
 EvidenceStrength = Literal["low", "medium", "high", "decisive"]
 EvidenceOrigin = Literal["codeql", "repository", "build", "test", "verifier", "human"]
+SupplementKind = Literal["human", "test", "verification"]
 
 
 class EvidenceDomainModel(BaseModel):
@@ -88,6 +89,65 @@ class EvidenceItem(EvidenceDomainModel):
         expected = "ev_" + hashlib.sha256(serialized).hexdigest()
         if self.evidence_id != expected:
             raise ValueError("evidence_id does not match canonical evidence content")
+        return self
+
+
+class EvidenceSupplementEntry(EvidenceDomainModel):
+    """One explicit, occurrence-bound observation supplied outside CodeQL."""
+
+    run_index: Annotated[int, Field(ge=0)]
+    result_index: Annotated[int, Field(ge=0)]
+    type: EvidenceType
+    polarity: EvidencePolarity
+    strength: EvidenceStrength
+    summary: Annotated[str, Field(min_length=1, max_length=10_000)]
+
+    @model_validator(mode="after")
+    def validate_semantic_shape(self) -> Self:
+        if self.summary.strip() != self.summary:
+            raise ValueError("supplement evidence summary must not have surrounding whitespace")
+        if any(ord(character) < 32 and character not in "\n\t" for character in self.summary):
+            raise ValueError("supplement evidence summary contains control characters")
+        if self.polarity == "neutral" and self.strength == "decisive":
+            raise ValueError("neutral supplement evidence cannot be decisive")
+        return self
+
+
+class EvidenceSupplement(EvidenceDomainModel):
+    """Strict trusted input for human, test, or verifier observations."""
+
+    schema_version: Literal["1.0"] = "1.0"
+    project_id: Annotated[
+        str,
+        Field(min_length=1, max_length=63, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$"),
+    ]
+    repository_identity: Sha256
+    raw_sarif_sha256: Sha256
+    kind: SupplementKind
+    producer: Annotated[str, Field(min_length=1, max_length=200)]
+    purpose: Annotated[str, Field(min_length=1, max_length=1000)]
+    entries: Annotated[tuple[EvidenceSupplementEntry, ...], Field(min_length=1)]
+
+    @model_validator(mode="after")
+    def validate_supplement(self) -> Self:
+        for field_name, value in (("producer", self.producer), ("purpose", self.purpose)):
+            if value.strip() != value:
+                raise ValueError(f"supplement {field_name} must not have surrounding whitespace")
+            if any(ord(character) < 32 and character not in "\n\t" for character in value):
+                raise ValueError(f"supplement {field_name} contains control characters")
+        identities = [
+            (
+                entry.run_index,
+                entry.result_index,
+                entry.type,
+                entry.polarity,
+                entry.strength,
+                entry.summary,
+            )
+            for entry in self.entries
+        ]
+        if len(identities) != len(set(identities)):
+            raise ValueError("supplement contains duplicate evidence entries")
         return self
 
 
@@ -184,5 +244,8 @@ __all__ = [
     "EvidenceRegistry",
     "EvidenceRelationship",
     "EvidenceStrength",
+    "EvidenceSupplement",
+    "EvidenceSupplementEntry",
     "EvidenceType",
+    "SupplementKind",
 ]

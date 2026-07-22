@@ -1,0 +1,64 @@
+{
+  "analysis_identity": "analysis-e3914dfbaf3d7ff6eedfba542eb952635955c216d373e2cded1f99b8a9e4a396",
+  "bundle_id": "gate-e-nmc-v0-1",
+  "entries": [
+    {
+      "agent_role": "analyst",
+      "result_index": 0,
+      "request_sha256": "cd4ff5ee59074da8344eddbd2d44ef3b80e70a6a439ef8520e0d3618c3f7c5e7",
+      "response_file": "cd4ff5ee59074da8344eddbd2d44ef3b80e70a6a439ef8520e0d3618c3f7c5e7.json",
+      "response_sha256": "1786321ea6488933b262f9e7a3eca9484634b876eea2750ee66f20739195ac9a"
+    },
+    {
+      "agent_role": "rebuttal",
+      "result_index": 0,
+      "request_sha256": "1de441f579967deb71cf4eccaf092855a74f7f95d95241766807243f89b84b5e",
+      "response_file": "1de441f579967deb71cf4eccaf092855a74f7f95d95241766807243f89b84b5e.json",
+      "response_sha256": "9cf4f7f382b636b6b8bb274fa58ff0b6aab945726ff6da9ffe152d93e8c6141c"
+    },
+    {
+      "agent_role": "judge",
+      "result_index": 0,
+      "request_sha256": "41a78ee33c638ea8734bf2e914547de999589c746411d939bf32401e54dff3f8",
+      "response_file": "41a78ee33c638ea8734bf2e914547de999589c746411d939bf32401e54dff3f8.json",
+      "response_sha256": "3ba693dba6b8399cfd54f110e5e88356d243a039779db87301b88c2811be229d"
+    }
+  ],
+  "expected_result": {
+    "alert_count": 1,
+    "auto_dismiss": false,
+    "label_counts": {
+      "FP": 0,
+      "NMC": 1,
+      "TP": 0
+    }
+  },
+  "fixture_provenance": {
+    "authored_for": "EviTriage-QL Gate E deterministic offline demonstration",
+    "license": "Apache-2.0",
+    "producer": "EviTriage-QL contributors",
+    "synthetic": true
+  },
+  "limitations": [
+    "Responses are synthetic workflow fixtures, not outputs from a real model.",
+    "The NMC label is a conservative demo decision, not a vulnerability verdict for arbitrary code.",
+    "This single fixture is evidence of reproducibility and policy wiring, not model quality or accuracy."
+  ],
+  "profile": {
+    "digest": "5ea8a4730592829790096aabf1df833df234593ad92db32de3d42ed11e312706",
+    "id": "replay-v0.1",
+    "model_id": "evitriage-offline-replay-v0.1",
+    "path": "configs/llm/replay-v0.1.yaml"
+  },
+  "project": {
+    "config_sha256": "d3495a4c73c76ba7c1baf6ec8373fdfa469a766e499b085665571aeafc72b1ae",
+    "id": "example-local",
+    "path": "configs/projects/example-local.yaml",
+    "source_tree_sha256": "9996c78313675f34c575b6b831f62564dfe0026d47dd6351850ca0a41fbe9b46"
+  },
+  "sarif": {
+    "path": "tests/fixtures/sarif/single-path.sarif",
+    "sha256": "0a7a7e2295d3d7d97157b87d6056bbba2f770d78841368adbc7df5daba60c6c3"
+  },
+  "schema_version": "1.0"
+}

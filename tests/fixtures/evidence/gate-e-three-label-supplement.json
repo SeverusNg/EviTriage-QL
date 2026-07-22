@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "project_id": "gate-e-demo",
+  "repository_identity": "93c07e6150fdaa122807b2c9bef033950c741986e1e8d460cedf046e886789d3",
+  "raw_sarif_sha256": "5ba6d042a067825992fac238b1db096f54816f611216d6a6c6b7ba7f51c8dedd",
+  "kind": "test",
+  "producer": "EviTriage-QL contributors",
+  "purpose": "Synthetic Gate E fixture evidence for deterministic TP and FP report acceptance; not a model output or arbitrary-code verdict.",
+  "entries": [
+    {
+      "run_index": 0,
+      "result_index": 0,
+      "type": "source_control",
+      "polarity": "supports_tp",
+      "strength": "medium",
+      "summary": "The synthetic case contract declares the socket line to be attacker-controlled for this fixture only."
+    },
+    {
+      "run_index": 0,
+      "result_index": 0,
+      "type": "sink_semantics",
+      "polarity": "supports_tp",
+      "strength": "medium",
+      "summary": "The synthetic case contract declares Files.readString on the requested path to be a security-sensitive sink for this fixture only."
+    },
+    {
+      "run_index": 0,
+      "result_index": 1,
+      "type": "guard",
+      "polarity": "supports_fp",
+      "strength": "decisive",
+      "summary": "The synthetic case contract asserts that normalized containment is enforced before the only file read and rebuts exploit-relevant path feasibility for this fixture."
+    }
+  ]
+}

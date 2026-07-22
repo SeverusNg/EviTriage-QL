@@ -171,6 +171,33 @@ def test_triage_cli_requires_provider_specific_secret_inputs(
     assert "DEEPSEEK_API_KEY" in str(missing_key.exception)
 
 
+def test_triage_cli_requires_exactly_one_input_branch(
+    monkeypatch: pytest.MonkeyPatch,
+    repository_root: Path,
+) -> None:
+    monkeypatch.setenv("EVITRIAGE_PROJECT_ROOT", str(repository_root))
+    no_input = runner.invoke(
+        app,
+        ["triage", "--project-config", "configs/projects/example-local.yaml"],
+    )
+    assert isinstance(no_input.exception, ConfigurationError)
+    assert "exactly one" in str(no_input.exception)
+
+    both_inputs = runner.invoke(
+        app,
+        [
+            "triage",
+            "--project-config",
+            "configs/projects/example-local.yaml",
+            "--sarif",
+            "tests/fixtures/sarif/single-path.sarif",
+            "--scan",
+        ],
+    )
+    assert isinstance(both_inputs.exception, ConfigurationError)
+    assert "exactly one" in str(both_inputs.exception)
+
+
 def test_doctor_cli_emits_valid_json(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

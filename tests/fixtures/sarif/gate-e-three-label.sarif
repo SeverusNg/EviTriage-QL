@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "columnKind": "utf16CodeUnits",
+      "tool": {
+        "driver": {
+          "name": "CodeQL",
+          "semanticVersion": "2.26.1",
+          "rules": [
+            {
+              "id": "java/path-injection",
+              "name": "PathInjection",
+              "fullDescription": {"text": "Uncontrolled data used in a file path."},
+              "helpUri": "https://codeql.github.com/codeql-query-help/java/java-path-injection/",
+              "defaultConfiguration": {"level": "error"},
+              "properties": {
+                "tags": ["security", "external/cwe/cwe-022"],
+                "security-severity": "7.5"
+              }
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {"uri": "file:///synthetic/gate-e-demo/"}
+      },
+      "artifacts": [
+        {
+          "location": {
+            "uri": "gate-e-demo/src/main/java/org/evitriage/demo/DirectPathCase.java",
+            "uriBaseId": "%SRCROOT%"
+          },
+          "hashes": {
+            "sha-256": "56d1b2040190447f6851cee81fc3c1a50c2005687be9282166dcbddaac8a8611"
+          }
+        },
+        {
+          "location": {
+            "uri": "gate-e-demo/src/main/java/org/evitriage/demo/CanonicalPathCase.java",
+            "uriBaseId": "%SRCROOT%"
+          },
+          "hashes": {
+            "sha-256": "0ae55b8abe8d5dfcb383ec789dc51a23ce5f9c05efe70fd289a4a1c47006c4b9"
+          }
+        },
+        {
+          "location": {
+            "uri": "gate-e-demo/src/main/java/org/evitriage/demo/UnknownWrapperCase.java",
+            "uriBaseId": "%SRCROOT%"
+          },
+          "hashes": {
+            "sha-256": "126ce9ebb9ff805ab26579976c266624aa14e6ea2062b8295379e10e32cc7110"
+          }
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "java/path-injection",
+          "ruleIndex": 0,
+          "message": {"text": "Direct socket input reaches a file-read path."},
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {"index": 0},
+                "region": {"startLine": 18, "startColumn": 9}
+              }
+            }
+          ],
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {"index": 0},
+                          "region": {"startLine": 17, "startColumn": 17}
+                        },
+                        "message": {"text": "socket input"}
+                      },
+                      "kinds": ["source"],
+                      "executionOrder": 0
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {"index": 0},
+                          "region": {"startLine": 18, "startColumn": 9}
+                        },
+                        "message": {"text": "file read"}
+                      },
+                      "kinds": ["sink"],
+                      "executionOrder": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "fingerprints": {"stable": "gate-e-direct-tp-v1"}
+        },
+        {
+          "ruleId": "java/path-injection",
+          "ruleIndex": 0,
+          "message": {"text": "A path flow reaches a sink after a containment guard."},
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {"index": 1},
+                "region": {"startLine": 23, "startColumn": 9}
+              }
+            }
+          ],
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {"index": 1},
+                          "region": {"startLine": 17, "startColumn": 17}
+                        },
+                        "message": {"text": "socket input"}
+                      },
+                      "kinds": ["source"],
+                      "executionOrder": 0
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {"index": 1},
+                          "region": {"startLine": 20, "startColumn": 9}
+                        },
+                        "message": {"text": "containment guard"}
+                      },
+                      "kinds": ["step"],
+                      "executionOrder": 1
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {"index": 1},
+                          "region": {"startLine": 23, "startColumn": 9}
+                        },
+                        "message": {"text": "guarded file read"}
+                      },
+                      "kinds": ["sink"],
+                      "executionOrder": 2
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "fingerprints": {"stable": "gate-e-canonical-fp-v1"}
+        },
+        {
+          "ruleId": "java/path-injection",
+          "ruleIndex": 0,
+          "message": {"text": "A policy-wrapper path reaches a file-read sink."},
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {"index": 2},
+                "region": {"startLine": 24, "startColumn": 9}
+              }
+            }
+          ],
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {"index": 2},
+                          "region": {"startLine": 22, "startColumn": 17}
+                        },
+                        "message": {"text": "socket input"}
+                      },
+                      "kinds": ["source"],
+                      "executionOrder": 0
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {"index": 2},
+                          "region": {"startLine": 23, "startColumn": 9}
+                        },
+                        "message": {"text": "unknown policy wrapper"}
+                      },
+                      "kinds": ["step"],
+                      "executionOrder": 1
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {"index": 2},
+                          "region": {"startLine": 24, "startColumn": 9}
+                        },
+                        "message": {"text": "file read"}
+                      },
+                      "kinds": ["sink"],
+                      "executionOrder": 2
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "fingerprints": {"stable": "gate-e-wrapper-nmc-v1"}
+        }
+      ]
+    }
+  ]
+}

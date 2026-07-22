@@ -291,13 +291,13 @@ class JudgedRunArtifact(TriageDomainModel):
 
 
 class TriageRunSummary(TriageDomainModel):
-    """Stable CLI summary for a completed existing-SARIF Gate D run."""
+    """Stable CLI summary for a judged run with integrated Gate E reports."""
 
     schema_version: Literal["1.0"] = "1.0"
     status: Literal["ok"] = "ok"
     command: Literal["triage"] = "triage"
-    source_kind: Literal["ingest"] = "ingest"
-    real_codeql: Literal[False] = False
+    source_kind: Literal["ingest", "scan"] = "ingest"
+    real_codeql: bool = False
     run_id: Annotated[str, Field(min_length=1, max_length=128)]
     project_id: Annotated[str, Field(min_length=1, max_length=128)]
     project_spec_sha256: Sha256
@@ -312,9 +312,12 @@ class TriageRunSummary(TriageDomainModel):
     evidence_registry: ArtifactRecord
     evidence_graph: ArtifactRecord
     source_map: ArtifactRecord
+    evidence_supplement: ArtifactRecord | None = None
     analyst_artifact: ArtifactRecord
     rebuttal_artifact: ArtifactRecord
     judged_artifact: ArtifactRecord
+    report_jsonl: ArtifactRecord
+    report_html: ArtifactRecord
     alert_count: Annotated[int, Field(ge=0)]
     path_count: Annotated[int, Field(ge=0)]
     evidence_count: Annotated[int, Field(ge=0)]
@@ -327,6 +330,8 @@ class TriageRunSummary(TriageDomainModel):
 
     @model_validator(mode="after")
     def validate_counts_and_roles(self) -> Self:
+        if self.real_codeql != (self.source_kind == "scan"):
+            raise ValueError("triage source kind and real CodeQL provenance disagree")
         if self.tp_count + self.fp_count + self.nmc_count != self.alert_count:
             raise ValueError("triage label counts must equal alert_count")
         if len(self.slice_artifacts) != self.alert_count:
@@ -340,6 +345,8 @@ class TriageRunSummary(TriageDomainModel):
             self.analyst_artifact.relative_path: "model",
             self.rebuttal_artifact.relative_path: "model",
             self.judged_artifact.relative_path: "decision",
+            self.report_jsonl.relative_path: "report",
+            self.report_html.relative_path: "report",
         }
         records = (
             self.normalized_bundle,
@@ -350,13 +357,18 @@ class TriageRunSummary(TriageDomainModel):
             self.analyst_artifact,
             self.rebuttal_artifact,
             self.judged_artifact,
+            self.report_jsonl,
+            self.report_html,
         )
         if any(record.role != expected_roles[record.relative_path] for record in records):
-            raise ValueError("Gate D artifact roles are inconsistent")
+            raise ValueError("triage/report artifact roles are inconsistent")
         if any(record.role != "context" for record in self.slice_artifacts):
-            raise ValueError("Gate D slice artifact roles are inconsistent")
-        if self.raw_sarif.role != "input":
-            raise ValueError("triage raw SARIF must retain the input artifact role")
+            raise ValueError("triage slice artifact roles are inconsistent")
+        expected_raw_role = "tool-output" if self.real_codeql else "input"
+        if self.raw_sarif.role != expected_raw_role:
+            raise ValueError("triage raw SARIF role disagrees with its source kind")
+        if self.evidence_supplement is not None and self.evidence_supplement.role != "input":
+            raise ValueError("triage evidence supplement must retain the input artifact role")
         return self
 
 

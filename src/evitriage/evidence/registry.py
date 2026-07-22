@@ -6,6 +6,7 @@ import hashlib
 import html
 import json
 from collections.abc import Mapping
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -19,11 +20,14 @@ from evitriage.domain.evidence import (
     EvidenceRegistry,
     EvidenceRelationship,
     EvidenceStrength,
+    EvidenceSupplement,
     EvidenceType,
 )
 from evitriage.domain.run import ArtifactRecord
+from evitriage.errors import PolicyRejectedError
 
 _REGISTRY_EXTRACTOR = "evidence-registry@1.0"
+_SUPPLEMENT_EXTRACTOR = "evidence-supplement@1.0"
 
 
 def build_evidence_registry(
@@ -218,6 +222,81 @@ def build_evidence_registry(
     )
 
 
+def merge_evidence_supplement(
+    registry: EvidenceRegistry,
+    bundle: AlertBundle,
+    supplement: EvidenceSupplement,
+    *,
+    supplement_artifact: ArtifactRecord,
+) -> EvidenceRegistry:
+    """Materialize explicit observations without letting them change alert identity."""
+
+    if supplement.repository_identity != registry.repository_identity:
+        raise PolicyRejectedError("evidence supplement source identity does not match the run")
+    if supplement.raw_sarif_sha256 != registry.raw_sarif_sha256:
+        raise PolicyRejectedError("evidence supplement SARIF identity does not match the run")
+    if supplement_artifact.role != "input":
+        raise PolicyRejectedError("evidence supplement artifact must retain the input role")
+
+    alerts_by_occurrence = {
+        (
+            alert.raw_result_reference.run_index,
+            alert.raw_result_reference.result_index,
+        ): alert
+        for alert in bundle.alerts
+    }
+    origin_by_kind: dict[str, EvidenceOrigin] = {
+        "human": "human",
+        "test": "test",
+        "verification": "verifier",
+    }
+    artifact_kind_by_supplement: dict[str, Literal["human", "test", "verification"]] = {
+        "human": "human",
+        "test": "test",
+        "verification": "verification",
+    }
+    added_items: list[EvidenceItem] = []
+    for entry in supplement.entries:
+        occurrence = (entry.run_index, entry.result_index)
+        alert = alerts_by_occurrence.get(occurrence)
+        if alert is None:
+            raise PolicyRejectedError(
+                "evidence supplement cites an unavailable SARIF result occurrence",
+                details={"run_index": entry.run_index, "result_index": entry.result_index},
+            )
+        added_items.append(
+            _evidence_item(
+                alert,
+                type=entry.type,
+                polarity=entry.polarity,
+                strength=entry.strength,
+                origin=origin_by_kind[supplement.kind],
+                location=None,
+                excerpt=None,
+                artifact_sha256=supplement_artifact.sha256,
+                extractor=_SUPPLEMENT_EXTRACTOR,
+                summary=entry.summary,
+            )
+        )
+
+    return EvidenceRegistry(
+        run_id=registry.run_id,
+        repository_identity=registry.repository_identity,
+        raw_sarif_sha256=registry.raw_sarif_sha256,
+        artifacts=(
+            *registry.artifacts,
+            EvidenceArtifactReference(
+                kind=artifact_kind_by_supplement[supplement.kind],
+                relative_path=supplement_artifact.relative_path,
+                artifact_sha256=supplement_artifact.sha256,
+            ),
+        ),
+        items=(*registry.items, *added_items),
+        relationships=registry.relationships,
+        claims=registry.claims,
+    )
+
+
 def evidence_graph_dot(registry: EvidenceRegistry) -> str:
     """Return a deterministic Graphviz DOT view of the validated evidence graph."""
 
@@ -406,4 +485,9 @@ def _dot_escape(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
 
 
-__all__ = ["build_evidence_registry", "evidence_graph_dot", "source_map_html"]
+__all__ = [
+    "build_evidence_registry",
+    "evidence_graph_dot",
+    "merge_evidence_supplement",
+    "source_map_html",
+]

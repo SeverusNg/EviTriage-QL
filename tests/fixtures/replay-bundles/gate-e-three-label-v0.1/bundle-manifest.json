@@ -1,0 +1,110 @@
+{
+  "analysis_identity": "analysis-9affe1d9b20c2c3214ba46fe1721f07b3d5a1d7cf38e8d8624880cb27a9751d8",
+  "bundle_id": "gate-e-three-label-v0-1",
+  "entries": [
+    {
+      "agent_role": "analyst",
+      "result_index": 0,
+      "request_sha256": "4dece11086b0d5869306e0126fb1bea3434121a3bca11d8028c568a80219cce1",
+      "response_file": "4dece11086b0d5869306e0126fb1bea3434121a3bca11d8028c568a80219cce1.json",
+      "response_sha256": "9d4b6660b8af703b66e791cfdcb4bff9ffe1a445b244d4010525ab1987cf8410"
+    },
+    {
+      "agent_role": "rebuttal",
+      "result_index": 0,
+      "request_sha256": "db08ab5d47b3013b2ef632d94b98f1d60eea5f982618eea2e91630a58e1c6add",
+      "response_file": "db08ab5d47b3013b2ef632d94b98f1d60eea5f982618eea2e91630a58e1c6add.json",
+      "response_sha256": "41c745c849b81add4a8419bc3594176f10550de9c3d69bf8cafcea0f1e3a94c8"
+    },
+    {
+      "agent_role": "judge",
+      "result_index": 0,
+      "request_sha256": "9077bce5ea8f894d07621a9a6d01a49e67edc5e5a209a91df051678734d616e4",
+      "response_file": "9077bce5ea8f894d07621a9a6d01a49e67edc5e5a209a91df051678734d616e4.json",
+      "response_sha256": "c5419eb647b4bb87bcf8b2b7747dd9afba0db53b0952834c43658c0ff47818b2"
+    },
+    {
+      "agent_role": "analyst",
+      "result_index": 1,
+      "request_sha256": "e73a16e5cae19ff1334110f54ca7bb5e96355715f54499ac7975949e3b143678",
+      "response_file": "e73a16e5cae19ff1334110f54ca7bb5e96355715f54499ac7975949e3b143678.json",
+      "response_sha256": "25f7a0dad43974da232b41206f57bba23068194f562418af5c36a74202388599"
+    },
+    {
+      "agent_role": "rebuttal",
+      "result_index": 1,
+      "request_sha256": "655b782b7d9efa3f72ffe2e1ba0fd7075ee65faa4cc81beb895036e2e0f7c51d",
+      "response_file": "655b782b7d9efa3f72ffe2e1ba0fd7075ee65faa4cc81beb895036e2e0f7c51d.json",
+      "response_sha256": "abcb40d5df7016cdea99d2cb5a4d8e6442f780850328c05c553dda938489c4e2"
+    },
+    {
+      "agent_role": "judge",
+      "result_index": 1,
+      "request_sha256": "9727c8d917ea6d5730eda260f490d35363778085d9a7c602a6ed3491b66e48a0",
+      "response_file": "9727c8d917ea6d5730eda260f490d35363778085d9a7c602a6ed3491b66e48a0.json",
+      "response_sha256": "5afe8cfdb2227348fb1ab1b9a600f436db51c6fbbbd0cfa4f71cc224b927b980"
+    },
+    {
+      "agent_role": "analyst",
+      "result_index": 2,
+      "request_sha256": "a5520b304dd314f55ce972a0ee00f91078ffd8f886f88e44bcfaec76c58967d1",
+      "response_file": "a5520b304dd314f55ce972a0ee00f91078ffd8f886f88e44bcfaec76c58967d1.json",
+      "response_sha256": "0790e0fd8e577446de2834ae42837290612fed3133b44f54f553ef258a7ea808"
+    },
+    {
+      "agent_role": "rebuttal",
+      "result_index": 2,
+      "request_sha256": "ed4094ee68cefece402a9d04f5945979379ec95f154eadabd3701255672f8b83",
+      "response_file": "ed4094ee68cefece402a9d04f5945979379ec95f154eadabd3701255672f8b83.json",
+      "response_sha256": "c1414e4984a46836dbc3413fdf3c4565504fc9f0d17125cdae9cffd984ecb3cc"
+    },
+    {
+      "agent_role": "judge",
+      "result_index": 2,
+      "request_sha256": "687416adf33bb20a8929372525a56a5f858ded342f0dc542e229eec8abe4ab17",
+      "response_file": "687416adf33bb20a8929372525a56a5f858ded342f0dc542e229eec8abe4ab17.json",
+      "response_sha256": "8cadafb3ec3b8731e3404e9686c312b065c8535daa53c05612da7b58aac7eeb7"
+    }
+  ],
+  "expected_result": {
+    "alert_count": 3,
+    "auto_dismiss": false,
+    "label_counts": {
+      "FP": 1,
+      "NMC": 1,
+      "TP": 1
+    }
+  },
+  "fixture_provenance": {
+    "authored_for": "EviTriage-QL Gate E deterministic TP/FP/NMC report acceptance",
+    "license": "Apache-2.0",
+    "producer": "EviTriage-QL contributors",
+    "synthetic": true
+  },
+  "limitations": [
+    "Responses and supplemental observations are synthetic fixtures, not real-model or verifier outputs.",
+    "Labels are case-specific policy acceptance examples, not vulnerability verdicts for arbitrary code.",
+    "The bundle demonstrates report completeness and replayability, not calibration or model quality."
+  ],
+  "profile": {
+    "digest": "5ea8a4730592829790096aabf1df833df234593ad92db32de3d42ed11e312706",
+    "id": "replay-v0.1",
+    "model_id": "evitriage-offline-replay-v0.1",
+    "path": "configs/llm/replay-v0.1.yaml"
+  },
+  "project": {
+    "config_sha256": "8a79fd162d973a4f8d0aca1f1281db3329ed35e253303f01032da9f9e8bb62f2",
+    "id": "gate-e-demo",
+    "path": "configs/projects/gate-e-demo.yaml",
+    "source_tree_sha256": "93c07e6150fdaa122807b2c9bef033950c741986e1e8d460cedf046e886789d3"
+  },
+  "sarif": {
+    "path": "tests/fixtures/sarif/gate-e-three-label.sarif",
+    "sha256": "5ba6d042a067825992fac238b1db096f54816f611216d6a6c6b7ba7f51c8dedd"
+  },
+  "schema_version": "1.0",
+  "supplement": {
+    "path": "tests/fixtures/evidence/gate-e-three-label-supplement.json",
+    "sha256": "88d6fa25af1a0d9cdcb644adfc3798f9f378bca6e1d79d3db851b0e2cb4091d6"
+  }
+}

@@ -18,9 +18,10 @@ make check
 uv run evitriage doctor --json
 ```
 
-Gate B tests and CI require no model API key, Java, or real CodeQL installation:
-they use synthetic Golden SARIF. CodeQL and a matching JDK may be installed for
-the separate real-scan smoke path, but their absence must not be hidden.
+The default tests and Gate E demo require no model API key, Java, or real CodeQL
+installation: they use synthetic Golden SARIF and fixed Replay entries. CodeQL
+and a matching JDK may be installed for the separate real-scan path, but their
+absence must not be hidden.
 
 ## Make a focused change
 

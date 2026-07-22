@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, cast
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from evitriage.agents import TriageLimits, TriageWorkflow
 from evitriage.codeql import CodeQLRunner, CodeQLRunResult
@@ -20,7 +20,7 @@ from evitriage.domain.context import (
     SliceArtifact,
     SliceArtifactReference,
 )
-from evitriage.domain.evidence import EvidenceRegistry
+from evitriage.domain.evidence import EvidenceRegistry, EvidenceSupplement
 from evitriage.domain.project import ResolvedProjectSpec
 from evitriage.domain.run import (
     ArtifactRecord,
@@ -44,10 +44,16 @@ from evitriage.errors import (
     ModelError,
     PolicyRejectedError,
 )
-from evitriage.evidence import build_evidence_registry, evidence_graph_dot, source_map_html
+from evitriage.evidence import (
+    build_evidence_registry,
+    evidence_graph_dot,
+    merge_evidence_supplement,
+    source_map_html,
+)
 from evitriage.llm import LLMProfile, StructuredLLM
 from evitriage.observability import redact
 from evitriage.projects.registry import ProjectRegistry
+from evitriage.reporting import build_triage_report, render_report_html, render_report_jsonl
 from evitriage.run_artifacts import RunJournal
 from evitriage.sarif import InvalidSarifError, SarifNormalizer, parse_sarif_bytes
 from evitriage.workspace import WorkspaceManager
@@ -57,6 +63,8 @@ _CONTEXT_VERSION: Literal["1.0"] = "1.0"
 _EVIDENCE_REGISTRY_VERSION = "1.0"
 _AGENT_WORKFLOW_VERSION = "1.0"
 _DECISION_POLICY_VERSION = "1.0"
+_REPORT_RENDERER_VERSION = "1.0"
+_EVIDENCE_SUPPLEMENT_VERSION = "1.0"
 _SARIF_MEDIA_TYPE = "application/sarif+json"
 _JSON_MEDIA_TYPE = "application/json"
 
@@ -80,6 +88,7 @@ class _ContextProducts:
     registry_record: ArtifactRecord
     graph_record: ArtifactRecord
     source_map_record: ArtifactRecord
+    supplement_record: ArtifactRecord | None
 
 
 def run_sarif_ingest(
@@ -117,9 +126,10 @@ def run_sarif_triage(
     profile: LLMProfile,
     llm: StructuredLLM,
     limits: TriageLimits | None = None,
+    evidence_supplement_path: Path | None = None,
     allowed_source_roots: tuple[Path, ...] | None = None,
 ) -> TriageRunSummary:
-    """Ingest existing SARIF and continue the shared pipeline through Gate D."""
+    """Ingest existing SARIF and continue through triage and Gate E reports."""
 
     prepared = _prepare_run(
         repository_root,
@@ -127,6 +137,30 @@ def run_sarif_triage(
         allowed_source_roots=allowed_source_roots,
         input_mode="sarif",
     )
+    _validate_triage_profile(prepared, profile)
+    raw_record, raw = _ingest_sarif_input(prepared, sarif_path)
+    supplement = _ingest_evidence_supplement(
+        prepared,
+        evidence_supplement_path=evidence_supplement_path,
+        raw_sarif_sha256=raw_record.sha256,
+    )
+    products = _normalize_context(
+        prepared,
+        raw=raw,
+        raw_record=raw_record,
+        supplement=supplement,
+    )
+    return _triage_and_complete(
+        prepared,
+        products=products,
+        profile=profile,
+        llm=llm,
+        limits=limits,
+        real_codeql=False,
+    )
+
+
+def _validate_triage_profile(prepared: _PreparedRun, profile: LLMProfile) -> None:
     if prepared.resolved.spec.analysis.llm_profile != profile.id:
         error = PolicyRejectedError(
             "ProjectSpec LLM profile does not match the trusted runtime profile",
@@ -148,19 +182,6 @@ def run_sarif_triage(
         )
         _fail_run(prepared, WorkflowState.POLICY_REJECTED, error)
         raise error
-    raw_record, raw = _ingest_sarif_input(prepared, sarif_path)
-    products = _normalize_context(
-        prepared,
-        raw=raw,
-        raw_record=raw_record,
-    )
-    return _triage_and_complete(
-        prepared,
-        products=products,
-        profile=profile,
-        llm=llm,
-        limits=limits,
-    )
 
 
 def _ingest_sarif_input(
@@ -187,6 +208,55 @@ def _ingest_sarif_input(
     return raw_record, raw
 
 
+def _ingest_evidence_supplement(
+    prepared: _PreparedRun,
+    *,
+    evidence_supplement_path: Path | None,
+    raw_sarif_sha256: str,
+) -> tuple[EvidenceSupplement, ArtifactRecord] | None:
+    if evidence_supplement_path is None:
+        return None
+    try:
+        record, raw = prepared.journal.ingest_file(
+            evidence_supplement_path,
+            "input/evidence-supplement.json",
+            role="input",
+            media_type=_JSON_MEDIA_TYPE,
+            maximum_bytes=2 * 1024 * 1024,
+        )
+        supplement = EvidenceSupplement.model_validate_json(raw, strict=True)
+        if supplement.project_id != prepared.resolved.project_id:
+            raise PolicyRejectedError("evidence supplement project does not match the run")
+        if supplement.repository_identity != prepared.allocation.snapshot.source_tree_sha256:
+            raise PolicyRejectedError("evidence supplement source identity does not match the run")
+        if supplement.raw_sarif_sha256 != raw_sarif_sha256:
+            raise PolicyRejectedError("evidence supplement SARIF identity does not match the run")
+    except ValidationError as error:
+        rejected = PolicyRejectedError(
+            "evidence supplement failed strict validation",
+            details={
+                "issues": [
+                    {
+                        "type": str(issue["type"]),
+                        "location": [str(part) for part in issue["loc"]],
+                        "message": str(issue["msg"]),
+                    }
+                    for issue in error.errors(
+                        include_url=False,
+                        include_context=False,
+                        include_input=False,
+                    )
+                ]
+            },
+        )
+        _fail_run(prepared, WorkflowState.POLICY_REJECTED, rejected)
+        raise rejected from error
+    except EviTriageError as error:
+        _fail_run(prepared, WorkflowState.POLICY_REJECTED, error)
+        raise
+    return supplement, record
+
+
 def run_codeql_scan(
     repository_root: Path,
     *,
@@ -202,6 +272,64 @@ def run_codeql_scan(
         allowed_source_roots=allowed_source_roots,
         input_mode="scan",
     )
+    raw_record, raw = _scan_codeql_input(prepared, runner=runner)
+    return _normalize_context_and_complete(
+        prepared,
+        raw=raw,
+        raw_record=raw_record,
+        command="scan",
+        source_kind="scan",
+        real_codeql=True,
+    )
+
+
+def run_codeql_triage(
+    repository_root: Path,
+    *,
+    project_config: Path,
+    profile: LLMProfile,
+    llm: StructuredLLM,
+    limits: TriageLimits | None = None,
+    evidence_supplement_path: Path | None = None,
+    allowed_source_roots: tuple[Path, ...] | None = None,
+    runner: CodeQLRunner | None = None,
+) -> TriageRunSummary:
+    """Execute CodeQL and continue the same run through triage and reporting."""
+
+    prepared = _prepare_run(
+        repository_root,
+        project_config=project_config,
+        allowed_source_roots=allowed_source_roots,
+        input_mode="scan",
+    )
+    _validate_triage_profile(prepared, profile)
+    raw_record, raw = _scan_codeql_input(prepared, runner=runner)
+    supplement = _ingest_evidence_supplement(
+        prepared,
+        evidence_supplement_path=evidence_supplement_path,
+        raw_sarif_sha256=raw_record.sha256,
+    )
+    products = _normalize_context(
+        prepared,
+        raw=raw,
+        raw_record=raw_record,
+        supplement=supplement,
+    )
+    return _triage_and_complete(
+        prepared,
+        products=products,
+        profile=profile,
+        llm=llm,
+        limits=limits,
+        real_codeql=True,
+    )
+
+
+def _scan_codeql_input(
+    prepared: _PreparedRun,
+    *,
+    runner: CodeQLRunner | None,
+) -> tuple[ArtifactRecord, bytes]:
     prepared.journal.transition(WorkflowState.BUILD_READY, event_type="build_plan_ready")
     selected_runner = runner or CodeQLRunner()
     try:
@@ -248,14 +376,7 @@ def run_codeql_scan(
         _fail_run(prepared, WorkflowState.CODEQL_FAILED, error)
         raise
 
-    return _normalize_context_and_complete(
-        prepared,
-        raw=raw,
-        raw_record=raw_record,
-        command="scan",
-        source_kind="scan",
-        real_codeql=True,
-    )
+    return raw_record, raw
 
 
 def _prepare_run(
@@ -328,6 +449,7 @@ def _normalize_context(
     *,
     raw: bytes,
     raw_record: ArtifactRecord,
+    supplement: tuple[EvidenceSupplement, ArtifactRecord] | None = None,
 ) -> _ContextProducts:
     try:
         document = parse_sarif_bytes(raw)
@@ -392,6 +514,15 @@ def _normalize_context(
             normalized_artifact=normalized_record,
             persisted_slices=persisted_slices,
         )
+        supplement_record: ArtifactRecord | None = None
+        if supplement is not None:
+            supplement_input, supplement_record = supplement
+            registry = merge_evidence_supplement(
+                registry,
+                bundle,
+                supplement_input,
+                supplement_artifact=supplement_record,
+            )
         registry_record = prepared.journal.write_artifact(
             "evidence/registry.json",
             _serialize_model(registry),
@@ -414,6 +545,11 @@ def _normalize_context(
             {
                 "context-extractor": _CONTEXT_VERSION,
                 "evidence-registry": _EVIDENCE_REGISTRY_VERSION,
+                **(
+                    {"evidence-supplement": _EVIDENCE_SUPPLEMENT_VERSION}
+                    if supplement_record is not None
+                    else {}
+                ),
             }
         )
         prepared.journal.transition(
@@ -437,6 +573,7 @@ def _normalize_context(
         registry_record=registry_record,
         graph_record=graph_record,
         source_map_record=source_map_record,
+        supplement_record=supplement_record,
     )
 
 
@@ -487,6 +624,7 @@ def _triage_and_complete(
     profile: LLMProfile,
     llm: StructuredLLM,
     limits: TriageLimits | None,
+    real_codeql: bool,
 ) -> TriageRunSummary:
     workflow = TriageWorkflow(profile=profile, limits=limits)
     try:
@@ -588,6 +726,27 @@ def _triage_and_complete(
             input_sha256=rebuttal_record.sha256,
             output_sha256=judged_record.sha256,
         )
+        prepared.journal.add_tool_versions({"report-renderer": _REPORT_RENDERER_VERSION})
+        report = build_triage_report(
+            manifest=prepared.journal.manifest,
+            bundle=products.bundle,
+            slices=products.slices,
+            registry=products.registry,
+            results=results,
+            real_codeql=real_codeql,
+        )
+        report_jsonl_record = prepared.journal.write_artifact(
+            "reports/decisions.jsonl",
+            render_report_jsonl(report),
+            role="report",
+            media_type="application/x-ndjson",
+        )
+        report_html_record = prepared.journal.write_artifact(
+            "reports/index.html",
+            render_report_html(report),
+            role="report",
+            media_type="text/html",
+        )
         manifest = prepared.journal.complete()
     except PolicyRejectedError as error:
         _fail_run(prepared, WorkflowState.POLICY_REJECTED, error)
@@ -614,9 +773,12 @@ def _triage_and_complete(
         evidence_registry=products.registry_record,
         evidence_graph=products.graph_record,
         source_map=products.source_map_record,
+        evidence_supplement=products.supplement_record,
         analyst_artifact=analyst_record,
         rebuttal_artifact=rebuttal_record,
         judged_artifact=judged_record,
+        report_jsonl=report_jsonl_record,
+        report_html=report_html_record,
         alert_count=len(products.bundle.alerts),
         path_count=sum(len(alert.paths) for alert in products.bundle.alerts),
         evidence_count=len(products.registry.items),
@@ -628,6 +790,8 @@ def _triage_and_complete(
         fp_count=sum(decision.label == "FP" for decision in decisions),
         nmc_count=sum(decision.label == "NMC" for decision in decisions),
         tool_versions=manifest.tool_versions,
+        source_kind="scan" if real_codeql else "ingest",
+        real_codeql=real_codeql,
     )
 
 
@@ -797,4 +961,9 @@ def _record_partial_codeql_artifacts(prepared: _PreparedRun, error: EviTriageErr
             error.details.setdefault("partial_artifact_error", capture_error.code)
 
 
-__all__ = ["run_codeql_scan", "run_sarif_ingest", "run_sarif_triage"]
+__all__ = [
+    "run_codeql_scan",
+    "run_codeql_triage",
+    "run_sarif_ingest",
+    "run_sarif_triage",
+]

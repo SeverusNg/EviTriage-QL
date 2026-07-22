@@ -4,8 +4,8 @@
 
 EviTriage-QL is pre-release research software. Until a tagged release exists,
 only the latest revision on the primary development branch receives security
-fixes. The Gate B input pipeline is a research foundation and must not be treated as a
-production vulnerability-classification service.
+fixes. The Gate E offline vertical prototype must not be treated as a production
+vulnerability-classification service.
 
 ## Reporting a vulnerability
 
@@ -41,6 +41,8 @@ boundaries. Security-relevant reports include, but are not limited to:
 - accepting unknown or privilege-changing ProjectSpec fields;
 - unsafe SQLite/database URL handling;
 - falsely reporting a CodeQL scan or evidence-backed decision;
+- accepting supplemental evidence for a different project, source snapshot,
+  SARIF artifact, or alert occurrence;
 - a future model or repository changing tool permissions or workflow goals.
 
 `ingest-sarif` never executes the target. `scan` can execute only the explicitly

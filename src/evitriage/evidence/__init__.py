@@ -3,7 +3,13 @@
 from evitriage.evidence.registry import (
     build_evidence_registry,
     evidence_graph_dot,
+    merge_evidence_supplement,
     source_map_html,
 )
 
-__all__ = ["build_evidence_registry", "evidence_graph_dot", "source_map_html"]
+__all__ = [
+    "build_evidence_registry",
+    "evidence_graph_dot",
+    "merge_evidence_supplement",
+    "source_map_html",
+]

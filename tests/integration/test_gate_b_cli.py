@@ -12,17 +12,19 @@ from typing import ClassVar, cast
 
 import pytest
 import yaml
-from pydantic import BaseModel, JsonValue
+from pydantic import BaseModel, JsonValue, ValidationError
 from typer.testing import CliRunner
 
 from evitriage.agents import TriageWorkflow
 from evitriage.cli import app
 from evitriage.codeql import CodeQLVersionMismatchError
 from evitriage.domain.evidence import EvidenceRegistry
+from evitriage.domain.report import AlertReport
 from evitriage.domain.triage import (
     AgentRole,
     ClaimDraft,
     JudgedRunArtifact,
+    TriageRunSummary,
     TriageTarget,
     materialize_claim,
 )
@@ -35,7 +37,11 @@ from evitriage.llm import (
     ScriptedResponse,
     canonical_request_sha256,
 )
-from evitriage.pipeline import run_codeql_scan, run_sarif_ingest, run_sarif_triage
+from evitriage.pipeline import (
+    run_codeql_scan,
+    run_sarif_ingest,
+    run_sarif_triage,
+)
 from evitriage.sarif import InvalidSarifError
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "sarif"
@@ -367,7 +373,12 @@ def test_triage_cli_replays_to_judged_with_durable_decision_artifacts(
 ) -> None:
     repository, config, _source_bytes = _gate_b_repository(tmp_path)
     monkeypatch.setenv("EVITRIAGE_PROJECT_ROOT", str(repository))
-    sarif = FIXTURES / "single-path.sarif"
+    sarif_document = json.loads((FIXTURES / "single-path.sarif").read_text(encoding="utf-8"))
+    sarif_document["runs"][0]["results"][0]["message"]["text"] = (
+        'Untrusted <script>alert("report-xss")</script> message.'
+    )
+    sarif = tmp_path / "report-escape.sarif"
+    sarif.write_text(json.dumps(sarif_document), encoding="utf-8")
     baseline = run_sarif_ingest(
         repository,
         project_config=config,
@@ -412,6 +423,8 @@ def test_triage_cli_replays_to_judged_with_durable_decision_artifacts(
     assert summary["tp_count"] == summary["fp_count"] == 0
     assert summary["invocation_count"] == 3
     assert summary["analysis_identity"] == registry.run_id
+    assert summary["report_jsonl"]["relative_path"] == "reports/decisions.jsonl"
+    assert summary["report_html"]["relative_path"] == "reports/index.html"
 
     run_root = Path(summary["artifact_run_root"])
     manifest = json.loads((run_root / "run-manifest.json").read_text(encoding="utf-8"))
@@ -432,12 +445,36 @@ def test_triage_cli_replays_to_judged_with_durable_decision_artifacts(
     assert registered["triage/analyst.json"]["role"] == "model"
     assert registered["triage/rebuttal.json"]["role"] == "model"
     assert registered["triage/judged.json"]["role"] == "decision"
+    assert registered["reports/decisions.jsonl"]["role"] == "report"
+    assert registered["reports/index.html"]["role"] == "report"
     judged = JudgedRunArtifact.model_validate_json(
         (run_root / "triage/judged.json").read_bytes(), strict=True
     )
     assert judged.analysis_identity == registry.run_id
     assert judged.results[0].final_decision.label == "NMC"
     assert judged.results[0].final_decision.auto_dismiss is False
+    report_lines = (run_root / "reports/decisions.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(report_lines) == 1
+    report = AlertReport.model_validate_json(report_lines[0], strict=True)
+    assert report.run.run_id == summary["run_id"]
+    assert report.run.analysis_identity == registry.run_id
+    assert report.run.tool_versions["report-renderer"] == "1.0"
+    assert report.alert.paths[0].source.step_kind == "source"
+    assert report.alert.paths[0].sink.step_kind == "sink"
+    assert report.triage.final_decision.label == "NMC"
+    assert report.triage.final_decision.auto_dismiss is False
+    assert report.verification.status == "not_performed"
+    assert report.human_label is None
+    assert report.unknowns
+    broken_report = report.model_dump(mode="python")
+    broken_report["triage"]["final_decision"]["critical_evidence_ids"] = ("ev_" + "f" * 64,)
+    with pytest.raises(ValidationError, match="unavailable critical evidence"):
+        AlertReport.model_validate(broken_report, strict=True)
+    html_report = (run_root / "reports/index.html").read_text(encoding="utf-8")
+    assert "EviTriage offline triage report" in html_report
+    assert "&lt;script&gt;alert(&quot;report-xss&quot;)&lt;/script&gt;" in html_report
+    assert '<script>alert("report-xss")</script>' not in html_report
+    assert "No alert was automatically dismissed" in html_report
     replayed_registry = EvidenceRegistry.model_validate_json(
         (run_root / "evidence/registry.json").read_bytes(), strict=True
     )
@@ -487,6 +524,88 @@ def test_triage_replay_miss_finalizes_model_failure_with_request_provenance(
     assert not (run_root / "triage/analyst.json").exists()
     for artifact in manifest["artifacts"]:
         assert stat.S_IMODE((run_root / artifact["relative_path"]).stat().st_mode) == 0o400
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("mismatch", "error_text"),
+    (
+        ("project", "project does not match"),
+        ("source", "source identity"),
+        ("sarif", "SARIF identity"),
+        ("schema", "strict validation"),
+    ),
+)
+def test_triage_rejects_invalid_or_mismatched_supplement(
+    tmp_path: Path,
+    mismatch: str,
+    error_text: str,
+) -> None:
+    repository, config, _source_bytes = _gate_b_repository(tmp_path)
+    sarif = FIXTURES / "single-path.sarif"
+    supplement = tmp_path / "mismatched-supplement.json"
+    payload: dict[str, object] = {
+        "schema_version": "1.0",
+        "project_id": "gate-b-fixture",
+        "repository_identity": "f" * 64,
+        "raw_sarif_sha256": hashlib.sha256(sarif.read_bytes()).hexdigest(),
+        "kind": "test",
+        "producer": "EviTriage-QL tests",
+        "purpose": "This mismatch must fail before any model call.",
+        "entries": [
+            {
+                "run_index": 0,
+                "result_index": 0,
+                "type": "guard",
+                "polarity": "supports_fp",
+                "strength": "decisive",
+                "summary": "A deliberately mismatched fixture observation.",
+            }
+        ],
+    }
+    if mismatch != "source":
+        baseline = run_sarif_ingest(
+            repository,
+            project_config=config,
+            sarif_path=sarif,
+        )
+        payload["repository_identity"] = baseline.snapshot_identity
+    if mismatch == "project":
+        payload["project_id"] = "another-project"
+    elif mismatch == "sarif":
+        payload["raw_sarif_sha256"] = "e" * 64
+    elif mismatch == "schema":
+        payload["unexpected"] = True
+    supplement.write_text(
+        json.dumps(payload),
+        encoding="utf-8",
+    )
+    cache = tmp_path / "unused-replay-cache"
+    cache.mkdir()
+    profile = LLMProfile(
+        id="replay-v0.1",
+        provider="replay",
+        model_id="evitriage-offline-replay-v0.1",
+    )
+
+    with pytest.raises(PolicyRejectedError, match=error_text) as raised:
+        run_sarif_triage(
+            repository,
+            project_config=config,
+            sarif_path=sarif,
+            profile=profile,
+            llm=ReplayLLM(profile, cache),
+            evidence_supplement_path=supplement,
+        )
+
+    run_root = Path(cast(str, raised.value.details["artifact_run_root"]))
+    manifest = json.loads((run_root / "run-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["status"] == "failed"
+    assert manifest["state"] == "POLICY_REJECTED"
+    registered = {artifact["relative_path"] for artifact in manifest["artifacts"]}
+    assert "input/source.sarif" in registered
+    assert "input/evidence-supplement.json" in registered
+    assert "metadata/error.json" in registered
 
 
 @pytest.mark.integration
@@ -840,6 +959,113 @@ def test_scan_converges_on_the_same_normalizer_after_a_real_runner_result(
         "codeql/database-create.command.json",
         "normalized/alerts.json",
     } <= artifact_paths
+
+
+@pytest.mark.integration
+def test_scan_can_continue_in_the_same_run_through_triage_and_reports(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repository, config, _ = _gate_b_repository(tmp_path)
+    monkeypatch.setenv("EVITRIAGE_PROJECT_ROOT", str(repository))
+    baseline = run_sarif_ingest(
+        repository,
+        project_config=config,
+        sarif_path=FIXTURES / "single-path.sarif",
+    )
+    baseline_root = Path(baseline.artifact_run_root)
+    registry = EvidenceRegistry.model_validate_json(
+        (baseline_root / baseline.evidence_registry.relative_path).read_bytes(), strict=True
+    )
+    profile = LLMProfile(
+        id="replay-v0.1",
+        provider="replay",
+        model_id="evitriage-offline-replay-v0.1",
+    )
+    replay_cache = tmp_path / "scan-replay-cache"
+    _write_replay_cache(replay_cache, profile=profile, registry=registry)
+
+    def which(value: str) -> str | None:
+        return {
+            "codeql": "/tools/codeql",
+            "java": "/tools/java",
+            "javac": "/tools/javac",
+        }.get(value)
+
+    def fake_run(arguments: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        assert kwargs["shell"] is False
+        if arguments[1:3] == ["version", "--format=terse"]:
+            return subprocess.CompletedProcess(arguments, 0, stdout="2.26.1\n", stderr="")
+        if arguments[0] == "/tools/java":
+            return subprocess.CompletedProcess(
+                arguments,
+                0,
+                stdout="",
+                stderr='openjdk version "17.0.10"\n',
+            )
+        if arguments[0] == "/tools/javac":
+            return subprocess.CompletedProcess(arguments, 0, stdout="javac 17.0.10\n", stderr="")
+        if arguments[1:3] == ["database", "create"]:
+            Path(arguments[3]).mkdir()
+            return subprocess.CompletedProcess(arguments, 0, stdout="created\n", stderr="")
+        if arguments[1:3] == ["database", "analyze"]:
+            output = next(item for item in arguments if item.startswith("--output="))
+            Path(output.removeprefix("--output=")).write_bytes(
+                (FIXTURES / "single-path.sarif").read_bytes()
+            )
+            return subprocess.CompletedProcess(arguments, 0, stdout="analyzed\n", stderr="")
+        raise AssertionError(arguments)
+
+    monkeypatch.setattr("evitriage.codeql.runner.shutil.which", which)
+    monkeypatch.setattr("evitriage.codeql.runner.subprocess.run", fake_run)
+
+    completed = runner.invoke(
+        app,
+        [
+            "triage",
+            "--project-config",
+            str(config),
+            "--scan",
+            "--llm-profile",
+            str(Path(__file__).parents[2] / "configs/llm/replay-v0.1.yaml"),
+            "--replay-cache",
+            str(replay_cache),
+            "--json",
+        ],
+    )
+
+    assert completed.exit_code == 0, completed.output
+    summary = TriageRunSummary.model_validate_json(completed.stdout, strict=True)
+    assert summary.status == "ok"
+    assert summary.source_kind == "scan"
+    assert summary.real_codeql is True
+    assert summary.state == "JUDGED"
+    assert summary.analysis_identity == registry.run_id
+    assert summary.raw_sarif.role == "tool-output"
+    assert summary.alert_count == summary.nmc_count == 1
+    root = Path(summary.artifact_run_root)
+    manifest = json.loads((root / "run-manifest.json").read_text(encoding="utf-8"))
+    assert [event["to_state"] for event in manifest["events"]] == [
+        "CREATED",
+        "PROJECT_VALIDATED",
+        "WORKSPACE_READY",
+        "SOURCE_READY",
+        "BUILD_READY",
+        "CODEQL_DB_READY",
+        "SCANNED",
+        "NORMALIZED",
+        "CONTEXT_READY",
+        "ANALYZED",
+        "REBUTTED",
+        "JUDGED",
+    ]
+    report = AlertReport.model_validate_json(
+        (root / summary.report_jsonl.relative_path).read_text(encoding="utf-8").strip(),
+        strict=True,
+    )
+    assert report.run.input_mode == "scan"
+    assert report.run.real_codeql is True
+    assert report.triage.final_decision.label == "NMC"
 
 
 @pytest.mark.integration

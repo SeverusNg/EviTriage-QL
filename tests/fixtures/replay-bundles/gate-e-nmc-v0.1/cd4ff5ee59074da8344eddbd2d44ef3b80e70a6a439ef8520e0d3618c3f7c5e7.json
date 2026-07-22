@@ -1,0 +1,14 @@
+{
+  "claims": [
+    {
+      "evidence_ids": [],
+      "kind": "path_feasible",
+      "statement": "The supplied evidence does not resolve complete path feasibility.",
+      "status": "unresolved"
+    }
+  ],
+  "schema_version": "1.0",
+  "unknowns": [
+    "Source control and sink semantics remain unresolved."
+  ]
+}

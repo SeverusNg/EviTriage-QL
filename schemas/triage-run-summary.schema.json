@@ -26,7 +26,8 @@
             "tool-output",
             "metadata",
             "model",
-            "decision"
+            "decision",
+            "report"
           ],
           "title": "Role",
           "type": "string"
@@ -54,7 +55,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Stable CLI summary for a completed existing-SARIF Gate D run.",
+  "description": "Stable CLI summary for a judged run with integrated Gate E reports.",
   "properties": {
     "alert_count": {
       "minimum": 0,
@@ -101,6 +102,17 @@
     "evidence_registry": {
       "$ref": "#/$defs/ArtifactRecord"
     },
+    "evidence_supplement": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ArtifactRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "fp_count": {
       "minimum": 0,
       "title": "Fp Count",
@@ -142,12 +154,17 @@
       "$ref": "#/$defs/ArtifactRecord"
     },
     "real_codeql": {
-      "const": false,
       "default": false,
       "title": "Real Codeql",
       "type": "boolean"
     },
     "rebuttal_artifact": {
+      "$ref": "#/$defs/ArtifactRecord"
+    },
+    "report_html": {
+      "$ref": "#/$defs/ArtifactRecord"
+    },
+    "report_jsonl": {
       "$ref": "#/$defs/ArtifactRecord"
     },
     "run_id": {
@@ -175,8 +192,11 @@
       "type": "string"
     },
     "source_kind": {
-      "const": "ingest",
       "default": "ingest",
+      "enum": [
+        "ingest",
+        "scan"
+      ],
       "title": "Source Kind",
       "type": "string"
     },
@@ -225,6 +245,8 @@
     "analyst_artifact",
     "rebuttal_artifact",
     "judged_artifact",
+    "report_jsonl",
+    "report_html",
     "alert_count",
     "path_count",
     "evidence_count",

@@ -128,6 +128,45 @@ releases will follow [Semantic Versioning](https://semver.org/).
   through a hidden prompt, writes only an owner-private encrypted blob outside
   the checkout, and lets `triage` automatically decrypt it through an in-memory
   pipe. The one-process environment variable remains an ephemeral fallback.
+- A first Gate E offline reporting slice integrated into `triage`: every
+  normalized alert now produces one strict, independently parseable JSONL row
+  and one self-contained HTML audit view before the run is finalized.
+- Strict `AlertReport` and `TriageReportBundle` contracts, generated public
+  schemas, and closed checks binding report alerts, slices, evidence, Claims,
+  critical references, analysis identity, and run provenance.
+- Registered `report` artifacts at `reports/decisions.jsonl` and
+  `reports/index.html`, including tool/config/source provenance, ordered paths,
+  Analyst/Rebuttal Claims, evidence, TP/FP/NMC decision, unknowns, context
+  history, explicit unperformed verification, next actions, and limitations.
+- A fixed, Apache-2.0, synthetic NMC Replay bundle whose strict manifest binds
+  the ProjectSpec, Golden SARIF, source-tree identity, offline profile,
+  canonical request hashes, response-file hashes, expected decision, and
+  limitations.
+- An offline `make demo` target that closes the existing-SARIF path through
+  normalization, context, evidence, Analyst/Rebuttal/Judge, deterministic NMC,
+  JSONL/HTML reports, and a finalized run manifest without CodeQL, an API key,
+  or a real model.
+- A subprocess E2E acceptance test that runs `make demo` in an isolated
+  checkout, strictly parses its one-line summary/report, rechecks every
+  registered artifact's size/hash and `0400` mode, and proves the input source
+  tree is unchanged.
+- A strict `EvidenceSupplement` contract and generated schema for explicit
+  human/test/verification assertions, bound to the project, repository
+  snapshot, raw SARIF, and exact result occurrence. Supplements are preserved
+  as input artifacts and merged through code-assigned evidence IDs without
+  accepting Claims or desired labels.
+- Three original Apache-2.0 Java path microcases, a three-result Golden SARIF,
+  an identity-bound synthetic test-evidence supplement, and nine fixed Replay
+  responses that exercise the ordinary policy and reports for one TP, one
+  decisive FP, and one NMC.
+- A completed offline Gate E `make demo` acceptance path whose three strict
+  JSONL rows and escaped HTML summary contain all three labels, nine ordered
+  Agent invocations, complete manifest provenance, immutable artifacts, and no
+  Java, CodeQL, credential, network, or real-model dependency.
+- `triage --scan` as the alternative to `triage --sarif`, carrying actual
+  CodeQL runner output through the shared normalizer, context/evidence,
+  Analyst/Rebuttal/Judge, policy, and reports in one run. Controlled-runner
+  integration coverage proves the complete state/artifact path.
 
 ### Security
 
@@ -185,17 +224,26 @@ releases will follow [Semantic Versioning](https://semver.org/).
 - Model responses cannot cite evidence outside the exact alert fingerprint and
   raw SARIF occurrence. Unknown evidence/claim IDs invalidate the response and
   receive no more than the configured single repair.
+- Evidence supplements are bounded no-follow inputs with strict schemas and
+  exact project/snapshot/SARIF/occurrence binding. Identity mismatches,
+  duplicate entries, or unsupported decisive-neutral assertions finalize as
+  `POLICY_REJECTED`; the original input is retained for audit.
 - Repository/SARIF text is carried only as `untrusted_code_data`; fixed role
   prompts deny instructions and tool permissions found inside it. Gate D ships
   Replay with bounded no-follow cache reads. The optional DeepSeek adapter is
   pinned to `api.deepseek.com:443`, sends credentials only as a Bearer header,
   discards provider error bodies, and requires matching remote-upload policy in
   the trusted profile and ProjectSpec.
+- The HTML report escapes SARIF messages, path messages, source excerpts,
+  Claims, evidence, unknowns, and all other untrusted text. JSONL/HTML report
+  artifacts are hash-registered and finalized owner-read-only with the run;
+  reports cannot enable automatic alert dismissal.
 
 ### Not yet implemented or verified
 
-- Gate E+: decision JSONL/HTML reports, a trusted Replay cache writer/bundle,
-  prior-run continuation, direct scan-to-triage chaining, the offline `make
-  demo` path, and providers beyond the narrow DeepSeek V4 integration.
+- Gate E+/Gate F: the standalone `report --run-id` command, a general trusted
+  Replay cache writer/producer attestation, prior-run continuation, and a fresh
+  real CodeQL scan-to-`JUDGED` acceptance artifact. Providers beyond the narrow
+  DeepSeek V4 integration,
   AST/CFG-backed, caller/callee, adaptive, configuration, and test context also
   remain later scope.

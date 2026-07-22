@@ -10,8 +10,9 @@ from pydantic import BaseModel
 
 from evitriage.domain.alerts import AlertBundle
 from evitriage.domain.context import ContextIndex, SliceArtifact
-from evitriage.domain.evidence import EvidenceRegistry
+from evitriage.domain.evidence import EvidenceRegistry, EvidenceSupplement
 from evitriage.domain.project import ProjectSpec
+from evitriage.domain.report import AlertReport, TriageReportBundle
 from evitriage.domain.run import ContextRunSummary, NormalizedRunSummary, RunManifest
 from evitriage.domain.triage import (
     AnalystOutput,
@@ -28,11 +29,13 @@ from evitriage.llm import LLMProfile
 
 _SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "alert-bundle.schema.json": AlertBundle,
+    "alert-report.schema.json": AlertReport,
     "analyst-output.schema.json": AnalystOutput,
     "analyst-run-artifact.schema.json": AnalystRunArtifact,
     "context-index.schema.json": ContextIndex,
     "context-run-summary.schema.json": ContextRunSummary,
     "evidence.schema.json": EvidenceRegistry,
+    "evidence-supplement.schema.json": EvidenceSupplement,
     "final-decision.schema.json": FinalDecision,
     "judge-output.schema.json": JudgeOutput,
     "judged-run-artifact.schema.json": JudgedRunArtifact,
@@ -44,6 +47,7 @@ _SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "run-manifest.schema.json": RunManifest,
     "slice-artifact.schema.json": SliceArtifact,
     "triage-result.schema.json": TriageResult,
+    "triage-report-bundle.schema.json": TriageReportBundle,
     "triage-run-summary.schema.json": TriageRunSummary,
 }
 
@@ -65,7 +69,7 @@ def schema_path(repository_root: Path) -> Path:
 
 
 def write_schemas(repository_root: Path) -> None:
-    """Write all public schemas implemented through the offline Gate D path."""
+    """Write all public schemas implemented through the Gate E report slice."""
 
     schema_directory = repository_root / "schemas"
     schema_directory.mkdir(parents=True, exist_ok=True)

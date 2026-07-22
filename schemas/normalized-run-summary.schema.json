@@ -26,7 +26,8 @@
             "tool-output",
             "metadata",
             "model",
-            "decision"
+            "decision",
+            "report"
           ],
           "title": "Role",
           "type": "string"

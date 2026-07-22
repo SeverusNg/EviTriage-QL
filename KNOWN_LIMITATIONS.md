@@ -1,6 +1,8 @@
 # Known limitations
 
-This document describes the checked-in **Gate D offline triage** baseline.
+This document describes the checked-in **Gate E offline P0 vertical closure**:
+integrated reporting, both fresh triage inputs, and a deterministic three-label
+offline demo.
 Items below are intentional scope boundaries or unresolved verification gaps,
 not implicit claims that the complete v0.1 research workflow exists.
 
@@ -79,10 +81,11 @@ not implicit claims that the complete v0.1 research workflow exists.
   escaped source-map HTML are navigation artifacts, not vulnerability reports.
 - `FakeLLM`, read-only `ReplayLLM`, strict Agent/decision schemas, the ordered
   Analyst/Rebuttal/Judge workflow, and deterministic policy now exist as a
-  bounded Python library core. Replay consumes operator-created
-  `<request-sha256>.json` entries; the repository does not yet supply a trusted
-  cache writer, cache bundle, external-producer attestation, token usage, or
-  latency measurements.
+  bounded Python library core. Replay consumes trusted
+  `<request-sha256>.json` entries. The repository supplies only fixed synthetic,
+  SHA-256-inventoried demo bundles, including one with TP, FP, and NMC; it does
+  not supply a general cache writer, external-producer attestation, token usage,
+  or latency measurements.
 - An opt-in DeepSeek adapter supports only `deepseek-v4-pro` and
   `deepseek-v4-flash` at the fixed official `api.deepseek.com:443` Chat
   Completions endpoint. It accepts either the one-process `DEEPSEEK_API_KEY`
@@ -98,22 +101,42 @@ not implicit claims that the complete v0.1 research workflow exists.
   usable TPM2 device, and operator access to `/dev/tpmrm0`. Enrollment fails
   closed if those prerequisites, private ownership, or `0600`/`0400` file modes
   are absent. There is no macOS/Windows keychain adapter yet.
-- The Gate D `triage` command accepts ProjectSpec + existing SARIF + a trusted
-  Replay profile/cache, allocates a fresh run, reuses the shared Gate B/C path,
-  and persists `ANALYZED → REBUTTED → JUDGED` artifacts. It cannot continue a
-  previously finalized Gate C run by `run_id`, and `scan`/`ingest-sarif` still
-  honestly stop at `CONTEXT_READY`. Direct scan-to-triage chaining is Gate E
-  work.
+- The `triage` command accepts exactly one of existing SARIF or a new CodeQL
+  scan plus a trusted LLM profile, allocates a fresh run, reuses the shared Gate
+  B/C path, and persists `ANALYZED → REBUTTED → JUDGED` artifacts. The scan
+  form has controlled-runner integration coverage, but no fresh real CodeQL
+  scan-to-`JUDGED` artifact is claimed. It cannot continue a previously
+  finalized Gate C run by `run_id`; standalone `scan`/`ingest-sarif` commands
+  still honestly stop at `CONTEXT_READY`.
+- Optional supplemental evidence is a trusted operator/test assertion, not an
+  independently verified fact or human label. The strict input binds project,
+  snapshot, SARIF, and exact occurrence, is preserved and hash-registered, and
+  cannot directly set Claims or a label. These controls expose provenance and
+  prevent accidental cross-run use; they cannot establish that the producer's
+  assertion is true. Verification sandboxes and human-review attestation remain
+  unimplemented.
 - The synthetic Gate D tests exercise TP, decisive FP, conflicting NMC, and
   missing-decisive-rebuttal downgrade decisions. They are policy/adapter test
   evidence, not vulnerability conclusions about the Java fixtures or the
   earlier real CodeQL result.
-- The JSON decision artifact is implemented, but aggregate JSONL/HTML reports
-  are not. No component automatically dismisses an upstream alert; every
-  `FinalDecision.auto_dismiss` value is structurally fixed to `false`.
-- The complete offline `make demo`, verification sandboxes, calibration,
-  benchmark datasets, paper statistics, PostgreSQL, and GitHub alert
-  integration remain later milestones.
+- A fresh successful `triage` run now writes registered
+  `reports/decisions.jsonl` and `reports/index.html` artifacts before
+  finalization. There is no standalone `report --run-id` command, no
+  cross-run aggregation/CSV/Markdown export, and no way to attach reports to a
+  previously finalized Gate C/D run. No component automatically dismisses an
+  upstream alert; every `FinalDecision.auto_dismiss` value is structurally
+  fixed to `false`.
+- Report JSONL intentionally carries the bounded SliceArtifact and evidence
+  needed for replayable audit, so it can contain selected source excerpts and
+  must be handled with the same confidentiality controls as the source
+  snapshot. HTML escapes untrusted content to prevent active markup; escaping
+  is not content redaction or authorization to publish sensitive code.
+- `make demo` now completes three existing-SARIF cases and emits one TP, one FP,
+  and one NMC report without Java, CodeQL, an API key, network access, or a real
+  model. Their evidence supplement and Replay responses are synthetic test
+  oracles, not independently validated vulnerability labels or accuracy data.
+  Verification sandboxes, calibration, benchmark datasets, paper statistics,
+  PostgreSQL, and GitHub alert integration remain later milestones.
 
 ## Operational boundary
 
@@ -143,11 +166,11 @@ not implicit claims that the complete v0.1 research workflow exists.
   detectable but are not a tamper-proof ledger: the filesystem owner or root
   can change permissions and rewrite artifacts. Research retention should copy
   completed runs into an independently controlled, content-addressed archive.
-- A Gate D manifest covers input, normalization, context, evidence, model-stage,
-  and decision artifact hashes. Invocation records persist prompt/request/
+- A judged manifest covers input, normalization, context, evidence, model-stage,
+  decision, and report artifact hashes. Invocation records persist prompt/request/
   response hashes plus provider profile/model identity, but not raw prompts,
-  raw Replay entries, token/latency observations, or reports. The manifest does
-  not attest who produced a Replay entry.
+  raw Replay entries, or token/latency observations. The manifest does not
+  attest who produced a Replay entry.
 - A DeepSeek run sends the selected evidence payload—including bounded source
   excerpts—to an external provider. TLS and an explicit upload policy reduce
   accidental disclosure but do not make remote processing confidential from

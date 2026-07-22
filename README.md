@@ -3,7 +3,8 @@
 **Evidence-Grounded LLM-Agent Triage for CodeQL Alerts**  
 基于 CodeQL 路径证据与大模型 Agent 的可审计漏洞告警二次筛选系统
 
-> Current implementation status: **Gate D offline triage complete**. The
+> Current implementation status: **Gate E offline P0 vertical closure passes**.
+> The
 > checked-in code supports strict local project configuration, managed source
 > snapshots and workspaces, a real CodeQL command runner, existing-SARIF ingest,
 > deterministic SARIF 2.1.0 normalization, bounded Level 0/1 Java context, an
@@ -16,12 +17,20 @@
 > offline-only Gate D path provides strict Fake/Replay structured model
 > adapters, bounded Analyst/Rebuttal/Judge sequencing, evidence-closed Claims,
 > conservative TP/FP/NMC policy, a `triage` CLI, durable Agent states, and
-> registered decision artifacts. An opt-in DeepSeek V4-Pro/Flash adapter is
+> registered decision artifacts. Successful triage also registers strict
+> per-alert JSONL and escaped HTML reports before finalization, and accepts
+> either an existing SARIF artifact or a same-run CodeQL scan. The default
+> `make demo` path binds three checked-in Java microcases, Golden SARIF, a
+> strict identity-bound synthetic evidence supplement, the offline Replay
+> profile, and nine SHA-256-addressed responses into one deterministic no-key
+> workflow that produces one TP, one FP, and one NMC report. These are
+> synthetic workflow/policy fixtures, not accuracy evidence. An opt-in
+> DeepSeek V4-Pro/Flash adapter is
 > restricted to DeepSeek's official HTTPS endpoint and an explicit remote-data
 > policy. Acceptance tests use a simulated endpoint. A separately authorized
 > 2026-07-23 live smoke completed three structured calls and reached `JUDGED`
 > for one synthetic fixture; it is provider-path evidence, not a quality
-> benchmark or report-renderer claim.
+> benchmark.
 
 ## Problem
 
@@ -40,7 +49,7 @@ SARIF, enter the same normalizer, and then use the same context/evidence path.
 This keeps offline reproduction useful without presenting Golden data as a real
 CodeQL result.
 
-## Gate C pipeline and Gate D offline triage
+## Gate C/D pipeline and Gate E offline reports
 
 ```mermaid
 flowchart LR
@@ -56,11 +65,13 @@ flowchart LR
     N --> A[Normalized AlertBundle]
     A --> X[Level 0/1 SliceArtifact per alert]
     X --> E[Evidence Registry + DOT + source map]
+    G[Trusted identity-bound evidence supplement] --> E
     E --> T[Bounded Analyst → Rebuttal → Judge]
     F[FakeLLM / ReplayLLM] --> T
     T --> P[Deterministic TP / FP / NMC policy]
     P --> D[Strict TriageResult + stage artifacts]
-    D --> J[Run manifest + append-only event log at JUDGED]
+    D --> Q[Strict JSONL + escaped HTML report]
+    Q --> J[Run manifest + append-only event log at JUDGED]
 ```
 
 The detailed boundaries and trust assumptions are documented in
@@ -73,7 +84,12 @@ convergence, and context/evidence decisions are recorded in
 bounded offline triage decision is recorded in
 [`ADR 0005`](docs/adr/0005-gate-d-bounded-triage-core.md); the explicit remote
 data and credential boundary for DeepSeek is recorded in
-[`ADR 0006`](docs/adr/0006-deepseek-v4-opt-in-provider.md).
+[`ADR 0006`](docs/adr/0006-deepseek-v4-opt-in-provider.md), and the first
+offline reporting slice in
+[`ADR 0007`](docs/adr/0007-gate-e-offline-reports.md). The first fixed offline
+demo bundle is recorded in [`ADR 0008`](docs/adr/0008-gate-e-offline-demo.md),
+and the three-label evidence/scan closure in
+[`ADR 0009`](docs/adr/0009-gate-e-three-label-and-scan-closure.md).
 
 ## Five-minute offline quickstart
 
@@ -103,6 +119,9 @@ or package-index access. From the repository root:
 uv sync --all-extras
 make check
 
+# Complete offline TP/FP/NMC demo: no Java, CodeQL, API key, or real model.
+make demo
+
 uv run evitriage project validate \
   --config configs/projects/example-local.yaml \
   --json
@@ -114,6 +133,17 @@ uv run evitriage ingest-sarif \
 
 uv run evitriage doctor --json
 ```
+
+`make demo` emits one machine-readable `TriageRunSummary` for three alerts. Its
+`artifact_run_root` contains the preserved SARIF, normalized alerts, context,
+evidence, three Agent stages, `reports/decisions.jsonl`, `reports/index.html`,
+the append-only workflow event log, and the final run manifest. It uses only
+the fixed synthetic Replay bundle under
+`tests/fixtures/replay-bundles/gate-e-three-label-v0.1` and the strictly bound
+supplement under `tests/fixtures/evidence/`; changing a prompt, response schema,
+profile, source, SARIF, supplement, or request identity produces an explicit
+failure. The one-TP/one-FP/one-NMC output is a reproducibility and policy
+fixture, not a model-quality or vulnerability-accuracy claim.
 
 `ingest-sarif` creates a managed source snapshot and a distinct run directory,
 copies the exact input bytes to `input/source.sarif`, records their SHA-256,
@@ -150,10 +180,34 @@ uv run evitriage triage \
   --json
 ```
 
-The repository intentionally ships no model responses or cache writer. Every
-required `<request-sha256>.json` entry must already exist and satisfy the strict
-role schema; a missing entry creates an auditable `MODEL_FAILED` run rather than
-falling back to a network provider.
+For a scan and downstream triage in one fresh run, use exactly `--scan` instead
+of `--sarif`:
+
+```bash
+uv run evitriage triage \
+  --project-config configs/projects/example-local.yaml \
+  --scan \
+  --llm-profile configs/llm/replay-v0.1.yaml \
+  --replay-cache /trusted/read-only/replay-cache \
+  --json
+```
+
+The repository ships only fixed synthetic demo responses, not a general cache
+writer. Every required `<request-sha256>.json` entry must already exist and
+satisfy the strict role schema; a missing entry creates an auditable
+`MODEL_FAILED` run rather than falling back to a network provider. A trusted
+evidence supplement can be supplied with `--evidence-supplement`; its project,
+snapshot, raw-SARIF, and exact result-occurrence identities must match, and it
+adds assertions only—it cannot set Claims or a desired label.
+
+On success, the same finalized run contains
+`reports/decisions.jsonl` (one strict `AlertReport` per normalized alert) and
+`reports/index.html` (a self-contained audit view). Both are registered in the
+manifest with role `report`, reverified by SHA-256, and made owner-read-only.
+The HTML view escapes untrusted source/SARIF/model text and explicitly records
+that confidence is uncalibrated, verification was not performed, and no alert
+was automatically dismissed. JSONL can include bounded source excerpts and
+must be protected like the analyzed source tree.
 
 ### DeepSeek V4: safe API-key handoff
 
@@ -312,18 +366,23 @@ The bounded Gate D path adds:
   `untrusted_code_data` and explicitly deny instructions or tool permissions
   found in that data.
 
-The `triage` command allocates a fresh existing-SARIF run, reuses the shared
-normalization/context/evidence implementation, and continues through
-`ANALYZED`, `REBUTTED`, and `JUDGED`. It persists `triage/analyst.json`,
+The `triage` command requires exactly one of an existing `--sarif` input or a
+real `--scan`, allocates a fresh run, reuses the shared normalization/context/
+evidence implementation, and continues through `ANALYZED`, `REBUTTED`, and
+`JUDGED`. It persists `triage/analyst.json`,
 `triage/rebuttal.json`, and `triage/judged.json`, records non-secret
 prompt/request/response hashes plus profile/model identity, revalidates all
 registered artifact hashes, and finalizes them owner-read-only. Equivalent
 source/SARIF input receives a stable `analysis_identity` so Replay request
 hashes do not depend on the fresh operational `run_id`.
 
-Existing finalized Gate C runs are not reopened or relabelled. A trusted cache
-writer/bundle, triage continuation by prior `run_id`, triage directly after the
-`scan` command, and JSONL/HTML reports remain unimplemented. The DeepSeek
+Existing finalized Gate C runs are not reopened or relabelled. The repository
+includes fixed synthetic, SHA-256-inventoried Replay bundles, including the
+default three-alert TP/FP/NMC `make demo`. Its identity-bound supplement makes
+the synthetic test oracle explicit; binding and hashing do not independently
+prove the asserted evidence true. A general cache writer/producer attestation,
+triage continuation by prior `run_id`, and a standalone `report --run-id`
+command remain unimplemented. The DeepSeek
 adapter has simulated HTTP/CLI coverage plus one separately authorized live
 smoke recorded in the dated progress log. Run
 `20260722T174132749958Z-8fce5d0ab3f9` used the TPM2 credential path, accepted
@@ -418,8 +477,9 @@ research artifacts. See the dated evidence log in
 
 The current boundary is enumerated in
 [`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md). Providers other than the narrow
-DeepSeek V4 adapter, a trusted Replay cache producer/bundle, prior-run
-continuation, decision JSONL/HTML reports, and `make demo` remain unavailable.
+DeepSeek V4 adapter, a general Replay cache producer, prior-run continuation,
+a standalone report command, and independently verified production evidence
+supplements remain unavailable.
 Remote Git acquisition, Gradle, adaptive context, and automatic verification
 are also outside this gate.
 

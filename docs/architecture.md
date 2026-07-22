@@ -1,9 +1,10 @@
-# Gate C context/evidence architecture
+# EviTriage v0.1 architecture through Gate E offline reporting
 
 ## Status and scope
 
 This document describes the executable Gate A foundation, Gate B CodeQL/SARIF
-input layer, and Gate C context/evidence layer. The current system makes target
+input layer, Gate C context/evidence layer, Gate D bounded triage, and the Gate
+E offline P0 vertical closure. The current system makes target
 selection, filesystem ownership, external-tool execution, raw-input provenance,
 SARIF normalization, bounded source extraction, evidence references, and
 per-run audit state explicit before any model call is introduced.
@@ -26,10 +27,16 @@ The checked-in implementation includes:
 - exact raw SARIF preservation, snapshot-file hash verification, finalized
   registered artifacts, an append-only workflow event log, and a current/final
   run manifest;
+- bounded Analyst/Rebuttal/Judge triage with deterministic TP/FP/NMC policy;
+- strict per-alert JSONL and escaped HTML reports registered before finalization;
+- a strict identity-bound supplemental-evidence input and direct
+  CodeQL-scan-to-triage orchestration;
+- a deterministic three-alert TP/FP/NMC offline demo;
 - original Golden SARIF inputs and offline unit/integration/security tests.
 
-Gate C does **not** call an LLM, generate claims, classify an alert, publish a
-decision report, or modify/dismiss an upstream CodeQL alert.
+Ordinary Gate C input commands do **not** call an LLM, generate Claims, or
+classify an alert. Only `triage` continues through Gate D and the integrated
+report renderer. No path modifies or dismisses an upstream CodeQL alert.
 A real Java/CodeQL smoke completed in one development environment and is
 recorded in the dated evidence log. Its zero-result SARIF validates the external
 runner path but does not establish findings or clean-room reproducibility.
@@ -64,7 +71,9 @@ flowchart TB
     ALERT --> EVID[Evidence Registry]
     SLICE --> EVID
     EVID --> GRAPH[(JSON + DOT + source map)]
-    GRAPH --> AUDIT[(Manifest + event log)]
+    GRAPH --> TRIAGE[Analyst → Rebuttal → Judge + policy]
+    TRIAGE --> REPORT[(JSONL + escaped HTML)]
+    REPORT --> AUDIT[(Manifest + event log)]
 
     CLI --> DOC[Doctor probes]
     CLI --> DBM[Database migration]
@@ -89,6 +98,7 @@ normalize boundary; only their recorded source kind and tool provenance differ.
 | SARIF parser/normalizer | Bound and parse raw bytes, resolve snapshot paths, independently hash existing files, preserve occurrences, emit deterministic domain records | Fetch URIs, invent missing files/facts, deduplicate alerts or paths |
 | `ContextBuilder` | Consume normalized locations, safely open bounded snapshot files, validate coordinates, select fixed-window or lexical Java callable context, record token/omission metadata | Reparse SARIF paths, read the whole repository, execute source text, claim AST/CFG semantics |
 | Evidence Registry/exporters | Bind evidence to registered artifact hashes and raw result references, reject dangling artifact/evidence/claim IDs, export deterministic JSON/DOT and escaped source navigation | Treat names/comments as facts, generate a verdict, accept unknown evidence IDs, emit active HTML content |
+| Report renderer | Join exact alert occurrences with run/tool/config provenance, context, Claims, evidence, decisions, unknowns, and limitations; emit strict JSONL and escaped self-contained HTML | Invent missing evidence, calibrate confidence, execute verification, emit active HTML, or dismiss an alert |
 | `RunJournal` | Register config/descriptor and run artifacts, hash/reverify/finalize content, validate states, append events, publish a current/final manifest | Overwrite named artifacts, leave a failed run marked successful, claim the manifest itself is append-only |
 | diagnostics | Report versions/availability and configuration/storage readiness | Treat “not installed” as a successful scan or log secrets |
 | storage/migration | Initialize the minimal SQLite metadata schema through SQLAlchemy | Claim normalized-alert indexing, PostgreSQL, or team-service semantics |
@@ -158,7 +168,9 @@ artifacts/
     ├── context/slices/run-<run>-result-<result>.json
     ├── context/source-map.html
     ├── evidence/registry.json
-    └── evidence/graph.dot
+    ├── evidence/graph.dot
+    ├── triage/{analyst,rebuttal,judged}.json
+    └── reports/{decisions.jsonl,index.html}
 ```
 
 The original source directory is input-only. A content-addressed copy snapshot
@@ -297,7 +309,8 @@ The domain layer sees strict, frozen top-level alert, context, evidence, claim,
 triage, manifest, and summary models, not raw vendor dictionaries. JSON Schemas
 for ProjectSpec, `AlertBundle`, `SliceArtifact`, `ContextIndex`,
 `EvidenceRegistry`, LLM/Agent outputs, `FinalDecision`, `TriageResult`,
-`RunManifest`, and CLI summaries are generated and checked for drift.
+`AlertReport`, `TriageReportBundle`, `RunManifest`, and CLI summaries are
+generated and checked for drift.
 
 ## Gate C context and evidence contract
 
@@ -387,9 +400,9 @@ with decisive FP evidence. Empty critical evidence, unknowns, unresolved
 critical claims, and high/decisive conflicts become NMC. Confidence cannot
 bypass these checks and automatic dismissal is structurally disabled.
 
-`evitriage triage` binds ProjectSpec, existing SARIF, and a trusted profile. A
-Replay profile additionally requires a read-only cache. It allocates a fresh
-run, reuses the same
+`evitriage triage` binds ProjectSpec, exactly one of existing SARIF or a new
+CodeQL scan, and a trusted profile. A Replay profile additionally requires a
+read-only cache. It allocates a fresh run, reuses the same
 normalization/context/evidence functions as `ingest-sarif`, and then persists
 three strict artifacts: `triage/analyst.json` and `triage/rebuttal.json` with
 role `model`, followed by `triage/judged.json` with role `decision`. Their hashes
@@ -409,8 +422,73 @@ the stage/decision records; it does not persist raw prompts or copy Replay cache
 entries. Missing Replay input becomes a finalized `MODEL_FAILED` run with
 bounded non-content request provenance. Profile mismatch or an evidence-policy
 violation becomes `POLICY_REJECTED`. Existing finalized Gate C runs are not
-reopened. Prior-run continuation, direct scan-to-triage chaining, a trusted
-cache producer, and JSONL/HTML publication remain Gate E boundaries.
+reopened. Prior-run continuation and a general trusted cache producer remain
+post-Gate-E boundaries.
+
+An optional `EvidenceSupplement` is copied as a registered input before
+context/evidence finalization. The strict document identifies its producer and
+purpose and binds every assertion to the ProjectSpec project ID, snapshot
+SHA-256, raw SARIF SHA-256, and exact `(run_index, result_index)`. It cannot
+contain Claims or a desired decision. Code creates content-derived evidence IDs
+and merges only matching assertions into the closed registry; mismatches,
+duplicates, and invalid decisive-neutral assertions finalize as
+`POLICY_REJECTED`. This makes a human/test/verification assertion auditable but
+does not independently establish its truth.
+
+## Gate E offline report slice
+
+After `JUDGED` and before journal finalization, the report builder joins each
+normalized alert to exactly one SliceArtifact and TriageResult by raw SARIF
+run/result occurrence. It filters Evidence Registry items by the same alert
+fingerprint and raw reference, then rejects unavailable Claim, critical Claim,
+or critical evidence references. Every JSONL row repeats non-secret run,
+project, config, snapshot, repository, SARIF, tool, and model-profile
+provenance so the row remains independently auditable.
+
+`reports/decisions.jsonl` contains one canonical JSON object per alert.
+`reports/index.html` is self-contained and escapes SARIF messages, path text,
+source excerpts, Claims, evidence, unknowns, and model summaries. Both carry
+the final TP/FP/NMC label while preserving requested label, raw uncalibrated
+confidence, context history, explicit `not_performed` verification, next
+actions, limitations, and `auto_dismiss=false`. Both have artifact role
+`report`, are included in the manifest, and receive the same final digest/size
+reverification and `0400` permissions as all other registered artifacts.
+
+This slice is integrated only into fresh `triage` runs. It does not yet add a
+standalone `report --run-id` command, reopen a finalized run, or aggregate
+across runs. JSONL includes bounded source/evidence content and therefore
+inherits the analyzed source's confidentiality requirements; HTML escaping
+prevents markup execution but is not secret redaction.
+
+## Gate E deterministic offline demo
+
+`make demo` selects only checked-in inputs: `gate-e-demo.yaml`, three original
+Java microcases, `gate-e-three-label.sarif`, an exact identity-bound synthetic
+test-evidence supplement, the `replay-v0.1` offline profile, and
+`gate-e-three-label-v0.1` Replay entries. `uv run --offline` prevents
+dependency resolution during the command, while the Replay provider has no
+network transport or credential path. Canonical request SHA-256 names couple
+each response to the exact role prompt, payload, response schema, analysis
+identity, and profile; stale inputs fail as a Replay miss.
+
+The bundle manifest is fixture provenance rather than a second runtime source
+of truth. It inventories the raw ProjectSpec/SARIF, canonical profile digest,
+source-tree identity, nine request/response hashes, synthetic authorship and
+license, expected one-TP/one-FP/one-NMC result, and limitations. Runtime
+decisions still pass
+the ordinary strict response, evidence-closure, and deterministic policy
+checks. The resulting report and run manifest explicitly retain
+`real_codeql=false`, Replay tool identity, all three labels, and
+`auto_dismiss=false`.
+
+The E2E test copies these inputs into an isolated repository, invokes the Make
+target as a subprocess with no DeepSeek key, parses the one-line public
+summary, rehashes every registered artifact, checks final `0400` modes, and
+compares the entire source fixture before and after. It strictly parses all
+three report rows and verifies one TP, one decisive FP, and one NMC. This is
+synthetic reproducibility/policy evidence, not model quality, independent
+ground truth, or a fresh CodeQL scan. ADR 0009 records this boundary and the
+controlled-runner scan-to-report acceptance path.
 
 The DeepSeek path is a deliberate post-Gate-D remote extension. Its adapter
 fixes the target to `api.deepseek.com:443/chat/completions`, accepts only V4-Pro
@@ -452,6 +530,17 @@ Current acceptance evidence consists of:
   entries, reach `JUDGED` through all durable states, revalidate decision
   artifacts, and prove a Replay miss finalizes as `MODEL_FAILED` with request
   provenance;
+- Gate E integration assertions that parse the JSONL row through the public
+  strict schema, reject a dangling critical evidence reference, verify report
+  roles/hashes/final permissions, and prove script-shaped SARIF text is escaped
+  rather than emitted as active HTML;
+- a Gate E subprocess test that validates the fixed Replay bundle manifest,
+  executes `make demo` in an isolated checkout, rehashes and permission-checks
+  the complete finalized artifact set, strictly verifies the three label rows,
+  and proves source immutability;
+- Gate E integration tests that reject a source/SARIF identity-mismatched
+  evidence supplement and carry controlled CodeQL runner output through the
+  same `--scan` triage/report path;
 - simulated-HTTPS DeepSeek tests for the exact official host/path, JSON schema
   payload, complete three-role CLI flow, missing-key/error-body non-disclosure,
   offline-project rejection, and commit-eligible secret scanning; no live key

@@ -1,4 +1,6 @@
-.PHONY: sync format lock-check lint typecheck schema-check secret-check test check clean
+.PHONY: sync format lock-check lint typecheck schema-check secret-check test check demo clean
+
+EVITRIAGE_COMMAND ?= uv run --offline evitriage
 
 sync:
 	uv sync --all-extras
@@ -27,6 +29,15 @@ test:
 	uv run pytest
 
 check: lock-check lint typecheck schema-check secret-check test
+
+demo:
+	@$(EVITRIAGE_COMMAND) triage \
+		--project-config configs/projects/gate-e-demo.yaml \
+		--sarif tests/fixtures/sarif/gate-e-three-label.sarif \
+		--evidence-supplement tests/fixtures/evidence/gate-e-three-label-supplement.json \
+		--llm-profile configs/llm/replay-v0.1.yaml \
+		--replay-cache tests/fixtures/replay-bundles/gate-e-three-label-v0.1 \
+		--json
 
 clean:
 	@echo "Refusing broad cleanup; use managed workspace lifecycle operations."

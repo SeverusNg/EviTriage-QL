@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evitriage.local/schemas/replay-demo-bundle-1.0.json",
+  "additionalProperties": false,
+  "properties": {
+    "analysis_identity": {
+      "pattern": "^analysis-[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "bundle_id": {
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "type": "string"
+    },
+    "entries": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_role": {
+            "enum": [
+              "analyst",
+              "rebuttal",
+              "judge"
+            ]
+          },
+          "request_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "result_index": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "response_file": {
+            "pattern": "^[0-9a-f]{64}\\.json$",
+            "type": "string"
+          },
+          "response_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_role",
+          "result_index",
+          "request_sha256",
+          "response_file",
+          "response_sha256"
+        ],
+        "type": "object"
+      },
+      "minItems": 3,
+      "type": "array"
+    },
+    "expected_result": {
+      "additionalProperties": false,
+      "properties": {
+        "alert_count": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "auto_dismiss": {
+          "const": false
+        },
+        "label_counts": {
+          "additionalProperties": false,
+          "properties": {
+            "FP": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "NMC": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "TP": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "TP",
+            "FP",
+            "NMC"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "alert_count",
+        "auto_dismiss",
+        "label_counts"
+      ],
+      "type": "object"
+    },
+    "fixture_provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "authored_for": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "license": {
+          "const": "Apache-2.0"
+        },
+        "producer": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "synthetic": {
+          "const": true
+        }
+      },
+      "required": [
+        "authored_for",
+        "license",
+        "producer",
+        "synthetic"
+      ],
+      "type": "object"
+    },
+    "limitations": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "profile": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "id": {
+          "const": "replay-v0.1"
+        },
+        "model_id": {
+          "const": "evitriage-offline-replay-v0.1"
+        },
+        "path": {
+          "const": "configs/llm/replay-v0.1.yaml"
+        }
+      },
+      "required": [
+        "digest",
+        "id",
+        "model_id",
+        "path"
+      ],
+      "type": "object"
+    },
+    "project": {
+      "additionalProperties": false,
+      "properties": {
+        "config_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "type": "string"
+        },
+        "path": {
+          "pattern": "^configs/projects/[a-z0-9-]+\\.yaml$",
+          "type": "string"
+        },
+        "source_tree_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "config_sha256",
+        "id",
+        "path",
+        "source_tree_sha256"
+      ],
+      "type": "object"
+    },
+    "sarif": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "pattern": "^tests/fixtures/sarif/[A-Za-z0-9._-]+\\.sarif$",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "supplement": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "pattern": "^tests/fixtures/evidence/[A-Za-z0-9._-]+\\.json$",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "schema_version": {
+      "const": "1.0"
+    }
+  },
+  "required": [
+    "schema_version",
+    "bundle_id",
+    "fixture_provenance",
+    "project",
+    "sarif",
+    "profile",
+    "analysis_identity",
+    "entries",
+    "expected_result",
+    "limitations"
+  ],
+  "title": "EviTriage offline Replay demo bundle",
+  "type": "object"
+}

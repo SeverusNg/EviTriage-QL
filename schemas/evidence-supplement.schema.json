@@ -1,0 +1,139 @@
+{
+  "$defs": {
+    "EvidenceSupplementEntry": {
+      "additionalProperties": false,
+      "description": "One explicit, occurrence-bound observation supplied outside CodeQL.",
+      "properties": {
+        "polarity": {
+          "enum": [
+            "supports_tp",
+            "supports_fp",
+            "neutral"
+          ],
+          "title": "Polarity",
+          "type": "string"
+        },
+        "result_index": {
+          "minimum": 0,
+          "title": "Result Index",
+          "type": "integer"
+        },
+        "run_index": {
+          "minimum": 0,
+          "title": "Run Index",
+          "type": "integer"
+        },
+        "strength": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "decisive"
+          ],
+          "title": "Strength",
+          "type": "string"
+        },
+        "summary": {
+          "maxLength": 10000,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "source_control",
+            "data_flow",
+            "sink_semantics",
+            "guard",
+            "sanitizer",
+            "config",
+            "permission",
+            "test",
+            "verification",
+            "rebuttal",
+            "rule_semantics"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_index",
+        "result_index",
+        "type",
+        "polarity",
+        "strength",
+        "summary"
+      ],
+      "title": "EvidenceSupplementEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Strict trusted input for human, test, or verifier observations.",
+  "properties": {
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/EvidenceSupplementEntry"
+      },
+      "minItems": 1,
+      "title": "Entries",
+      "type": "array"
+    },
+    "kind": {
+      "enum": [
+        "human",
+        "test",
+        "verification"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "producer": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Producer",
+      "type": "string"
+    },
+    "project_id": {
+      "maxLength": 63,
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "purpose": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Purpose",
+      "type": "string"
+    },
+    "raw_sarif_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Raw Sarif Sha256",
+      "type": "string"
+    },
+    "repository_identity": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Repository Identity",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "repository_identity",
+    "raw_sarif_sha256",
+    "kind",
+    "producer",
+    "purpose",
+    "entries"
+  ],
+  "title": "EvidenceSupplement",
+  "type": "object"
+}

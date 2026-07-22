@@ -24,6 +24,7 @@ ArtifactRole = Literal[
     "metadata",
     "model",
     "decision",
+    "report",
 ]
 
 

@@ -9,14 +9,18 @@ path: a real CodeQL runner, existing SARIF ingest, SARIF 2.1.0 normalization,
 bounded Java Level 0/1 context, an artifact-addressed evidence registry,
 offline Fake/Replay structured adapters, ordered Analyst/Rebuttal/Judge calls,
 a conservative deterministic decision policy, a `triage` CLI, durable
-`ANALYZED → REBUTTED → JUDGED` states, and model/decision artifacts. A pinned
+`ANALYZED → REBUTTED → JUDGED` states, model/decision artifacts, the Gate E
+integrated JSONL/escaped-HTML report path, direct scan-to-triage chaining, a
+strict identity-bound supplemental-evidence input, and a deterministic offline
+`make demo` backed by fixed synthetic TP/FP/NMC Replay entries. A pinned
 CodeQL 2.26.1 scan of the original Socket-based CWE-22 case produced one
 `java/path-injection` result with an eight-step path and reached
 `CONTEXT_READY`; the exact run is recorded in the 2026-07-22 evidence log. This
 is query and pipeline evidence, not an EviTriage TP/FP/NMC decision or evidence
-about arbitrary code. The Gate D decision fixtures and Replay entries are
-synthetic. Do not describe Gate E reporting or a real-model decision as
-implemented until its code, tests, and actual artifacts exist.
+about arbitrary code. The Gate D decision fixtures, Gate E supplement, and
+Replay entries are synthetic. The one-command demo is pipeline/reproducibility
+evidence for three test cases, not a real-model decision, independently
+verified ground truth, or an accuracy benchmark.
 
 An explicitly opt-in DeepSeek V4-Pro/Flash adapter is also present after the
 Gate D offline baseline. It is fixed to DeepSeek's official HTTPS host, reads
@@ -48,10 +52,12 @@ Run commands from the repository root:
 ```bash
 uv sync --all-extras
 make check
+make demo
 uv run evitriage doctor --json
 uv run evitriage project validate --config configs/projects/example-local.yaml --json
 uv run evitriage project validate --config configs/projects/example-local-command.yaml --json
 uv run evitriage project validate --config configs/projects/example-local-deepseek-v4.yaml --json
+uv run evitriage project validate --config configs/projects/gate-e-demo.yaml --json
 uv run evitriage ingest-sarif --project-config configs/projects/example-local.yaml --sarif tests/fixtures/sarif/single-path.sarif --json
 ```
 
@@ -131,12 +137,17 @@ validation, and progress evidence together.
 Gate D (bounded agents/policy) starts only after Gate A checks, the Gate B/C
 offline ingest/normalization/context/evidence acceptance path, and Gate C-Extra
 query-positive acceptance pass. Those conditions now pass in this checkout.
-Gate D now passes its bounded offline core and existing-SARIF CLI/journal
-integration tests. Ordinary `scan` and `ingest-sarif` commands still stop at
-`CONTEXT_READY`; `triage` allocates a fresh auditable SARIF run and requires a
-trusted read-only Replay cache. The recorded real zero-result smoke and
+Gate D now passes its bounded offline core and CLI/journal integration tests.
+Ordinary `scan` and `ingest-sarif` commands still stop at `CONTEXT_READY`;
+`triage` allocates a fresh auditable run, requires exactly one of `--sarif` or
+`--scan`, and can use a trusted read-only Replay cache. Gate E's offline P0
+closure produces strict TP/FP/NMC reports from three synthetic cases without
+weakening the policy, and a controlled-runner test carries `--scan` through
+the same `JUDGED` report path. The recorded real zero-result smoke and
 positive-query scan remain environment-specific evidence; clean-room/release
-validation must still reproduce them with the pinned external tools. Gate E
-adds offline reports and the demo path. Providers beyond the narrow DeepSeek V4
+validation must still reproduce them with the pinned external tools. Prior-run
+continuation, a standalone report path, a general Replay cache producer, and a
+fresh real CodeQL scan-to-`JUDGED` evidence run remain outside this closure.
+Providers beyond the narrow DeepSeek V4
 adapter, remote Git, Gradle, adaptive context, verification, and calibration
 must not displace the v0.1 P0 path.

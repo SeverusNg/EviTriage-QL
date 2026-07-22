@@ -1,0 +1,19 @@
+{
+  "critical_claim_ids": [
+    "cl_b334e6ce90bc0fc988f0d4fb3c335e4436579a80d8058ef3af433c4b1d8c0fa2"
+  ],
+  "critical_evidence_ids": [
+    "ev_b56a82403900b513496af46f8201d45527ea46417e28693fdbec91471250d0a3"
+  ],
+  "fix_guidance": [],
+  "label": "NMC",
+  "next_actions": [
+    "Obtain source-control and sink-semantics evidence."
+  ],
+  "raw_confidence": 0.5,
+  "reasoning_summary": "The bounded record is insufficient for TP or FP.",
+  "schema_version": "1.0",
+  "unknowns": [
+    "Exploitability is not established."
+  ]
+}
