@@ -1,0 +1,7 @@
+schema_version: "1.0"
+id: deepseek-v4-pro
+provider: deepseek
+model_id: deepseek-v4-pro
+temperature: 0.0
+maximum_output_tokens: 8192
+data_policy: remote_llm_allowed

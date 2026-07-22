@@ -1,0 +1,7 @@
+schema_version: "1.0"
+id: replay-v0.1
+provider: replay
+model_id: evitriage-offline-replay-v0.1
+temperature: 0.0
+maximum_output_tokens: 8192
+data_policy: offline_only

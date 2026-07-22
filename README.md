@@ -3,7 +3,7 @@
 **Evidence-Grounded LLM-Agent Triage for CodeQL Alerts**  
 基于 CodeQL 路径证据与大模型 Agent 的可审计漏洞告警二次筛选系统
 
-> Current implementation status: **Gate C-Extra query-positive readiness**. The
+> Current implementation status: **Gate D offline triage complete**. The
 > checked-in code supports strict local project configuration, managed source
 > snapshots and workspaces, a real CodeQL command runner, existing-SARIF ingest,
 > deterministic SARIF 2.1.0 normalization, bounded Level 0/1 Java context, an
@@ -12,8 +12,16 @@
 > 17/CodeQL 2.26.1 scan of the original Socket-based CWE-22 case produced one
 > `java/path-injection` result with an eight-step path and reached
 > `CONTEXT_READY` on 2026-07-22. That is real query/pipeline evidence, not a
-> vulnerability verdict or a substitute for clean-room reproduction.
-> LLM agents, TP/FP/NMC decisions, and decision reports are not implemented.
+> vulnerability verdict or a substitute for clean-room reproduction. A new
+> offline-only Gate D path provides strict Fake/Replay structured model
+> adapters, bounded Analyst/Rebuttal/Judge sequencing, evidence-closed Claims,
+> conservative TP/FP/NMC policy, a `triage` CLI, durable Agent states, and
+> registered decision artifacts. An opt-in DeepSeek V4-Pro/Flash adapter is
+> restricted to DeepSeek's official HTTPS endpoint and an explicit remote-data
+> policy. Acceptance tests use a simulated endpoint. A separately authorized
+> 2026-07-23 live smoke completed three structured calls and reached `JUDGED`
+> for one synthetic fixture; it is provider-path evidence, not a quality
+> benchmark or report-renderer claim.
 
 ## Problem
 
@@ -32,7 +40,7 @@ SARIF, enter the same normalizer, and then use the same context/evidence path.
 This keeps offline reproduction useful without presenting Golden data as a real
 CodeQL result.
 
-## Gate C input-to-evidence architecture
+## Gate C pipeline and Gate D offline triage
 
 ```mermaid
 flowchart LR
@@ -48,7 +56,11 @@ flowchart LR
     N --> A[Normalized AlertBundle]
     A --> X[Level 0/1 SliceArtifact per alert]
     X --> E[Evidence Registry + DOT + source map]
-    E --> J[Run manifest + append-only event log]
+    E --> T[Bounded Analyst → Rebuttal → Judge]
+    F[FakeLLM / ReplayLLM] --> T
+    T --> P[Deterministic TP / FP / NMC policy]
+    P --> D[Strict TriageResult + stage artifacts]
+    D --> J[Run manifest + append-only event log at JUDGED]
 ```
 
 The detailed boundaries and trust assumptions are documented in
@@ -57,7 +69,11 @@ convergence, and context/evidence decisions are recorded in
 [`ADR 0001`](docs/adr/0001-initial-architecture.md) and
 [`ADR 0002`](docs/adr/0002-gate-b-input-convergence.md),
 [`ADR 0003`](docs/adr/0003-gate-c-context-evidence.md), and
-[`ADR 0004`](docs/adr/0004-gate-c-extra-query-positive-benchmark.md).
+[`ADR 0004`](docs/adr/0004-gate-c-extra-query-positive-benchmark.md). The
+bounded offline triage decision is recorded in
+[`ADR 0005`](docs/adr/0005-gate-d-bounded-triage-core.md); the explicit remote
+data and credential boundary for DeepSeek is recorded in
+[`ADR 0006`](docs/adr/0006-deepseek-v4-opt-in-provider.md).
 
 ## Five-minute offline quickstart
 
@@ -123,6 +139,101 @@ For a local source outside this checkout, the trusted operator must explicitly
 repeat `--allowed-source-root /canonical/root`; a ProjectSpec cannot widen its
 own filesystem permissions.
 
+Gate D consumes an operator-controlled, request-hash-addressed Replay cache:
+
+```bash
+uv run evitriage triage \
+  --project-config configs/projects/example-local.yaml \
+  --sarif tests/fixtures/sarif/single-path.sarif \
+  --llm-profile configs/llm/replay-v0.1.yaml \
+  --replay-cache /trusted/read-only/replay-cache \
+  --json
+```
+
+The repository intentionally ships no model responses or cache writer. Every
+required `<request-sha256>.json` entry must already exist and satisfy the strict
+role schema; a missing entry creates an auditable `MODEL_FAILED` run rather than
+falling back to a network provider.
+
+### DeepSeek V4: safe API-key handoff
+
+The checked-in DeepSeek profile selects `deepseek-v4-pro`; the alternative
+official model ID `deepseek-v4-flash` is also accepted. The adapter has no
+configurable URL: it connects directly to `api.deepseek.com:443`, posts only to
+`/chat/completions`, requests JSON Output, disables thinking/tool calls, and
+validates the result through the same evidence boundary as Replay.
+[DeepSeek's official API documentation](https://api-docs.deepseek.com/) is the
+source of the endpoint and current V4 model identifiers.
+
+Do **not** send the API key in chat and do not put it in a command argument,
+YAML, `.env`, shell script, or Git file. A key already sent through chat must be
+revoked before storage because its prior copies cannot be made secret again.
+
+On a Linux host with TPM2 and systemd, use the repository-external encrypted
+credential store. The operator must be able to access `/dev/tpmrm0`; on this
+host that requires one administrator action followed by a full logout/login:
+
+```bash
+sudo usermod -aG tss liyitao
+```
+
+After starting a new login session, enter the newly rotated key once through a
+hidden prompt and verify only its non-secret status:
+
+```bash
+uv run evitriage credentials set-deepseek
+uv run evitriage credentials status --json
+```
+
+The encrypted blob is stored outside the checkout at
+`~/.local/share/evitriage/credentials/evitriage-deepseek-api-key.cred`, with a
+private `0700` directory and `0600` file. `systemd-creds` encrypts it with TPM2;
+`triage` automatically decrypts it through an in-memory pipe on each run. No
+plaintext credential file is created. Use `--replace` only when rotating an
+existing encrypted credential.
+
+For an ephemeral run, or on a host without the encrypted store, use this
+one-time hidden environment prompt instead:
+
+```bash
+(
+  trap 'unset DEEPSEEK_API_KEY' EXIT
+  read -rsp 'DeepSeek API Key: ' DEEPSEEK_API_KEY
+  printf '\n'
+  export DEEPSEEK_API_KEY
+
+  uv run evitriage triage \
+    --project-config configs/projects/example-local-deepseek-v4.yaml \
+    --sarif tests/fixtures/sarif/single-path.sarif \
+    --llm-profile configs/llm/deepseek-v4-pro.yaml \
+    --json
+)
+```
+
+In the persistent path, the key flows from hidden terminal input to
+`systemd-creds` standard input, then only TPM2-bound ciphertext reaches disk.
+Each run decrypts through a private pipe and uses the plaintext only for the
+HTTPS `Authorization: Bearer` header. In the ephemeral path, the key exists in
+the subshell environment until the EXIT trap removes it. Neither path includes
+the key in model messages, request/response artifacts, manifests, or structured
+errors. The evidence items and source excerpts **are** sent to DeepSeek, which
+is why the dedicated ProjectSpec must explicitly declare
+`source_upload_policy: remote_llm_allowed`.
+
+There is no meaningful claim of “absolute” secret safety: the key necessarily
+exists briefly in process memory/environment and is received by the provider.
+TPM2 encryption protects the at-rest blob from being decrypted away from the
+machine, but it does not protect against a process already running as the same
+authorized operator. For higher-assurance deployments, use a dedicated
+execution account and an OS/cloud secret manager. The repository ignores
+`.env`, key, secret, response, workspace, and artifact files; `make check`
+additionally fails if commit-eligible files match credential patterns.
+Run the guard directly with:
+
+```bash
+uv run python -m evitriage.secret_scan
+```
+
 Run an individual test while developing with, for example:
 
 ```bash
@@ -132,7 +243,7 @@ uv run pytest tests/unit/test_sarif_normalizer.py -q
 Use `uv run pytest --collect-only -q` to discover the exact test names present
 in the current checkout.
 
-## Implemented Gate B/C outputs
+## Implemented Gate B/C outputs and Gate D triage
 
 The two example ProjectSpecs select different original synthetic Java 17
 fixtures through one `ProjectRegistry`. Their build plans invoke only the
@@ -174,8 +285,8 @@ estimate is a deterministic byte-based budget, and over-budget ranges are
 recorded as omissions. `adaptive_slice` remains explicitly unavailable.
 Evidence items cite only registered normalized/slice artifact hashes;
 relationships and Claim contracts reject dangling evidence IDs. Generated
-claims, vulnerability classifications, and decision reports do **not** exist
-yet. The source-map HTML is escaped navigation, not a verdict or Gate E report.
+claims and vulnerability classifications are not produced by these CLI input
+runs. The source-map HTML is escaped navigation, not a verdict or Gate E report.
 
 Gate C-Extra completed its bounded acceptance follow-up with real run
 `20260721T201029897333Z-849cee21ce99`: the original Socket-based CWE-22 case
@@ -183,6 +294,43 @@ produced one CodeQL `java/path-injection` result, one complete eight-step path,
 one complete `readRequestedFile` slice, four evidence items, and zero claims at
 `CONTEXT_READY`. Its Golden equivalent could not satisfy this gate. See ADR
 0004 and the dated progress log for the frozen boundary and artifact hashes.
+
+The bounded Gate D path adds:
+
+- strict `LLMProfile`, Analyst, Rebuttal, Judge, `FinalDecision`, and
+  `TriageResult` contracts with generated JSON Schemas;
+- ordered Fake/Replay structured calls, canonical request hashes, a maximum of
+  one schema/evidence repair per role, six calls per alert, and bounded Replay
+  cache reads with no symlink following;
+- exact alert-occurrence evidence validation and code-assigned content-derived
+  Claim IDs;
+- deterministic gates that require matching source-control, data-flow, and
+  sink-semantics evidence (or decisive successful verification) for TP,
+  decisive Rebuttal evidence for FP, and downgrade conflicts, unknowns, missing
+  critical evidence, or weaker cases to NMC; `auto_dismiss` is always false;
+- prompt boundaries that keep repository/SARIF text inside
+  `untrusted_code_data` and explicitly deny instructions or tool permissions
+  found in that data.
+
+The `triage` command allocates a fresh existing-SARIF run, reuses the shared
+normalization/context/evidence implementation, and continues through
+`ANALYZED`, `REBUTTED`, and `JUDGED`. It persists `triage/analyst.json`,
+`triage/rebuttal.json`, and `triage/judged.json`, records non-secret
+prompt/request/response hashes plus profile/model identity, revalidates all
+registered artifact hashes, and finalizes them owner-read-only. Equivalent
+source/SARIF input receives a stable `analysis_identity` so Replay request
+hashes do not depend on the fresh operational `run_id`.
+
+Existing finalized Gate C runs are not reopened or relabelled. A trusted cache
+writer/bundle, triage continuation by prior `run_id`, triage directly after the
+`scan` command, and JSONL/HTML reports remain unimplemented. The DeepSeek
+adapter has simulated HTTP/CLI coverage plus one separately authorized live
+smoke recorded in the dated progress log. Run
+`20260722T174132749958Z-8fce5d0ab3f9` used the TPM2 credential path, accepted
+all three role responses, and conservatively finalized one synthetic alert as
+`NMC` with `auto_dismiss=false`. That single run verifies the credential,
+provider, strict-response, and decision path at that time; token usage, cost,
+repeatability, rate-limit behavior, and model quality remain unmeasured.
 
 The Gate A commands remain available:
 
@@ -269,11 +417,11 @@ research artifacts. See the dated evidence log in
 ## Limitations, safety, and ethics
 
 The current boundary is enumerated in
-[`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md). Gate D and later capabilities—
-generated claims, Fake/Replay or real LLM adapters, deterministic TP/FP/NMC
-policy, decision JSONL/HTML reports, and `make demo`—remain unavailable. Remote
-Git acquisition, Gradle, adaptive context, and automatic verification are also
-outside this gate.
+[`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md). Providers other than the narrow
+DeepSeek V4 adapter, a trusted Replay cache producer/bundle, prior-run
+continuation, decision JSONL/HTML reports, and `make demo` remain unavailable.
+Remote Git acquisition, Gradle, adaptive context, and automatic verification
+are also outside this gate.
 
 Target repositories, source comments, build files, and SARIF documents are
 untrusted data. They must not select model endpoints, supply secrets, expand

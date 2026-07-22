@@ -1,6 +1,6 @@
 # Known limitations
 
-This document describes the checked-in **Gate C-Extra query-positive** baseline.
+This document describes the checked-in **Gate D offline triage** baseline.
 Items below are intentional scope boundaries or unresolved verification gaps,
 not implicit claims that the complete v0.1 research workflow exists.
 
@@ -77,10 +77,40 @@ not implicit claims that the complete v0.1 research workflow exists.
 - The Evidence Registry and Claim schemas enforce artifact/evidence references,
   but Gate C generates evidence only and emits no claims. The DOT graph and
   escaped source-map HTML are navigation artifacts, not vulnerability reports.
-- Fake/Replay/real LLM adapters and Analyst/Rebuttal/Judge are not implemented.
-- Deterministic TP/FP/NMC policy and decision JSONL/HTML reports are not
-  implemented; therefore Gate C produces no security classification and cannot dismiss an
-  upstream alert.
+- `FakeLLM`, read-only `ReplayLLM`, strict Agent/decision schemas, the ordered
+  Analyst/Rebuttal/Judge workflow, and deterministic policy now exist as a
+  bounded Python library core. Replay consumes operator-created
+  `<request-sha256>.json` entries; the repository does not yet supply a trusted
+  cache writer, cache bundle, external-producer attestation, token usage, or
+  latency measurements.
+- An opt-in DeepSeek adapter supports only `deepseek-v4-pro` and
+  `deepseek-v4-flash` at the fixed official `api.deepseek.com:443` Chat
+  Completions endpoint. It accepts either the one-process `DEEPSEEK_API_KEY`
+  input or the fixed TPM2/systemd encrypted credential store, plus exact
+  `remote_llm_allowed` declarations in both the LLM Profile and ProjectSpec.
+  Checked-in acceptance tests use simulated HTTPS only. One separately
+  authorized live smoke on 2026-07-23 verified the TPM2 credential path,
+  current account/model access, three accepted role responses, and a completed
+  `JUDGED` run for one synthetic fixture. It did not capture provider token
+  usage or billing, exercise retry/rate-limit/error behavior, establish ongoing
+  availability, or benchmark output quality and accuracy.
+- Persistent DeepSeek credentials currently require Linux `systemd-creds`, a
+  usable TPM2 device, and operator access to `/dev/tpmrm0`. Enrollment fails
+  closed if those prerequisites, private ownership, or `0600`/`0400` file modes
+  are absent. There is no macOS/Windows keychain adapter yet.
+- The Gate D `triage` command accepts ProjectSpec + existing SARIF + a trusted
+  Replay profile/cache, allocates a fresh run, reuses the shared Gate B/C path,
+  and persists `ANALYZED → REBUTTED → JUDGED` artifacts. It cannot continue a
+  previously finalized Gate C run by `run_id`, and `scan`/`ingest-sarif` still
+  honestly stop at `CONTEXT_READY`. Direct scan-to-triage chaining is Gate E
+  work.
+- The synthetic Gate D tests exercise TP, decisive FP, conflicting NMC, and
+  missing-decisive-rebuttal downgrade decisions. They are policy/adapter test
+  evidence, not vulnerability conclusions about the Java fixtures or the
+  earlier real CodeQL result.
+- The JSON decision artifact is implemented, but aggregate JSONL/HTML reports
+  are not. No component automatically dismisses an upstream alert; every
+  `FinalDecision.auto_dismiss` value is structurally fixed to `false`.
 - The complete offline `make demo`, verification sandboxes, calibration,
   benchmark datasets, paper statistics, PostgreSQL, and GitHub alert
   integration remain later milestones.
@@ -104,13 +134,36 @@ not implicit claims that the complete v0.1 research workflow exists.
   idempotency key. `RunJournal` refuses pre-existing audit files rather than
   resuming them, so crash recovery, completed-state replay, and multi-process
   continuation of one run are not implemented.
+- Normalized/domain `run_id` is a content-derived `analysis_identity` over the
+  source snapshot, raw SARIF, commit, and normalizer version; the manifest
+  `run_id` remains the distinct operational execution identifier. This split is
+  required for Replay hashes to survive fresh managed runs, but callers must not
+  confuse analysis identity with an append-only execution record.
 - Owner-read-only final permissions and content hashes make accidental changes
   detectable but are not a tamper-proof ledger: the filesystem owner or root
   can change permissions and rewrite artifacts. Research retention should copy
   completed runs into an independently controlled, content-addressed archive.
-- The manifest now covers input, normalization, context, evidence, and their
-  artifact hashes. It does not yet cover prompts, provider/model identity,
-  decisions, or reports.
+- A Gate D manifest covers input, normalization, context, evidence, model-stage,
+  and decision artifact hashes. Invocation records persist prompt/request/
+  response hashes plus provider profile/model identity, but not raw prompts,
+  raw Replay entries, token/latency observations, or reports. The manifest does
+  not attest who produced a Replay entry.
+- A DeepSeek run sends the selected evidence payload—including bounded source
+  excerpts—to an external provider. TLS and an explicit upload policy reduce
+  accidental disclosure but do not make remote processing confidential from
+  DeepSeek or eliminate provider retention/jurisdiction risks. Do not use the
+  remote profile for source that policy or contract forbids uploading.
+- The API key is never placed in model messages or run artifacts, and provider
+  error bodies are discarded. It still exists briefly in process memory and in
+  the outbound Authorization header. TPM2 protects the encrypted at-rest blob
+  from off-machine decryption, not from an already authorized same-user
+  process. Root inspection, a compromised runtime, shell tracing, or provider
+  compromise remain outside the repository's protection boundary; use a
+  dedicated account and a secret manager for higher assurance.
+- The commit-eligible secret scan recognizes DeepSeek assignments, common
+  `sk-...` tokens, and private-key blocks, but pattern scanning cannot prove the
+  absence of every possible credential format. Human review and provider-side
+  key rotation/revocation remain necessary.
 - Public Pydantic records are frozen against top-level field reassignment, but
   nested mapping values such as fingerprints, properties, and tool versions are
   ordinary mutable Python dictionaries. Callers must not treat in-process
@@ -148,7 +201,8 @@ not implicit claims that the complete v0.1 research workflow exists.
   bounds. Very large production analyses may require explicit policy changes.
 - The example fixtures demonstrate configuration switching, isolation, and an
   intended CWE-22/CWE-78 source pattern; they are not a representative
-  vulnerability benchmark and have no EviTriage TP/FP/NMC labels at this gate.
+  vulnerability benchmark. The Gate D integration NMC is generated from a
+  synthetic Replay response and is not an externally validated fixture label.
 - Gate C-Extra covers only one real query-positive CWE-22 path. Its completion
   does not replace the pending six-case TP/FP/NMC/prompt-injection matrix or
   establish generalization to public or real-project benchmarks.

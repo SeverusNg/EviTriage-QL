@@ -18,16 +18,24 @@ from sqlalchemy.exc import SQLAlchemyError
 from typer._click.exceptions import ClickException as TyperClickException
 
 from evitriage import __version__
+from evitriage.config import load_llm_profile
+from evitriage.credentials import (
+    deepseek_credential_is_present,
+    deepseek_credential_path,
+    store_deepseek_credential,
+)
 from evitriage.doctor import run_doctor
 from evitriage.domain.run import ContextRunSummary
+from evitriage.domain.triage import TriageRunSummary
 from evitriage.errors import (
     ConfigurationError,
     EviTriageError,
     PathSafetyError,
     StorageError,
 )
+from evitriage.llm import DeepSeekLLM, ReplayLLM, StructuredLLM
 from evitriage.observability import configure_logging, redact
-from evitriage.pipeline import run_codeql_scan, run_sarif_ingest
+from evitriage.pipeline import run_codeql_scan, run_sarif_ingest, run_sarif_triage
 from evitriage.projects.registry import ProjectRegistry
 from evitriage.storage.database import Database
 
@@ -39,8 +47,10 @@ app = typer.Typer(
 )
 project_app = typer.Typer(help="Validate trusted project boundaries.", no_args_is_help=True)
 db_app = typer.Typer(help="Manage the local metadata database.", no_args_is_help=True)
+credentials_app = typer.Typer(help="Manage repository-external encrypted credentials.")
 app.add_typer(project_app, name="project")
 app.add_typer(db_app, name="db")
+app.add_typer(credentials_app, name="credentials")
 
 
 def _emit_json(payload: object, *, error: bool = False) -> None:
@@ -80,6 +90,50 @@ def root(
 ) -> None:
     """Configure process-wide, non-secret structured diagnostics."""
     configure_logging(verbose=verbose)
+
+
+@credentials_app.command("set-deepseek")
+def credentials_set_deepseek(
+    replace: Annotated[
+        bool,
+        typer.Option(
+            "--replace",
+            help="Atomically replace an existing encrypted credential during rotation.",
+        ),
+    ] = False,
+) -> None:
+    """Prompt for and TPM2-encrypt a DeepSeek key without a plaintext file."""
+
+    api_key = typer.prompt(
+        "New DeepSeek API Key",
+        hide_input=True,
+        confirmation_prompt=True,
+    )
+    path = store_deepseek_credential(api_key, replace=replace)
+    typer.echo(f"encrypted DeepSeek credential installed: {path}")
+
+
+@credentials_app.command("status")
+def credentials_status(
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit credential presence without exposing its value."),
+    ] = False,
+) -> None:
+    """Report only whether the encrypted DeepSeek credential is installed."""
+
+    present = deepseek_credential_is_present()
+    payload: dict[str, object] = {
+        "deepseek": {
+            "available": present,
+            "path": str(deepseek_credential_path()),
+        },
+        "status": "ok",
+    }
+    if as_json:
+        _emit_json(payload)
+    else:
+        typer.echo(f"DeepSeek encrypted credential: {'present' if present else 'absent'}")
 
 
 @app.command()
@@ -164,7 +218,7 @@ def _operator_input_path(repository_root: Path, requested: Path) -> Path:
     return Path(os.path.abspath(candidate))
 
 
-def _emit_run_summary(payload: ContextRunSummary, *, as_json: bool) -> None:
+def _emit_run_summary(payload: ContextRunSummary | TriageRunSummary, *, as_json: bool) -> None:
     serialized = payload.model_dump(mode="json")
     if as_json:
         _emit_json(serialized)
@@ -265,6 +319,69 @@ def normalize_command(
         as_json=as_json,
         allowed_source_root=allowed_source_root,
     )
+
+
+@app.command("triage")
+def triage_command(
+    project_config: Annotated[
+        Path,
+        typer.Option("--project-config", help="Validated local ProjectSpec."),
+    ],
+    sarif: Annotated[
+        Path,
+        typer.Option("--sarif", help="Existing SARIF 2.1.0 input to triage."),
+    ],
+    replay_cache: Annotated[
+        Path | None,
+        typer.Option(
+            "--replay-cache",
+            help="Required only for Replay; directory of request-hash JSON responses.",
+        ),
+    ] = None,
+    llm_profile: Annotated[
+        Path,
+        typer.Option(
+            "--llm-profile",
+            help="Trusted Replay/DeepSeek profile matching ProjectSpec analysis.llm_profile.",
+        ),
+    ] = Path("configs/llm/replay-v0.1.yaml"),
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit one machine-readable Gate D run summary."),
+    ] = False,
+    allowed_source_root: Annotated[
+        list[Path] | None,
+        typer.Option(
+            "--allowed-source-root",
+            help="Trusted local source root; repeat for sources outside the checkout.",
+        ),
+    ] = None,
+) -> None:
+    """Run bounded Replay or DeepSeek Analyst/Rebuttal/Judge triage."""
+
+    repository_root = find_repository_root()
+    profile = load_llm_profile(_operator_input_path(repository_root, llm_profile))
+    llm: StructuredLLM
+    if profile.provider == "replay":
+        if replay_cache is None:
+            raise ConfigurationError("--replay-cache is required for a Replay profile")
+        llm = ReplayLLM(profile, _operator_input_path(repository_root, replay_cache))
+    elif profile.provider == "deepseek":
+        if replay_cache is not None:
+            raise ConfigurationError("--replay-cache cannot be used with a DeepSeek profile")
+        llm = DeepSeekLLM.from_operator_credentials(profile)
+    else:
+        raise ConfigurationError("FakeLLM is available only to tests, not the triage CLI")
+    allowed_roots = tuple(allowed_source_root) if allowed_source_root else None
+    summary = run_sarif_triage(
+        repository_root,
+        project_config=project_config,
+        sarif_path=_operator_input_path(repository_root, sarif),
+        profile=profile,
+        llm=llm,
+        allowed_source_roots=allowed_roots,
+    )
+    _emit_run_summary(summary, as_json=as_json)
 
 
 @app.command("scan")

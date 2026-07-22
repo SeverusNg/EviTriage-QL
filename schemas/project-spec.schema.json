@@ -380,8 +380,11 @@
           "type": "boolean"
         },
         "source_upload_policy": {
-          "const": "offline_only",
           "default": "offline_only",
+          "enum": [
+            "offline_only",
+            "remote_llm_allowed"
+          ],
           "title": "Source Upload Policy",
           "type": "string"
         }

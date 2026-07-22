@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from evitriage.config import load_system_config
+from evitriage.config import load_llm_profile, load_system_config
 from evitriage.domain.project import (
     DatasetSource,
     GitSource,
@@ -310,6 +310,17 @@ def test_security_declarations_fail_closed() -> None:
     with pytest.raises(ValidationError):
         ProjectSpec.model_validate(generated_shell)
 
+    remote = valid_project_mapping()
+    remote["security"]["source_upload_policy"] = "remote_llm_allowed"
+    assert ProjectSpec.model_validate(remote).security.source_upload_policy == (
+        "remote_llm_allowed"
+    )
+
+    unknown_upload_policy = valid_project_mapping()
+    unknown_upload_policy["security"]["source_upload_policy"] = "public"
+    with pytest.raises(ValidationError):
+        ProjectSpec.model_validate(unknown_upload_policy)
+
 
 def test_digest_is_stable_and_changes_with_semantics() -> None:
     first_raw = valid_project_mapping()
@@ -339,6 +350,8 @@ def test_checked_in_system_config_is_strict_and_stable(tmp_path: Path) -> None:
 
     assert config.codeql.required_cli_version == "2.26.1"
     assert config.policy.labels == ("TP", "FP", "NMC")
+    assert config.agents.maximum_schema_repairs_per_agent == 1
+    assert config.agents.maximum_model_calls_per_alert == 6
     assert len(config.digest) == 64
     assert config.digest == load_system_config(REPOSITORY_ROOT / "configs/system/v0.1.yaml").digest
 
@@ -355,3 +368,62 @@ def test_checked_in_system_config_is_strict_and_stable(tmp_path: Path) -> None:
     duplicate.write_text("schema_version: '1.0'\nschema_version: '1.0'\n", encoding="utf-8")
     with pytest.raises(ConfigurationError):
         load_system_config(duplicate)
+
+    too_many_calls = tmp_path / "too-many-model-calls.yaml"
+    too_many_calls.write_text(
+        (REPOSITORY_ROOT / "configs/system/v0.1.yaml")
+        .read_text(encoding="utf-8")
+        .replace("maximum_model_calls_per_alert: 6", "maximum_model_calls_per_alert: 7"),
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigurationError):
+        load_system_config(too_many_calls)
+
+
+def test_checked_in_replay_profile_is_offline_strict_and_duplicate_safe(
+    tmp_path: Path,
+) -> None:
+    profile_path = REPOSITORY_ROOT / "configs/llm/replay-v0.1.yaml"
+    profile = load_llm_profile(profile_path)
+
+    assert profile.id == "replay-v0.1"
+    assert profile.provider == "replay"
+    assert profile.temperature == 0
+    assert profile.data_policy == "offline_only"
+    assert len(profile.digest) == 64
+
+    extra = tmp_path / "extra-profile.yaml"
+    extra.write_text(
+        profile_path.read_text(encoding="utf-8") + "api_key: forbidden\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigurationError):
+        load_llm_profile(extra)
+
+    duplicate = tmp_path / "duplicate-profile.yaml"
+    duplicate.write_text(
+        "schema_version: '1.0'\nid: replay-v0.1\nid: changed\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigurationError):
+        load_llm_profile(duplicate)
+
+    online = tmp_path / "online-profile.yaml"
+    online.write_text(
+        profile_path.read_text(encoding="utf-8").replace("provider: replay", "provider: openai"),
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigurationError):
+        load_llm_profile(online)
+
+
+def test_checked_in_deepseek_v4_profile_contains_no_credential() -> None:
+    profile_path = REPOSITORY_ROOT / "configs/llm/deepseek-v4-pro.yaml"
+    profile = load_llm_profile(profile_path)
+    serialized = profile_path.read_text(encoding="utf-8")
+
+    assert profile.provider == "deepseek"
+    assert profile.model_id == "deepseek-v4-pro"
+    assert profile.data_policy == "remote_llm_allowed"
+    assert "api_key" not in serialized.lower()
+    assert "DEEPSEEK_API_KEY" not in serialized

@@ -24,7 +24,9 @@
             "evidence",
             "tool-log",
             "tool-output",
-            "metadata"
+            "metadata",
+            "model",
+            "decision"
           ],
           "title": "Role",
           "type": "string"

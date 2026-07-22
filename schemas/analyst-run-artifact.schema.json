@@ -1,0 +1,374 @@
+{
+  "$defs": {
+    "AnalystOutput": {
+      "additionalProperties": false,
+      "description": "Structured Analyst result; it proposes claims but no final label.",
+      "properties": {
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/ClaimDraft"
+          },
+          "maxItems": 64,
+          "title": "Claims",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "unknowns": {
+          "default": [],
+          "items": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Unknowns",
+          "type": "array"
+        }
+      },
+      "required": [
+        "claims"
+      ],
+      "title": "AnalystOutput",
+      "type": "object"
+    },
+    "AnalystStageRecord": {
+      "additionalProperties": false,
+      "description": "Persistable Analyst output and invocation trace for one occurrence.",
+      "properties": {
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/Claim"
+          },
+          "title": "Claims",
+          "type": "array"
+        },
+        "invocations": {
+          "items": {
+            "$ref": "#/$defs/ModelInvocationRecord"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "title": "Invocations",
+          "type": "array"
+        },
+        "output": {
+          "$ref": "#/$defs/AnalystOutput"
+        },
+        "target": {
+          "$ref": "#/$defs/TriageTarget"
+        }
+      },
+      "required": [
+        "target",
+        "output",
+        "claims",
+        "invocations"
+      ],
+      "title": "AnalystStageRecord",
+      "type": "object"
+    },
+    "Claim": {
+      "additionalProperties": false,
+      "description": "A later-agent assertion whose evidence references must resolve.",
+      "properties": {
+        "claim_id": {
+          "pattern": "^cl_[0-9a-f]{64}$",
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "source_controllable",
+            "path_feasible",
+            "sanitizer_effective",
+            "sink_dangerous",
+            "exploit_succeeds"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "produced_by": {
+          "enum": [
+            "analyst",
+            "rebuttal",
+            "judge"
+          ],
+          "title": "Produced By",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "statement": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "supported",
+            "rebutted",
+            "unresolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "claim_id",
+        "kind",
+        "statement",
+        "status",
+        "produced_by"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "ClaimDraft": {
+      "additionalProperties": false,
+      "description": "Agent-authored claim content before code assigns a stable claim ID.",
+      "properties": {
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "source_controllable",
+            "path_feasible",
+            "sanitizer_effective",
+            "sink_dangerous",
+            "exploit_succeeds"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "statement": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "supported",
+            "rebutted",
+            "unresolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "statement",
+        "status"
+      ],
+      "title": "ClaimDraft",
+      "type": "object"
+    },
+    "ModelInvocationRecord": {
+      "additionalProperties": false,
+      "description": "Non-secret provenance for one accepted or rejected structured call.",
+      "properties": {
+        "agent_role": {
+          "enum": [
+            "analyst",
+            "rebuttal",
+            "judge"
+          ],
+          "title": "Agent Role",
+          "type": "string"
+        },
+        "attempt": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Attempt",
+          "type": "integer"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "const": "MODEL_RESPONSE_INVALID",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Code"
+        },
+        "model_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Model Id",
+          "type": "string"
+        },
+        "profile_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$",
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "prompt_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Prompt Sha256",
+          "type": "string"
+        },
+        "request_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Request Sha256",
+          "type": "string"
+        },
+        "response_schema": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Response Schema",
+          "type": "string"
+        },
+        "response_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response Sha256"
+        },
+        "status": {
+          "enum": [
+            "accepted",
+            "invalid"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "agent_role",
+        "attempt",
+        "request_sha256",
+        "prompt_sha256",
+        "response_schema",
+        "profile_id",
+        "model_id",
+        "status"
+      ],
+      "title": "ModelInvocationRecord",
+      "type": "object"
+    },
+    "RawResultReference": {
+      "additionalProperties": false,
+      "description": "Stable pointer into the immutable raw SARIF artifact.",
+      "properties": {
+        "raw_sarif_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Raw Sarif Sha256",
+          "type": "string"
+        },
+        "result_index": {
+          "minimum": 0,
+          "title": "Result Index",
+          "type": "integer"
+        },
+        "run_index": {
+          "minimum": 0,
+          "title": "Run Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "raw_sarif_sha256",
+        "run_index",
+        "result_index"
+      ],
+      "title": "RawResultReference",
+      "type": "object"
+    },
+    "TriageTarget": {
+      "additionalProperties": false,
+      "description": "One exact upstream result occurrence selected for triage.",
+      "properties": {
+        "alert_fingerprint": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Alert Fingerprint",
+          "type": "string"
+        },
+        "raw_result_reference": {
+          "$ref": "#/$defs/RawResultReference"
+        }
+      },
+      "required": [
+        "alert_fingerprint",
+        "raw_result_reference"
+      ],
+      "title": "TriageTarget",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "All Analyst outputs persisted before the ANALYZED transition.",
+  "properties": {
+    "analysis_identity": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Analysis Identity",
+      "type": "string"
+    },
+    "results": {
+      "items": {
+        "$ref": "#/$defs/AnalystStageRecord"
+      },
+      "title": "Results",
+      "type": "array"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "analysis_identity",
+    "results"
+  ],
+  "title": "AnalystRunArtifact",
+  "type": "object"
+}

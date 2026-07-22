@@ -17,7 +17,7 @@ from evitriage.errors import ConfigurationError, PathSafetyError
 runner = CliRunner()
 
 
-@pytest.mark.parametrize("command", ["scan", "ingest-sarif", "normalize"])
+@pytest.mark.parametrize("command", ["scan", "ingest-sarif", "normalize", "triage"])
 def test_gate_b_commands_expose_help(command: str) -> None:
     result = runner.invoke(app, [command, "--help"])
 
@@ -124,6 +124,51 @@ def test_version_cli() -> None:
 
     assert result.exit_code == 0
     assert result.stdout.strip() == "0.1.0"
+
+
+def test_triage_cli_requires_provider_specific_secret_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+    repository_root: Path,
+) -> None:
+    monkeypatch.setenv("EVITRIAGE_PROJECT_ROOT", str(repository_root))
+    missing_cache = runner.invoke(
+        app,
+        [
+            "triage",
+            "--project-config",
+            "configs/projects/example-local.yaml",
+            "--sarif",
+            "tests/fixtures/sarif/single-path.sarif",
+        ],
+    )
+    assert isinstance(missing_cache.exception, ConfigurationError)
+    assert "--replay-cache" in str(missing_cache.exception)
+
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    def missing_operator_credential() -> str:
+        raise ConfigurationError(
+            "no DeepSeek credential is installed; set DEEPSEEK_API_KEY for one process"
+        )
+
+    monkeypatch.setattr(
+        "evitriage.llm.structured.load_deepseek_credential",
+        missing_operator_credential,
+    )
+    missing_key = runner.invoke(
+        app,
+        [
+            "triage",
+            "--project-config",
+            "configs/projects/example-local-deepseek-v4.yaml",
+            "--sarif",
+            "tests/fixtures/sarif/single-path.sarif",
+            "--llm-profile",
+            "configs/llm/deepseek-v4-pro.yaml",
+        ],
+    )
+    assert isinstance(missing_key.exception, ConfigurationError)
+    assert "DEEPSEEK_API_KEY" in str(missing_key.exception)
 
 
 def test_doctor_cli_emits_valid_json(

@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 import logging
 from io import StringIO
+from pathlib import Path
 
 from evitriage.errors import ConfigurationError
 from evitriage.observability import configure_logging, redact
+from evitriage.secret_scan import detect_secret_rules, scan_repository
 
 
 def test_typed_error_has_stable_machine_representation() -> None:
@@ -57,3 +59,18 @@ def test_json_logger_redacts_structured_fields() -> None:
     event = json.loads(stream.getvalue())
     assert event["message"] == "configured"
     assert event["fields"] == {"project": "demo", "token": "[REDACTED]"}
+
+
+def test_secret_scan_detects_values_without_flagging_environment_references(
+    repository_root: Path,
+) -> None:
+    assignment = b"DEEPSEEK_API_" + b"KEY=" + b"sk-" + (b"x" * 24)
+    private_key = b"-----BEGIN " + b"PRIVATE KEY-----"
+
+    assert set(detect_secret_rules(assignment)) == {
+        "api-key-shaped-token",
+        "deepseek-environment-assignment",
+    }
+    assert detect_secret_rules(private_key) == ("private-key-block",)
+    assert detect_secret_rules(b"read -s DEEPSEEK_API_KEY; export DEEPSEEK_API_KEY") == ()
+    assert scan_repository(repository_root) == ()

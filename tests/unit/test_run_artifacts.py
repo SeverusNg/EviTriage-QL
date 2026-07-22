@@ -99,6 +99,100 @@ def test_run_journal_persists_artifacts_events_and_final_manifest(tmp_path: Path
         RunManifest.model_validate(inconsistent, strict=True)
 
 
+def test_run_journal_persists_gate_d_states_and_roles(tmp_path: Path) -> None:
+    allocation = _allocation(tmp_path, "gate-d-run")
+    journal = RunJournal(allocation, input_mode="sarif")
+    journal.transition(WorkflowState.PROJECT_VALIDATED, event_type="project_validated")
+    journal.transition(WorkflowState.WORKSPACE_READY, event_type="workspace_ready")
+    journal.transition(WorkflowState.SOURCE_READY, event_type="source_ready")
+    raw = journal.write_artifact(
+        "input/source.sarif",
+        b"{}\n",
+        role="input",
+        media_type="application/sarif+json",
+    )
+    journal.transition(
+        WorkflowState.SARIF_INGESTED,
+        event_type="sarif_ingested",
+        output_sha256=raw.sha256,
+    )
+    normalized = journal.write_artifact(
+        "normalized/alerts.json",
+        b'{"alerts":[]}\n',
+        role="normalized",
+        media_type="application/json",
+    )
+    journal.transition(
+        WorkflowState.NORMALIZED,
+        event_type="sarif_normalized",
+        input_sha256=raw.sha256,
+        output_sha256=normalized.sha256,
+    )
+    evidence = journal.write_artifact(
+        "evidence/registry.json",
+        b'{"items":[]}\n',
+        role="evidence",
+        media_type="application/json",
+    )
+    journal.transition(
+        WorkflowState.CONTEXT_READY,
+        event_type="context_evidence_ready",
+        input_sha256=normalized.sha256,
+        output_sha256=evidence.sha256,
+    )
+    analyst = journal.write_artifact(
+        "triage/analyst.json",
+        b'{"results":[]}\n',
+        role="model",
+        media_type="application/json",
+    )
+    journal.transition(
+        WorkflowState.ANALYZED,
+        event_type="analyst_completed",
+        input_sha256=evidence.sha256,
+        output_sha256=analyst.sha256,
+    )
+    rebuttal = journal.write_artifact(
+        "triage/rebuttal.json",
+        b'{"results":[]}\n',
+        role="model",
+        media_type="application/json",
+    )
+    journal.transition(
+        WorkflowState.REBUTTED,
+        event_type="rebuttal_completed",
+        input_sha256=analyst.sha256,
+        output_sha256=rebuttal.sha256,
+    )
+    judged = journal.write_artifact(
+        "triage/judged.json",
+        b'{"results":[]}\n',
+        role="decision",
+        media_type="application/json",
+    )
+    journal.transition(
+        WorkflowState.JUDGED,
+        event_type="judge_completed",
+        input_sha256=rebuttal.sha256,
+        output_sha256=judged.sha256,
+    )
+
+    manifest = journal.complete()
+
+    assert manifest.status == "completed"
+    assert manifest.state is WorkflowState.JUDGED
+    assert [event.to_state for event in manifest.events[-3:]] == [
+        WorkflowState.ANALYZED,
+        WorkflowState.REBUTTED,
+        WorkflowState.JUDGED,
+    ]
+    assert [artifact.role for artifact in manifest.artifacts[-3:]] == [
+        "model",
+        "model",
+        "decision",
+    ]
+
+
 def test_run_journal_rejects_invalid_transition_and_records_failure(tmp_path: Path) -> None:
     allocation = _allocation(tmp_path, "failed-run")
     journal = RunJournal(allocation, input_mode="sarif")

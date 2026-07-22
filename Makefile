@@ -1,4 +1,4 @@
-.PHONY: sync format lock-check lint typecheck schema-check test check clean
+.PHONY: sync format lock-check lint typecheck schema-check secret-check test check clean
 
 sync:
 	uv sync --all-extras
@@ -20,10 +20,13 @@ typecheck:
 schema-check:
 	uv run python -m evitriage.schema_generation --check
 
+secret-check:
+	uv run python -m evitriage.secret_scan
+
 test:
 	uv run pytest
 
-check: lock-check lint typecheck schema-check test
+check: lock-check lint typecheck schema-check secret-check test
 
 clean:
 	@echo "Refusing broad cleanup; use managed workspace lifecycle operations."

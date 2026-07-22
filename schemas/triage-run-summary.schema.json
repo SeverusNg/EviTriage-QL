@@ -54,12 +54,21 @@
     }
   },
   "additionalProperties": false,
-  "description": "Stable CLI-facing summary of a completed Gate C input/context run.",
+  "description": "Stable CLI summary for a completed existing-SARIF Gate D run.",
   "properties": {
     "alert_count": {
       "minimum": 0,
       "title": "Alert Count",
       "type": "integer"
+    },
+    "analysis_identity": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Analysis Identity",
+      "type": "string"
+    },
+    "analyst_artifact": {
+      "$ref": "#/$defs/ArtifactRecord"
     },
     "artifact_run_root": {
       "maxLength": 4096,
@@ -68,24 +77,15 @@
       "type": "string"
     },
     "claim_count": {
-      "default": 0,
       "minimum": 0,
       "title": "Claim Count",
       "type": "integer"
     },
     "command": {
-      "enum": [
-        "ingest-sarif",
-        "normalize",
-        "scan"
-      ],
+      "const": "triage",
+      "default": "triage",
       "title": "Command",
       "type": "string"
-    },
-    "complete_context_count": {
-      "minimum": 0,
-      "title": "Complete Context Count",
-      "type": "integer"
     },
     "context_index": {
       "$ref": "#/$defs/ArtifactRecord"
@@ -101,18 +101,26 @@
     "evidence_registry": {
       "$ref": "#/$defs/ArtifactRecord"
     },
-    "no_path_alert_count": {
+    "fp_count": {
       "minimum": 0,
-      "title": "No Path Alert Count",
+      "title": "Fp Count",
+      "type": "integer"
+    },
+    "invocation_count": {
+      "minimum": 0,
+      "title": "Invocation Count",
+      "type": "integer"
+    },
+    "judged_artifact": {
+      "$ref": "#/$defs/ArtifactRecord"
+    },
+    "nmc_count": {
+      "minimum": 0,
+      "title": "Nmc Count",
       "type": "integer"
     },
     "normalized_bundle": {
       "$ref": "#/$defs/ArtifactRecord"
-    },
-    "partial_context_count": {
-      "minimum": 0,
-      "title": "Partial Context Count",
-      "type": "integer"
     },
     "path_count": {
       "minimum": 0,
@@ -122,7 +130,6 @@
     "project_id": {
       "maxLength": 128,
       "minLength": 1,
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
       "title": "Project Id",
       "type": "string"
     },
@@ -135,13 +142,17 @@
       "$ref": "#/$defs/ArtifactRecord"
     },
     "real_codeql": {
+      "const": false,
+      "default": false,
       "title": "Real Codeql",
       "type": "boolean"
+    },
+    "rebuttal_artifact": {
+      "$ref": "#/$defs/ArtifactRecord"
     },
     "run_id": {
       "maxLength": 128,
       "minLength": 1,
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
       "title": "Run Id",
       "type": "string"
     },
@@ -164,10 +175,8 @@
       "type": "string"
     },
     "source_kind": {
-      "enum": [
-        "ingest",
-        "scan"
-      ],
+      "const": "ingest",
+      "default": "ingest",
       "title": "Source Kind",
       "type": "string"
     },
@@ -175,8 +184,8 @@
       "$ref": "#/$defs/ArtifactRecord"
     },
     "state": {
-      "const": "CONTEXT_READY",
-      "default": "CONTEXT_READY",
+      "const": "JUDGED",
+      "default": "JUDGED",
       "title": "State",
       "type": "string"
     },
@@ -192,16 +201,19 @@
       },
       "title": "Tool Versions",
       "type": "object"
+    },
+    "tp_count": {
+      "minimum": 0,
+      "title": "Tp Count",
+      "type": "integer"
     }
   },
   "required": [
-    "command",
-    "source_kind",
-    "real_codeql",
     "run_id",
     "project_id",
     "project_spec_sha256",
     "snapshot_identity",
+    "analysis_identity",
     "artifact_run_root",
     "raw_sarif",
     "normalized_bundle",
@@ -210,13 +222,18 @@
     "evidence_registry",
     "evidence_graph",
     "source_map",
+    "analyst_artifact",
+    "rebuttal_artifact",
+    "judged_artifact",
     "alert_count",
     "path_count",
-    "no_path_alert_count",
-    "complete_context_count",
-    "partial_context_count",
-    "evidence_count"
+    "evidence_count",
+    "claim_count",
+    "invocation_count",
+    "tp_count",
+    "fp_count",
+    "nmc_count"
   ],
-  "title": "ContextRunSummary",
+  "title": "TriageRunSummary",
   "type": "object"
 }

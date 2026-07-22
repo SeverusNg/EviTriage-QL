@@ -294,8 +294,9 @@ slice. The primary Golden fixture is aligned to the checked-in
 synthetic rather than real CodeQL output.
 
 The domain layer sees strict, frozen top-level alert, context, evidence, claim,
-manifest, and summary models, not raw vendor dictionaries. JSON Schemas for
-ProjectSpec, `AlertBundle`, `SliceArtifact`, `ContextIndex`, `EvidenceRegistry`,
+triage, manifest, and summary models, not raw vendor dictionaries. JSON Schemas
+for ProjectSpec, `AlertBundle`, `SliceArtifact`, `ContextIndex`,
+`EvidenceRegistry`, LLM/Agent outputs, `FinalDecision`, `TriageResult`,
 `RunManifest`, and CLI summaries are generated and checked for drift.
 
 ## Gate C context and evidence contract
@@ -356,17 +357,72 @@ descendant process has terminated. Only trusted fixtures/repositories should be
 scanned unless external network/resource/process isolation is supplied. A Maven
 Wrapper cache bootstrap is a separate controlled supply-chain step.
 
-## Gate boundary and extension points
+## Bounded Gate D offline triage
 
 Gate D may consume only the completed normalized bundle, validated Gate C
 context/evidence artifacts, manifest identities, and raw result references. It
 must not introduce new facts outside the registry, accept dangling evidence
 IDs, or create a branch-specific downstream workflow.
 
-Later Fake/Replay providers, bounded Analyst/Rebuttal/Judge agents,
-deterministic TP/FP/NMC policy, and escaped JSONL/HTML reporting must preserve
-these boundaries. None is available merely because its name appears in
-ProjectSpec metadata.
+The current core consumes an immutable `EvidenceRegistry` plus an exact alert
+fingerprint/raw-result reference. `FakeLLM`, `ReplayLLM`, and the optional
+`DeepSeekLLM` implement the same provider-neutral `StructuredLLM` protocol and
+strict response validation. The canonical request hash covers prompt, payload,
+response schema, Agent role, profile/model, and decoding/data-policy fields.
+Replay reads only a bounded regular `<request-sha256>.json` file without
+following symlinks.
+
+`TriageWorkflow` calls Analyst, Rebuttal, and Judge in that order. Code assigns
+stable Claim IDs after validating each draft's evidence references against the
+exact alert occurrence. Each role gets at most one repair and the whole alert at
+most six calls. Source/SARIF excerpts remain nested under
+`untrusted_code_data`; the fixed system prompts declare those bytes inert and
+grant no tools.
+
+The deterministic policy treats Judge output as a candidate: TP needs critical
+supported Analyst claims for attacker control, path feasibility, and dangerous
+sink semantics, each backed by matching medium-or-stronger evidence, or a
+decisive successful verification; FP needs a critical rebutted Rebuttal claim
+with decisive FP evidence. Empty critical evidence, unknowns, unresolved
+critical claims, and high/decisive conflicts become NMC. Confidence cannot
+bypass these checks and automatic dismissal is structurally disabled.
+
+`evitriage triage` binds ProjectSpec, existing SARIF, and a trusted profile. A
+Replay profile additionally requires a read-only cache. It allocates a fresh
+run, reuses the same
+normalization/context/evidence functions as `ingest-sarif`, and then persists
+three strict artifacts: `triage/analyst.json` and `triage/rebuttal.json` with
+role `model`, followed by `triage/judged.json` with role `decision`. Their hashes
+anchor the append-only transitions `ANALYZED → REBUTTED → JUDGED`; finalization
+revalidates and makes all registered artifacts owner-read-only.
+
+Operational run identity remains unique for each managed execution. Normalized
+alerts, context, Evidence Registry, and model invocation context instead use a
+stable `analysis_identity` derived from the source-tree digest, raw-SARIF
+digest, commit, and normalizer version. This distinction prevents a fresh
+workspace ID from invalidating an otherwise equivalent Replay request while
+preserving separate execution journals.
+
+The pipeline records the complete trusted profile digest and model ID in the
+manifest, and persists only fixed prompts' hashes and validated responses inside
+the stage/decision records; it does not persist raw prompts or copy Replay cache
+entries. Missing Replay input becomes a finalized `MODEL_FAILED` run with
+bounded non-content request provenance. Profile mismatch or an evidence-policy
+violation becomes `POLICY_REJECTED`. Existing finalized Gate C runs are not
+reopened. Prior-run continuation, direct scan-to-triage chaining, a trusted
+cache producer, and JSONL/HTML publication remain Gate E boundaries.
+
+The DeepSeek path is a deliberate post-Gate-D remote extension. Its adapter
+fixes the target to `api.deepseek.com:443/chat/completions`, accepts only V4-Pro
+or V4-Flash, requests JSON Output with thinking disabled, and supplies no tools.
+It reads the Bearer credential from either the one-process
+`DEEPSEEK_API_KEY` input or a fixed repository-external TPM2/systemd encrypted
+blob. Enrollment and decryption use pipes, so no plaintext credential file is
+created. The credential is not part of the messages or persisted provenance,
+and non-success response bodies are discarded. Before normalization or a model call, the pipeline
+requires both the trusted profile and ProjectSpec to say
+`remote_llm_allowed`; existing offline projects cannot silently transmit their
+evidence. ADR 0006 records the data-governance and secret-handling decision.
 
 ## Verification strategy
 
@@ -389,6 +445,22 @@ Current acceptance evidence consists of:
 - Gate C unit/security tests for callable/window selection, token omissions,
   missing and symlinked source, unsupported adaptive context, content hashes,
   dangling relationship/claim/artifact references, and DOT/HTML navigation;
+- Gate D unit/security tests for Fake TP/FP/NMC decisions, complete Replay,
+  evidence/claim closure and bounded repair, request hashes, prompt-injection
+  containment, and cache miss/symlink/strict-JSON failures;
+- Gate D integration tests that materialize deterministic temporary Replay
+  entries, reach `JUDGED` through all durable states, revalidate decision
+  artifacts, and prove a Replay miss finalizes as `MODEL_FAILED` with request
+  provenance;
+- simulated-HTTPS DeepSeek tests for the exact official host/path, JSON schema
+  payload, complete three-role CLI flow, missing-key/error-body non-disclosure,
+  offline-project rejection, and commit-eligible secret scanning; no live key
+  or paid request is used by acceptance tests;
+- a separately authorized 2026-07-23 DeepSeek smoke using the repository-
+  external TPM2 credential, recorded as ignored run
+  `20260722T174132749958Z-8fce5d0ab3f9`; its three accepted calls and `JUDGED`
+  state are narrow live-path evidence rather than a checked-in test fixture or
+  model-quality benchmark;
 - a real offline CLI ingest, an actual missing-CodeQL `scan` failure, and a
   successful pinned Java/CodeQL smoke, recorded with commands, exit codes, and
   artifact hashes in the dated progress log.

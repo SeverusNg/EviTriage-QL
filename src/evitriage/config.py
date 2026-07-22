@@ -19,6 +19,7 @@ from pydantic import (
 from yaml.nodes import MappingNode
 
 from evitriage.errors import ConfigurationError
+from evitriage.llm import LLMProfile
 
 
 class _UniqueKeySafeLoader(yaml.SafeLoader):
@@ -95,8 +96,8 @@ class AgentConfig(_FrozenStrictConfig):
         ),
     ]
     temperature: Annotated[float, Field(ge=0, le=2)]
-    maximum_schema_repairs_per_agent: Annotated[int, Field(ge=0, le=10)]
-    maximum_model_calls_per_alert: Annotated[int, Field(ge=1, le=100)]
+    maximum_schema_repairs_per_agent: Annotated[int, Field(ge=0, le=1)]
+    maximum_model_calls_per_alert: Annotated[int, Field(ge=3, le=6)]
     require_evidence_ids: Literal[True]
     allow_repository_instructions: Literal[False]
 
@@ -201,6 +202,51 @@ def load_system_config(path: Path) -> SystemConfig:
         ) from exc
 
 
+def load_llm_profile(path: Path) -> LLMProfile:
+    """Read one trusted offline LLM profile with duplicate-key rejection."""
+
+    try:
+        canonical = path.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise ConfigurationError(f"LLM profile does not exist: {path}") from exc
+    if not canonical.is_file():
+        raise ConfigurationError(f"LLM profile is not a file: {canonical}")
+    try:
+        raw = yaml.load(
+            canonical.read_text(encoding="utf-8"),
+            Loader=_UniqueKeySafeLoader,  # noqa: S506 - subclasses yaml.SafeLoader
+        )
+    except yaml.YAMLError as exc:
+        raise ConfigurationError(
+            f"cannot parse LLM profile {canonical}",
+            details={"parser_error": type(exc).__name__},
+        ) from exc
+    except (OSError, UnicodeError) as exc:
+        raise ConfigurationError(f"cannot read LLM profile {canonical}") from exc
+    if not isinstance(raw, dict):
+        raise ConfigurationError(f"LLM profile must contain a YAML mapping: {canonical}")
+    try:
+        return LLMProfile.model_validate(cast(dict[str, object], raw))
+    except ValidationError as exc:
+        raise ConfigurationError(
+            f"invalid LLM profile in {canonical}",
+            details={
+                "issues": [
+                    {
+                        "type": str(issue["type"]),
+                        "location": [str(part) for part in issue["loc"]],
+                        "message": str(issue["msg"]),
+                    }
+                    for issue in exc.errors(
+                        include_url=False,
+                        include_context=False,
+                        include_input=False,
+                    )
+                ]
+            },
+        ) from exc
+
+
 __all__ = [
     "AgentConfig",
     "ContextConfig",
@@ -209,5 +255,6 @@ __all__ = [
     "SystemCodeQLConfig",
     "SystemConfig",
     "VerificationConfig",
+    "load_llm_profile",
     "load_system_config",
 ]

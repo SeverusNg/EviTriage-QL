@@ -1,0 +1,64 @@
+{
+  "additionalProperties": false,
+  "description": "Trusted model, decoding, and data-transfer identity for Gate D+.",
+  "properties": {
+    "data_policy": {
+      "default": "offline_only",
+      "enum": [
+        "offline_only",
+        "remote_llm_allowed"
+      ],
+      "title": "Data Policy",
+      "type": "string"
+    },
+    "id": {
+      "maxLength": 100,
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "maximum_output_tokens": {
+      "default": 8192,
+      "maximum": 1000000,
+      "minimum": 1,
+      "title": "Maximum Output Tokens",
+      "type": "integer"
+    },
+    "model_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Model Id",
+      "type": "string"
+    },
+    "provider": {
+      "enum": [
+        "fake",
+        "replay",
+        "deepseek"
+      ],
+      "title": "Provider",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "temperature": {
+      "default": 0.0,
+      "maximum": 0,
+      "minimum": 0,
+      "title": "Temperature",
+      "type": "number"
+    }
+  },
+  "required": [
+    "id",
+    "provider",
+    "model_id"
+  ],
+  "title": "LLMProfile",
+  "type": "object"
+}

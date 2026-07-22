@@ -1,0 +1,86 @@
+{
+  "$defs": {
+    "ClaimDraft": {
+      "additionalProperties": false,
+      "description": "Agent-authored claim content before code assigns a stable claim ID.",
+      "properties": {
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "source_controllable",
+            "path_feasible",
+            "sanitizer_effective",
+            "sink_dangerous",
+            "exploit_succeeds"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "statement": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "supported",
+            "rebutted",
+            "unresolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "statement",
+        "status"
+      ],
+      "title": "ClaimDraft",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Structured Analyst result; it proposes claims but no final label.",
+  "properties": {
+    "claims": {
+      "items": {
+        "$ref": "#/$defs/ClaimDraft"
+      },
+      "maxItems": 64,
+      "title": "Claims",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "unknowns": {
+      "default": [],
+      "items": {
+        "maxLength": 10000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Unknowns",
+      "type": "array"
+    }
+  },
+  "required": [
+    "claims"
+  ],
+  "title": "AnalystOutput",
+  "type": "object"
+}

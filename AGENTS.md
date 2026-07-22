@@ -3,16 +3,38 @@
 ## Scope and current gate
 
 This repository implements EviTriage-QL incrementally. The checked-in baseline
-includes Gate A, the Gate B input layer, Gate C context/evidence, and the bounded
-Gate C-Extra query-positive acceptance: a real CodeQL runner, existing SARIF
-ingest, SARIF 2.1.0 normalization, bounded Java Level 0/1 context, an
-artifact-addressed evidence registry, Golden fixtures, and run-scoped audit
-artifacts. A pinned CodeQL 2.26.1 scan of the original Socket-based CWE-22 case
-produced one `java/path-injection` result with an eight-step path and reached
+includes Gate A, the Gate B input layer, Gate C context/evidence, bounded Gate
+C-Extra query-positive acceptance, and the offline Gate D existing-SARIF triage
+path: a real CodeQL runner, existing SARIF ingest, SARIF 2.1.0 normalization,
+bounded Java Level 0/1 context, an artifact-addressed evidence registry,
+offline Fake/Replay structured adapters, ordered Analyst/Rebuttal/Judge calls,
+a conservative deterministic decision policy, a `triage` CLI, durable
+`ANALYZED → REBUTTED → JUDGED` states, and model/decision artifacts. A pinned
+CodeQL 2.26.1 scan of the original Socket-based CWE-22 case produced one
+`java/path-injection` result with an eight-step path and reached
 `CONTEXT_READY`; the exact run is recorded in the 2026-07-22 evidence log. This
 is query and pipeline evidence, not an EviTriage TP/FP/NMC decision or evidence
-about arbitrary code. Do not describe Gate D or later capabilities as
-implemented until their code, tests, and actual artifacts exist.
+about arbitrary code. The Gate D decision fixtures and Replay entries are
+synthetic. Do not describe Gate E reporting or a real-model decision as
+implemented until its code, tests, and actual artifacts exist.
+
+An explicitly opt-in DeepSeek V4-Pro/Flash adapter is also present after the
+Gate D offline baseline. It is fixed to DeepSeek's official HTTPS host, reads
+from either one-process `DEEPSEEK_API_KEY` input or the fixed
+repository-external TPM2/systemd encrypted credential store, and requires matching
+`remote_llm_allowed` declarations in the trusted LLM Profile and ProjectSpec.
+Its checked-in tests simulate HTTPS and must not consume an operator credential.
+An operator-authorized live smoke on 2026-07-23 used the TPM2 credential path
+and completed three accepted calls as ignored run
+`20260722T174132749958Z-8fce5d0ab3f9`, reaching `JUDGED` with a conservative
+`NMC` decision and `auto_dismiss=false`. This is narrow credential/provider/
+pipeline evidence for one synthetic fixture, not evidence of model quality,
+cost, general availability, or arbitrary-code accuracy. Never place a real key
+in Git, chat, command arguments, YAML, fixtures, logs, or run artifacts.
+
+Never persist a plaintext API key. The optional DeepSeek credential command
+writes only TPM2-bound ciphertext below the operator's private home data
+directory; chat-exposed keys must be revoked before enrollment.
 
 The normative product requirements are the dated Chinese blueprint and build
 prompt at the repository root. If prose conflicts with executable behavior,
@@ -29,6 +51,7 @@ make check
 uv run evitriage doctor --json
 uv run evitriage project validate --config configs/projects/example-local.yaml --json
 uv run evitriage project validate --config configs/projects/example-local-command.yaml --json
+uv run evitriage project validate --config configs/projects/example-local-deepseek-v4.yaml --json
 uv run evitriage ingest-sarif --project-config configs/projects/example-local.yaml --sarif tests/fixtures/sarif/single-path.sarif --json
 ```
 
@@ -108,9 +131,12 @@ validation, and progress evidence together.
 Gate D (bounded agents/policy) starts only after Gate A checks, the Gate B/C
 offline ingest/normalization/context/evidence acceptance path, and Gate C-Extra
 query-positive acceptance pass. Those conditions now pass in this checkout.
-The recorded real zero-result smoke and positive-query scan remain
-environment-specific evidence; clean-room/release validation must still
-reproduce them with the pinned external tools. Later gates add bounded agents
-and deterministic decisions, offline end-to-end reporting, and security/release
-hardening in that order. Real model APIs, remote Git, Gradle, adaptive context,
-verification, and calibration must not displace the v0.1 P0 path.
+Gate D now passes its bounded offline core and existing-SARIF CLI/journal
+integration tests. Ordinary `scan` and `ingest-sarif` commands still stop at
+`CONTEXT_READY`; `triage` allocates a fresh auditable SARIF run and requires a
+trusted read-only Replay cache. The recorded real zero-result smoke and
+positive-query scan remain environment-specific evidence; clean-room/release
+validation must still reproduce them with the pinned external tools. Gate E
+adds offline reports and the demo path. Providers beyond the narrow DeepSeek V4
+adapter, remote Git, Gradle, adaptive context, verification, and calibration
+must not displace the v0.1 P0 path.

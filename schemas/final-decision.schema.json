@@ -1,0 +1,185 @@
+{
+  "$defs": {
+    "RawResultReference": {
+      "additionalProperties": false,
+      "description": "Stable pointer into the immutable raw SARIF artifact.",
+      "properties": {
+        "raw_sarif_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Raw Sarif Sha256",
+          "type": "string"
+        },
+        "result_index": {
+          "minimum": 0,
+          "title": "Result Index",
+          "type": "integer"
+        },
+        "run_index": {
+          "minimum": 0,
+          "title": "Run Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "raw_sarif_sha256",
+        "run_index",
+        "result_index"
+      ],
+      "title": "RawResultReference",
+      "type": "object"
+    },
+    "TriageTarget": {
+      "additionalProperties": false,
+      "description": "One exact upstream result occurrence selected for triage.",
+      "properties": {
+        "alert_fingerprint": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Alert Fingerprint",
+          "type": "string"
+        },
+        "raw_result_reference": {
+          "$ref": "#/$defs/RawResultReference"
+        }
+      },
+      "required": [
+        "alert_fingerprint",
+        "raw_result_reference"
+      ],
+      "title": "TriageTarget",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Judge candidate after the fail-closed deterministic policy is applied.",
+  "properties": {
+    "auto_dismiss": {
+      "const": false,
+      "default": false,
+      "title": "Auto Dismiss",
+      "type": "boolean"
+    },
+    "calibrated_probabilities": {
+      "const": null,
+      "default": null,
+      "title": "Calibrated Probabilities",
+      "type": "null"
+    },
+    "critical_claim_ids": {
+      "default": [],
+      "items": {
+        "pattern": "^cl_[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "title": "Critical Claim Ids",
+      "type": "array"
+    },
+    "critical_evidence_ids": {
+      "default": [],
+      "items": {
+        "pattern": "^ev_[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "title": "Critical Evidence Ids",
+      "type": "array"
+    },
+    "fix_guidance": {
+      "default": [],
+      "items": {
+        "maxLength": 10000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Fix Guidance",
+      "type": "array"
+    },
+    "label": {
+      "enum": [
+        "TP",
+        "FP",
+        "NMC"
+      ],
+      "title": "Label",
+      "type": "string"
+    },
+    "next_actions": {
+      "default": [],
+      "items": {
+        "maxLength": 10000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Next Actions",
+      "type": "array"
+    },
+    "policy_flags": {
+      "items": {
+        "enum": [
+          "auto_dismiss_disabled",
+          "conflicting_high_strength_evidence",
+          "critical_evidence_missing",
+          "fp_decisive_rebuttal_present",
+          "fp_missing_decisive_rebuttal",
+          "high_strength_fp_blocks_tp",
+          "judge_label_accepted",
+          "judge_requested_nmc",
+          "tp_support_missing",
+          "unknown_or_unresolved"
+        ],
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Policy Flags",
+      "type": "array"
+    },
+    "raw_confidence": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Raw Confidence",
+      "type": "number"
+    },
+    "reasoning_summary": {
+      "maxLength": 20000,
+      "minLength": 1,
+      "title": "Reasoning Summary",
+      "type": "string"
+    },
+    "requested_label": {
+      "enum": [
+        "TP",
+        "FP",
+        "NMC"
+      ],
+      "title": "Requested Label",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "target": {
+      "$ref": "#/$defs/TriageTarget"
+    },
+    "unknowns": {
+      "default": [],
+      "items": {
+        "maxLength": 10000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Unknowns",
+      "type": "array"
+    }
+  },
+  "required": [
+    "target",
+    "label",
+    "requested_label",
+    "raw_confidence",
+    "reasoning_summary",
+    "policy_flags"
+  ],
+  "title": "FinalDecision",
+  "type": "object"
+}

@@ -21,14 +21,20 @@ def valid_project_mapping() -> dict[str, Any]:
 
 
 @pytest.mark.integration
-def test_two_checked_in_projects_use_the_same_registry_path() -> None:
+def test_checked_in_projects_use_the_same_registry_path() -> None:
     registry = ProjectRegistry(REPOSITORY_ROOT)
 
     path_project = registry.validate_path(Path("configs/projects/example-local.yaml"))
     command_project = registry.validate_path(Path("configs/projects/example-local-command.yaml"))
+    deepseek_project = registry.validate_path(
+        Path("configs/projects/example-local-deepseek-v4.yaml")
+    )
 
     assert path_project.project_id == "example-local"
     assert command_project.project_id == "example-local-command"
+    assert deepseek_project.project_id == "example-local-deepseek-v4"
+    assert deepseek_project.spec.analysis.llm_profile == "deepseek-v4-pro"
+    assert deepseek_project.spec.security.source_upload_policy == "remote_llm_allowed"
     assert path_project.source_path != command_project.source_path
     assert Path(path_project.source_path or "").is_dir()
     assert Path(command_project.source_path or "").is_dir()
@@ -42,11 +48,15 @@ def test_two_checked_in_projects_use_the_same_registry_path() -> None:
 
 
 @pytest.mark.integration
-def test_registry_loads_by_declared_id_and_lists_both_projects() -> None:
+def test_registry_loads_by_declared_id_and_lists_projects() -> None:
     registry = ProjectRegistry(REPOSITORY_ROOT)
 
     assert registry.load("example-local").project_id == "example-local"
-    assert registry.list_ids() == ("example-local-command", "example-local")
+    assert registry.list_ids() == (
+        "example-local-command",
+        "example-local-deepseek-v4",
+        "example-local",
+    )
     with pytest.raises(ConfigurationError):
         registry.load("../escape")
     with pytest.raises(ConfigurationError):

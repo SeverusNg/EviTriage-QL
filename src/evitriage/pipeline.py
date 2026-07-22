@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,23 +10,42 @@ from typing import Literal, cast
 
 from pydantic import BaseModel
 
+from evitriage.agents import TriageLimits, TriageWorkflow
 from evitriage.codeql import CodeQLRunner, CodeQLRunResult
 from evitriage.context import ContextBuilder
+from evitriage.domain.alerts import AlertBundle
 from evitriage.domain.context import (
     ContextIndex,
     ContextPolicyName,
     SliceArtifact,
     SliceArtifactReference,
 )
+from evitriage.domain.evidence import EvidenceRegistry
 from evitriage.domain.project import ResolvedProjectSpec
 from evitriage.domain.run import (
     ArtifactRecord,
     ContextRunSummary,
+    RunManifest,
     WorkflowState,
 )
+from evitriage.domain.triage import (
+    AnalystRunArtifact,
+    AnalystStageRecord,
+    JudgedRunArtifact,
+    RebuttalRunArtifact,
+    RebuttalStageRecord,
+    TriageRunSummary,
+    TriageTarget,
+)
 from evitriage.domain.workspace import WorkspaceAllocation
-from evitriage.errors import EviTriageError, FeatureNotAvailableError
+from evitriage.errors import (
+    EviTriageError,
+    FeatureNotAvailableError,
+    ModelError,
+    PolicyRejectedError,
+)
 from evitriage.evidence import build_evidence_registry, evidence_graph_dot, source_map_html
+from evitriage.llm import LLMProfile, StructuredLLM
 from evitriage.observability import redact
 from evitriage.projects.registry import ProjectRegistry
 from evitriage.run_artifacts import RunJournal
@@ -35,6 +55,8 @@ from evitriage.workspace import WorkspaceManager
 _NORMALIZER_VERSION = "1.0"
 _CONTEXT_VERSION: Literal["1.0"] = "1.0"
 _EVIDENCE_REGISTRY_VERSION = "1.0"
+_AGENT_WORKFLOW_VERSION = "1.0"
+_DECISION_POLICY_VERSION = "1.0"
 _SARIF_MEDIA_TYPE = "application/sarif+json"
 _JSON_MEDIA_TYPE = "application/json"
 
@@ -44,6 +66,20 @@ class _PreparedRun:
     resolved: ResolvedProjectSpec
     allocation: WorkspaceAllocation
     journal: RunJournal
+
+
+@dataclass(frozen=True, slots=True)
+class _ContextProducts:
+    raw_record: ArtifactRecord
+    bundle: AlertBundle
+    normalized_record: ArtifactRecord
+    slices: tuple[SliceArtifact, ...]
+    persisted_slices: tuple[tuple[SliceArtifact, ArtifactRecord], ...]
+    context_index_record: ArtifactRecord
+    registry: EvidenceRegistry
+    registry_record: ArtifactRecord
+    graph_record: ArtifactRecord
+    source_map_record: ArtifactRecord
 
 
 def run_sarif_ingest(
@@ -62,6 +98,75 @@ def run_sarif_ingest(
         allowed_source_roots=allowed_source_roots,
         input_mode="sarif",
     )
+    raw_record, raw = _ingest_sarif_input(prepared, sarif_path)
+    return _normalize_context_and_complete(
+        prepared,
+        raw=raw,
+        raw_record=raw_record,
+        command=command,
+        source_kind="ingest",
+        real_codeql=False,
+    )
+
+
+def run_sarif_triage(
+    repository_root: Path,
+    *,
+    project_config: Path,
+    sarif_path: Path,
+    profile: LLMProfile,
+    llm: StructuredLLM,
+    limits: TriageLimits | None = None,
+    allowed_source_roots: tuple[Path, ...] | None = None,
+) -> TriageRunSummary:
+    """Ingest existing SARIF and continue the shared pipeline through Gate D."""
+
+    prepared = _prepare_run(
+        repository_root,
+        project_config=project_config,
+        allowed_source_roots=allowed_source_roots,
+        input_mode="sarif",
+    )
+    if prepared.resolved.spec.analysis.llm_profile != profile.id:
+        error = PolicyRejectedError(
+            "ProjectSpec LLM profile does not match the trusted runtime profile",
+            details={
+                "project_profile": prepared.resolved.spec.analysis.llm_profile,
+                "runtime_profile": profile.id,
+            },
+        )
+        _fail_run(prepared, WorkflowState.POLICY_REJECTED, error)
+        raise error
+    project_data_policy = prepared.resolved.spec.security.source_upload_policy
+    if project_data_policy != profile.data_policy:
+        error = PolicyRejectedError(
+            "ProjectSpec source-upload policy does not match the LLM profile",
+            details={
+                "project_data_policy": project_data_policy,
+                "profile_data_policy": profile.data_policy,
+            },
+        )
+        _fail_run(prepared, WorkflowState.POLICY_REJECTED, error)
+        raise error
+    raw_record, raw = _ingest_sarif_input(prepared, sarif_path)
+    products = _normalize_context(
+        prepared,
+        raw=raw,
+        raw_record=raw_record,
+    )
+    return _triage_and_complete(
+        prepared,
+        products=products,
+        profile=profile,
+        llm=llm,
+        limits=limits,
+    )
+
+
+def _ingest_sarif_input(
+    prepared: _PreparedRun,
+    sarif_path: Path,
+) -> tuple[ArtifactRecord, bytes]:
     try:
         raw_record, raw = prepared.journal.ingest_file(
             sarif_path,
@@ -79,14 +184,7 @@ def run_sarif_ingest(
     except EviTriageError as error:
         _fail_run(prepared, WorkflowState.INVALID_SARIF, error)
         raise
-    return _normalize_context_and_complete(
-        prepared,
-        raw=raw,
-        raw_record=raw_record,
-        command=command,
-        source_kind="ingest",
-        real_codeql=False,
-    )
+    return raw_record, raw
 
 
 def run_codeql_scan(
@@ -209,11 +307,33 @@ def _normalize_context_and_complete(
     source_kind: Literal["ingest", "scan"],
     real_codeql: bool,
 ) -> ContextRunSummary:
+    products = _normalize_context(prepared, raw=raw, raw_record=raw_record)
+    try:
+        manifest = prepared.journal.complete()
+    except EviTriageError as error:
+        _fail_run(prepared, WorkflowState.CONTEXT_INCOMPLETE, error)
+        raise
+    return _context_run_summary(
+        prepared,
+        products=products,
+        manifest=manifest,
+        command=command,
+        source_kind=source_kind,
+        real_codeql=real_codeql,
+    )
+
+
+def _normalize_context(
+    prepared: _PreparedRun,
+    *,
+    raw: bytes,
+    raw_record: ArtifactRecord,
+) -> _ContextProducts:
     try:
         document = parse_sarif_bytes(raw)
         bundle = SarifNormalizer(prepared.allocation.workspace.source_snapshot).normalize(
             document,
-            run_id=prepared.allocation.workspace.run_id,
+            run_id=_analysis_identity(prepared, raw_record),
             repository_identity=prepared.allocation.snapshot.source_tree_sha256,
             commit_sha=prepared.allocation.snapshot.full_commit,
             raw_sarif_sha256=raw_record.sha256,
@@ -302,11 +422,33 @@ def _normalize_context_and_complete(
             input_sha256=normalized_record.sha256,
             output_sha256=registry_record.sha256,
         )
-        manifest = prepared.journal.complete()
     except EviTriageError as error:
         _fail_run(prepared, WorkflowState.CONTEXT_INCOMPLETE, error)
         raise
 
+    return _ContextProducts(
+        raw_record=raw_record,
+        bundle=bundle,
+        normalized_record=normalized_record,
+        slices=slices,
+        persisted_slices=persisted_slices,
+        context_index_record=context_index_record,
+        registry=registry,
+        registry_record=registry_record,
+        graph_record=graph_record,
+        source_map_record=source_map_record,
+    )
+
+
+def _context_run_summary(
+    prepared: _PreparedRun,
+    *,
+    products: _ContextProducts,
+    manifest: RunManifest,
+    command: Literal["ingest-sarif", "normalize", "scan"],
+    source_kind: Literal["ingest", "scan"],
+    real_codeql: bool,
+) -> ContextRunSummary:
     return ContextRunSummary(
         command=command,
         source_kind=source_kind,
@@ -316,26 +458,196 @@ def _normalize_context_and_complete(
         project_spec_sha256=manifest.project_spec_sha256,
         snapshot_identity=manifest.snapshot_identity,
         artifact_run_root=str(prepared.allocation.workspace.artifact_run_root),
-        raw_sarif=raw_record,
-        normalized_bundle=normalized_record,
-        slice_artifacts=tuple(record for _slice, record in persisted_slices),
-        context_index=context_index_record,
-        evidence_registry=registry_record,
-        evidence_graph=graph_record,
-        source_map=source_map_record,
-        alert_count=len(bundle.alerts),
-        path_count=sum(len(alert.paths) for alert in bundle.alerts),
-        no_path_alert_count=sum(not alert.has_code_flows for alert in bundle.alerts),
+        raw_sarif=products.raw_record,
+        normalized_bundle=products.normalized_record,
+        slice_artifacts=tuple(record for _slice, record in products.persisted_slices),
+        context_index=products.context_index_record,
+        evidence_registry=products.registry_record,
+        evidence_graph=products.graph_record,
+        source_map=products.source_map_record,
+        alert_count=len(products.bundle.alerts),
+        path_count=sum(len(alert.paths) for alert in products.bundle.alerts),
+        no_path_alert_count=sum(not alert.has_code_flows for alert in products.bundle.alerts),
         complete_context_count=sum(
-            slice_artifact.content.completeness == "complete" for slice_artifact in slices
+            slice_artifact.content.completeness == "complete" for slice_artifact in products.slices
         ),
         partial_context_count=sum(
-            slice_artifact.content.completeness == "partial" for slice_artifact in slices
+            slice_artifact.content.completeness == "partial" for slice_artifact in products.slices
         ),
-        evidence_count=len(registry.items),
-        claim_count=len(registry.claims),
+        evidence_count=len(products.registry.items),
+        claim_count=len(products.registry.claims),
         tool_versions=manifest.tool_versions,
     )
+
+
+def _triage_and_complete(
+    prepared: _PreparedRun,
+    *,
+    products: _ContextProducts,
+    profile: LLMProfile,
+    llm: StructuredLLM,
+    limits: TriageLimits | None,
+) -> TriageRunSummary:
+    workflow = TriageWorkflow(profile=profile, limits=limits)
+    try:
+        prepared.journal.add_tool_versions(
+            {
+                "agent-workflow": _AGENT_WORKFLOW_VERSION,
+                "decision-policy": _DECISION_POLICY_VERSION,
+                "llm-model": profile.model_id,
+                "llm-profile": f"{profile.id}@sha256:{profile.digest}",
+                "llm-provider": profile.provider,
+            }
+        )
+        results = tuple(
+            workflow.triage(
+                registry=products.registry,
+                target=TriageTarget(
+                    alert_fingerprint=alert.alert_fingerprint,
+                    raw_result_reference=alert.raw_result_reference,
+                ),
+                llm=llm,
+            )
+            for alert in products.bundle.alerts
+        )
+        operational_run_id = prepared.allocation.workspace.run_id
+        analyst = AnalystRunArtifact(
+            run_id=operational_run_id,
+            analysis_identity=products.registry.run_id,
+            results=tuple(
+                AnalystStageRecord(
+                    target=result.target,
+                    output=result.analyst,
+                    claims=result.analyst_claims,
+                    invocations=tuple(
+                        invocation
+                        for invocation in result.invocations
+                        if invocation.agent_role == "analyst"
+                    ),
+                )
+                for result in results
+            ),
+        )
+        analyst_record = prepared.journal.write_artifact(
+            "triage/analyst.json",
+            _serialize_model(analyst),
+            role="model",
+            media_type=_JSON_MEDIA_TYPE,
+        )
+        prepared.journal.transition(
+            WorkflowState.ANALYZED,
+            event_type="analyst_completed",
+            input_sha256=products.registry_record.sha256,
+            output_sha256=analyst_record.sha256,
+        )
+
+        rebuttal = RebuttalRunArtifact(
+            run_id=operational_run_id,
+            analysis_identity=products.registry.run_id,
+            results=tuple(
+                RebuttalStageRecord(
+                    target=result.target,
+                    output=result.rebuttal,
+                    claims=result.rebuttal_claims,
+                    invocations=tuple(
+                        invocation
+                        for invocation in result.invocations
+                        if invocation.agent_role == "rebuttal"
+                    ),
+                )
+                for result in results
+            ),
+        )
+        rebuttal_record = prepared.journal.write_artifact(
+            "triage/rebuttal.json",
+            _serialize_model(rebuttal),
+            role="model",
+            media_type=_JSON_MEDIA_TYPE,
+        )
+        prepared.journal.transition(
+            WorkflowState.REBUTTED,
+            event_type="rebuttal_completed",
+            input_sha256=analyst_record.sha256,
+            output_sha256=rebuttal_record.sha256,
+        )
+
+        judged = JudgedRunArtifact(
+            run_id=operational_run_id,
+            analysis_identity=products.registry.run_id,
+            results=results,
+        )
+        judged_record = prepared.journal.write_artifact(
+            "triage/judged.json",
+            _serialize_model(judged),
+            role="decision",
+            media_type=_JSON_MEDIA_TYPE,
+        )
+        prepared.journal.transition(
+            WorkflowState.JUDGED,
+            event_type="judge_completed",
+            input_sha256=rebuttal_record.sha256,
+            output_sha256=judged_record.sha256,
+        )
+        manifest = prepared.journal.complete()
+    except PolicyRejectedError as error:
+        _fail_run(prepared, WorkflowState.POLICY_REJECTED, error)
+        raise
+    except ModelError as error:
+        _fail_run(prepared, WorkflowState.MODEL_FAILED, error)
+        raise
+    except EviTriageError as error:
+        _fail_run(prepared, WorkflowState.MODEL_FAILED, error)
+        raise
+
+    decisions = tuple(result.final_decision for result in results)
+    return TriageRunSummary(
+        run_id=manifest.run_id,
+        project_id=manifest.project_id,
+        project_spec_sha256=manifest.project_spec_sha256,
+        snapshot_identity=manifest.snapshot_identity,
+        analysis_identity=products.registry.run_id,
+        artifact_run_root=str(prepared.allocation.workspace.artifact_run_root),
+        raw_sarif=products.raw_record,
+        normalized_bundle=products.normalized_record,
+        slice_artifacts=tuple(record for _slice, record in products.persisted_slices),
+        context_index=products.context_index_record,
+        evidence_registry=products.registry_record,
+        evidence_graph=products.graph_record,
+        source_map=products.source_map_record,
+        analyst_artifact=analyst_record,
+        rebuttal_artifact=rebuttal_record,
+        judged_artifact=judged_record,
+        alert_count=len(products.bundle.alerts),
+        path_count=sum(len(alert.paths) for alert in products.bundle.alerts),
+        evidence_count=len(products.registry.items),
+        claim_count=sum(
+            len(result.analyst_claims) + len(result.rebuttal_claims) for result in results
+        ),
+        invocation_count=sum(len(result.invocations) for result in results),
+        tp_count=sum(decision.label == "TP" for decision in decisions),
+        fp_count=sum(decision.label == "FP" for decision in decisions),
+        nmc_count=sum(decision.label == "NMC" for decision in decisions),
+        tool_versions=manifest.tool_versions,
+    )
+
+
+def _analysis_identity(prepared: _PreparedRun, raw_record: ArtifactRecord) -> str:
+    """Derive a stable request/cache identity independent of the writable run ID."""
+
+    payload = {
+        "commit_sha": prepared.allocation.snapshot.full_commit,
+        "normalizer_version": _NORMALIZER_VERSION,
+        "raw_sarif_sha256": raw_record.sha256,
+        "repository_identity": prepared.allocation.snapshot.source_tree_sha256,
+    }
+    serialized = json.dumps(
+        payload,
+        allow_nan=False,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return "analysis-" + hashlib.sha256(serialized).hexdigest()
 
 
 def _serialize_model(model: BaseModel) -> bytes:
@@ -485,4 +797,4 @@ def _record_partial_codeql_artifacts(prepared: _PreparedRun, error: EviTriageErr
             error.details.setdefault("partial_artifact_error", capture_error.code)
 
 
-__all__ = ["run_codeql_scan", "run_sarif_ingest"]
+__all__ = ["run_codeql_scan", "run_sarif_ingest", "run_sarif_triage"]

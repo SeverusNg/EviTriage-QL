@@ -342,7 +342,7 @@ class SecuritySpec(FrozenStrictModel):
     intentionally absent.  Generated shell is a literal ``false`` in v0.1.
     """
 
-    source_upload_policy: Literal["offline_only"] = "offline_only"
+    source_upload_policy: Literal["offline_only", "remote_llm_allowed"] = "offline_only"
     allow_build_network: bool = False
     allow_submodules: bool = False
     allow_generated_shell: Literal[False] = False

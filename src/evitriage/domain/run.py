@@ -22,11 +22,13 @@ ArtifactRole = Literal[
     "tool-log",
     "tool-output",
     "metadata",
+    "model",
+    "decision",
 ]
 
 
 class WorkflowState(StrEnum):
-    """Gate states implemented through the shared Gate C evidence stage."""
+    """Implemented workflow states through the bounded Gate D decision stage."""
 
     CREATED = "CREATED"
     PROJECT_VALIDATED = "PROJECT_VALIDATED"
@@ -38,9 +40,14 @@ class WorkflowState(StrEnum):
     SARIF_INGESTED = "SARIF_INGESTED"
     NORMALIZED = "NORMALIZED"
     CONTEXT_READY = "CONTEXT_READY"
+    ANALYZED = "ANALYZED"
+    REBUTTED = "REBUTTED"
+    JUDGED = "JUDGED"
     INVALID_SARIF = "INVALID_SARIF"
     CODEQL_FAILED = "CODEQL_FAILED"
     CONTEXT_INCOMPLETE = "CONTEXT_INCOMPLETE"
+    MODEL_FAILED = "MODEL_FAILED"
+    POLICY_REJECTED = "POLICY_REJECTED"
 
 
 class _ImmutableModel(BaseModel):
@@ -166,13 +173,16 @@ class RunManifest(_ImmutableModel):
             WorkflowState.INVALID_SARIF,
             WorkflowState.CODEQL_FAILED,
             WorkflowState.CONTEXT_INCOMPLETE,
+            WorkflowState.MODEL_FAILED,
+            WorkflowState.POLICY_REJECTED,
         }
         if self.status == "running" and self.completed_at is not None:
             raise ValueError("running manifests must not have completed_at")
         if self.status == "completed" and (
-            self.state is not WorkflowState.CONTEXT_READY or self.completed_at is None
+            self.state not in {WorkflowState.CONTEXT_READY, WorkflowState.JUDGED}
+            or self.completed_at is None
         ):
-            raise ValueError("completed manifests must terminate at CONTEXT_READY")
+            raise ValueError("completed manifests must terminate at CONTEXT_READY or JUDGED")
         if self.status == "failed" and (not terminal_failure or self.completed_at is None):
             raise ValueError("failed manifests must terminate in a failure state")
         if self.status != "failed" and terminal_failure:
@@ -301,11 +311,15 @@ def _workflow_transition_is_allowed(previous: WorkflowState, following: Workflow
         WorkflowState.INVALID_SARIF,
         WorkflowState.CODEQL_FAILED,
         WorkflowState.CONTEXT_INCOMPLETE,
+        WorkflowState.MODEL_FAILED,
+        WorkflowState.POLICY_REJECTED,
     }:
         return previous not in {
             WorkflowState.INVALID_SARIF,
             WorkflowState.CODEQL_FAILED,
             WorkflowState.CONTEXT_INCOMPLETE,
+            WorkflowState.MODEL_FAILED,
+            WorkflowState.POLICY_REJECTED,
         }
     allowed: dict[WorkflowState, frozenset[WorkflowState]] = {
         WorkflowState.CREATED: frozenset({WorkflowState.PROJECT_VALIDATED}),
@@ -319,10 +333,15 @@ def _workflow_transition_is_allowed(previous: WorkflowState, following: Workflow
         WorkflowState.SCANNED: frozenset({WorkflowState.NORMALIZED}),
         WorkflowState.SARIF_INGESTED: frozenset({WorkflowState.NORMALIZED}),
         WorkflowState.NORMALIZED: frozenset({WorkflowState.CONTEXT_READY}),
-        WorkflowState.CONTEXT_READY: frozenset(),
+        WorkflowState.CONTEXT_READY: frozenset({WorkflowState.ANALYZED}),
+        WorkflowState.ANALYZED: frozenset({WorkflowState.REBUTTED}),
+        WorkflowState.REBUTTED: frozenset({WorkflowState.JUDGED}),
+        WorkflowState.JUDGED: frozenset(),
         WorkflowState.INVALID_SARIF: frozenset(),
         WorkflowState.CODEQL_FAILED: frozenset(),
         WorkflowState.CONTEXT_INCOMPLETE: frozenset(),
+        WorkflowState.MODEL_FAILED: frozenset(),
+        WorkflowState.POLICY_REJECTED: frozenset(),
     }
     return following in allowed[previous]
 

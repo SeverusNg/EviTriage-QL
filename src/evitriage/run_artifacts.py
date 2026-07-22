@@ -1,4 +1,4 @@
-"""Confined artifact persistence and append-only Gate B run journaling."""
+"""Confined artifact persistence and append-only workflow run journaling."""
 
 from __future__ import annotations
 
@@ -38,10 +38,15 @@ _ALLOWED_TRANSITIONS: dict[WorkflowState, frozenset[WorkflowState]] = {
     WorkflowState.SCANNED: frozenset({WorkflowState.NORMALIZED}),
     WorkflowState.SARIF_INGESTED: frozenset({WorkflowState.NORMALIZED}),
     WorkflowState.NORMALIZED: frozenset({WorkflowState.CONTEXT_READY}),
-    WorkflowState.CONTEXT_READY: frozenset(),
+    WorkflowState.CONTEXT_READY: frozenset({WorkflowState.ANALYZED}),
+    WorkflowState.ANALYZED: frozenset({WorkflowState.REBUTTED}),
+    WorkflowState.REBUTTED: frozenset({WorkflowState.JUDGED}),
+    WorkflowState.JUDGED: frozenset(),
     WorkflowState.INVALID_SARIF: frozenset(),
     WorkflowState.CODEQL_FAILED: frozenset(),
     WorkflowState.CONTEXT_INCOMPLETE: frozenset(),
+    WorkflowState.MODEL_FAILED: frozenset(),
+    WorkflowState.POLICY_REJECTED: frozenset(),
 }
 
 
@@ -234,10 +239,13 @@ class RunJournal:
         return record, content
 
     def complete(self) -> RunManifest:
-        """Finalize a run only after Gate C context and evidence are ready."""
+        """Finalize a run after Gate C context or Gate D judgment is ready."""
 
-        if self._status != "running" or self._state is not WorkflowState.CONTEXT_READY:
-            raise WorkflowError("only a CONTEXT_READY run can be completed")
+        if self._status != "running" or self._state not in {
+            WorkflowState.CONTEXT_READY,
+            WorkflowState.JUDGED,
+        }:
+            raise WorkflowError("only a CONTEXT_READY or JUDGED run can be completed")
         self._finalize_registered_artifacts()
         self._status = "completed"
         self._completed_at = datetime.now(UTC)
@@ -253,14 +261,16 @@ class RunJournal:
         error_code: str,
         error_artifact_sha256: str | None = None,
     ) -> RunManifest:
-        """Record one terminal input/context failure without fabricating success."""
+        """Record one terminal input/context/model/policy failure without fake success."""
 
         if state not in {
             WorkflowState.INVALID_SARIF,
             WorkflowState.CODEQL_FAILED,
             WorkflowState.CONTEXT_INCOMPLETE,
+            WorkflowState.MODEL_FAILED,
+            WorkflowState.POLICY_REJECTED,
         }:
-            raise WorkflowError("unsupported input/context failure state")
+            raise WorkflowError("unsupported terminal workflow failure state")
         if self._status != "running":
             raise WorkflowError("cannot fail a finalized run")
         self._finalize_registered_artifacts()

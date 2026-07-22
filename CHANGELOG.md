@@ -26,6 +26,13 @@ releases will follow [Semantic Versioning](https://semver.org/).
   bases still fail closed.
 - Prevented Java lexical callable extraction from treating `try` and other
   control headers containing nested calls as method declarations.
+- Isolated the missing-DeepSeek-credential CLI unit test from the operator's
+  persistent credential store so an ordinary test run cannot silently make
+  paid network requests when a live key is deployed.
+- Recorded an operator-authorized DeepSeek smoke through the TPM2 credential
+  path: three strict role responses were accepted and the synthetic fixture
+  reached `JUDGED` with a conservative `NMC` decision and
+  `auto_dismiss=false`. This is live-path evidence, not a quality benchmark.
 
 ### Added
 
@@ -83,6 +90,44 @@ releases will follow [Semantic Versioning](https://semver.org/).
   `java/path-injection` produced one complete eight-step path and reached
   `CONTEXT_READY` with a complete callable slice, four evidence items, zero
   claims, and fully verified owner-read-only artifacts.
+- A provider-neutral `StructuredLLM` protocol plus offline ordered `FakeLLM`
+  and read-only, request-hash-addressed `ReplayLLM` adapters with strict JSON
+  response validation.
+- Strict Claim-draft, Analyst, Rebuttal, Judge, FinalDecision, invocation,
+  stage-artifact, TriageResult, and triage-summary contracts with ten new
+  generated public JSON Schemas.
+- A bounded Analyst → Rebuttal → Judge workflow with at most one response repair
+  per role, at most six calls per alert, exact alert-occurrence evidence closure,
+  code-assigned content-derived Claim IDs, and per-request size limits.
+- A deterministic TP/FP/NMC policy that requires a supported source/path/sink
+  evidence bundle or decisive successful verification for TP, decisive Rebuttal
+  evidence for FP, returns NMC for conflicts/unknowns/missing critical evidence,
+  preserves raw confidence only as metadata, and fixes `auto_dismiss` to false.
+- Gate D tests for Fake TP/FP/NMC paths, complete three-role Replay, request-hash
+  stability, repair exhaustion, prompt-injection containment, and Replay cache
+  miss/symlink/duplicate-key boundaries.
+- An existing-SARIF `triage` CLI that binds a trusted Replay profile/cache to
+  the ProjectSpec, reuses the Gate B/C pipeline, persists Analyst/Rebuttal/Judge
+  artifacts, and finalizes the journal through
+  `ANALYZED → REBUTTED → JUDGED`.
+- Stable content-derived analysis identities, separate from operational run
+  IDs, so equivalent source/SARIF input produces reproducible evidence and
+  Replay request hashes across fresh managed runs.
+- Terminal `MODEL_FAILED` and `POLICY_REJECTED` workflow states; model failures
+  persist bounded non-content request and partial-invocation provenance.
+- An opt-in `DeepSeekLLM` adapter for the official DeepSeek V4-Pro/Flash HTTPS
+  Chat Completions API, using JSON Output and the existing strict structured
+  response/evidence validation path.
+- A credential-free `deepseek-v4-pro` LLM Profile and an explicit example
+  ProjectSpec whose `remote_llm_allowed` policy makes external evidence/source
+  transfer visible rather than implicit.
+- A commit-eligible credential-pattern scanner in `make check`; ignored secret
+  files remain outside Git, while suspicious DeepSeek assignments, common API
+  key shapes, and private-key blocks fail the check without printing values.
+- A Linux TPM2/systemd credential command that accepts a rotated DeepSeek key
+  through a hidden prompt, writes only an owner-private encrypted blob outside
+  the checkout, and lets `triage` automatically decrypt it through an in-memory
+  pipe. The one-process environment variable remains an ephemeral fallback.
 
 ### Security
 
@@ -137,10 +182,20 @@ releases will follow [Semantic Versioning](https://semver.org/).
 - The CodeQL `%SRCROOT%` mapping is an exact reserved-token exception bound to
   the validated snapshot root; arbitrary undeclared `uriBaseId` values,
   traversal, and symlink escapes remain rejected.
+- Model responses cannot cite evidence outside the exact alert fingerprint and
+  raw SARIF occurrence. Unknown evidence/claim IDs invalidate the response and
+  receive no more than the configured single repair.
+- Repository/SARIF text is carried only as `untrusted_code_data`; fixed role
+  prompts deny instructions and tool permissions found inside it. Gate D ships
+  Replay with bounded no-follow cache reads. The optional DeepSeek adapter is
+  pinned to `api.deepseek.com:443`, sends credentials only as a Bearer header,
+  discards provider error bodies, and requires matching remote-upload policy in
+  the trusted profile and ProjectSpec.
 
 ### Not yet implemented or verified
 
-- Gate D and later: generated claims, LLM workflows, deterministic TP/FP/NMC
-  policy, decision JSONL/HTML reports, and the offline end-to-end `make demo`
-  path. AST/CFG-backed, caller/callee, adaptive, configuration, and test context
-  also remain later scope.
+- Gate E+: decision JSONL/HTML reports, a trusted Replay cache writer/bundle,
+  prior-run continuation, direct scan-to-triage chaining, the offline `make
+  demo` path, and providers beyond the narrow DeepSeek V4 integration.
+  AST/CFG-backed, caller/callee, adaptive, configuration, and test context also
+  remain later scope.

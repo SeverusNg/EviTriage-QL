@@ -24,7 +24,9 @@
             "evidence",
             "tool-log",
             "tool-output",
-            "metadata"
+            "metadata",
+            "model",
+            "decision"
           ],
           "title": "Role",
           "type": "string"
@@ -166,7 +168,7 @@
       "type": "object"
     },
     "WorkflowState": {
-      "description": "Gate states implemented through the shared Gate C evidence stage.",
+      "description": "Implemented workflow states through the bounded Gate D decision stage.",
       "enum": [
         "CREATED",
         "PROJECT_VALIDATED",
@@ -178,9 +180,14 @@
         "SARIF_INGESTED",
         "NORMALIZED",
         "CONTEXT_READY",
+        "ANALYZED",
+        "REBUTTED",
+        "JUDGED",
         "INVALID_SARIF",
         "CODEQL_FAILED",
-        "CONTEXT_INCOMPLETE"
+        "CONTEXT_INCOMPLETE",
+        "MODEL_FAILED",
+        "POLICY_REJECTED"
       ],
       "title": "WorkflowState",
       "type": "string"

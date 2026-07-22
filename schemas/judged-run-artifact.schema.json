@@ -1,0 +1,674 @@
+{
+  "$defs": {
+    "AnalystOutput": {
+      "additionalProperties": false,
+      "description": "Structured Analyst result; it proposes claims but no final label.",
+      "properties": {
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/ClaimDraft"
+          },
+          "maxItems": 64,
+          "title": "Claims",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "unknowns": {
+          "default": [],
+          "items": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Unknowns",
+          "type": "array"
+        }
+      },
+      "required": [
+        "claims"
+      ],
+      "title": "AnalystOutput",
+      "type": "object"
+    },
+    "Claim": {
+      "additionalProperties": false,
+      "description": "A later-agent assertion whose evidence references must resolve.",
+      "properties": {
+        "claim_id": {
+          "pattern": "^cl_[0-9a-f]{64}$",
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "source_controllable",
+            "path_feasible",
+            "sanitizer_effective",
+            "sink_dangerous",
+            "exploit_succeeds"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "produced_by": {
+          "enum": [
+            "analyst",
+            "rebuttal",
+            "judge"
+          ],
+          "title": "Produced By",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "statement": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "supported",
+            "rebutted",
+            "unresolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "claim_id",
+        "kind",
+        "statement",
+        "status",
+        "produced_by"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "ClaimDraft": {
+      "additionalProperties": false,
+      "description": "Agent-authored claim content before code assigns a stable claim ID.",
+      "properties": {
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "source_controllable",
+            "path_feasible",
+            "sanitizer_effective",
+            "sink_dangerous",
+            "exploit_succeeds"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "statement": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "supported",
+            "rebutted",
+            "unresolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "statement",
+        "status"
+      ],
+      "title": "ClaimDraft",
+      "type": "object"
+    },
+    "FinalDecision": {
+      "additionalProperties": false,
+      "description": "Judge candidate after the fail-closed deterministic policy is applied.",
+      "properties": {
+        "auto_dismiss": {
+          "const": false,
+          "default": false,
+          "title": "Auto Dismiss",
+          "type": "boolean"
+        },
+        "calibrated_probabilities": {
+          "const": null,
+          "default": null,
+          "title": "Calibrated Probabilities",
+          "type": "null"
+        },
+        "critical_claim_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^cl_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "title": "Critical Claim Ids",
+          "type": "array"
+        },
+        "critical_evidence_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "title": "Critical Evidence Ids",
+          "type": "array"
+        },
+        "fix_guidance": {
+          "default": [],
+          "items": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Fix Guidance",
+          "type": "array"
+        },
+        "label": {
+          "enum": [
+            "TP",
+            "FP",
+            "NMC"
+          ],
+          "title": "Label",
+          "type": "string"
+        },
+        "next_actions": {
+          "default": [],
+          "items": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Next Actions",
+          "type": "array"
+        },
+        "policy_flags": {
+          "items": {
+            "enum": [
+              "auto_dismiss_disabled",
+              "conflicting_high_strength_evidence",
+              "critical_evidence_missing",
+              "fp_decisive_rebuttal_present",
+              "fp_missing_decisive_rebuttal",
+              "high_strength_fp_blocks_tp",
+              "judge_label_accepted",
+              "judge_requested_nmc",
+              "tp_support_missing",
+              "unknown_or_unresolved"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Policy Flags",
+          "type": "array"
+        },
+        "raw_confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Raw Confidence",
+          "type": "number"
+        },
+        "reasoning_summary": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Reasoning Summary",
+          "type": "string"
+        },
+        "requested_label": {
+          "enum": [
+            "TP",
+            "FP",
+            "NMC"
+          ],
+          "title": "Requested Label",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/TriageTarget"
+        },
+        "unknowns": {
+          "default": [],
+          "items": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Unknowns",
+          "type": "array"
+        }
+      },
+      "required": [
+        "target",
+        "label",
+        "requested_label",
+        "raw_confidence",
+        "reasoning_summary",
+        "policy_flags"
+      ],
+      "title": "FinalDecision",
+      "type": "object"
+    },
+    "JudgeOutput": {
+      "additionalProperties": false,
+      "description": "Untrusted Judge candidate evaluated by deterministic code policy.",
+      "properties": {
+        "critical_claim_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^cl_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "maxItems": 128,
+          "title": "Critical Claim Ids",
+          "type": "array"
+        },
+        "critical_evidence_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "maxItems": 128,
+          "title": "Critical Evidence Ids",
+          "type": "array"
+        },
+        "fix_guidance": {
+          "default": [],
+          "items": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Fix Guidance",
+          "type": "array"
+        },
+        "label": {
+          "enum": [
+            "TP",
+            "FP",
+            "NMC"
+          ],
+          "title": "Label",
+          "type": "string"
+        },
+        "next_actions": {
+          "default": [],
+          "items": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Next Actions",
+          "type": "array"
+        },
+        "raw_confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Raw Confidence",
+          "type": "number"
+        },
+        "reasoning_summary": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Reasoning Summary",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "unknowns": {
+          "default": [],
+          "items": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Unknowns",
+          "type": "array"
+        }
+      },
+      "required": [
+        "label",
+        "raw_confidence",
+        "reasoning_summary"
+      ],
+      "title": "JudgeOutput",
+      "type": "object"
+    },
+    "ModelInvocationRecord": {
+      "additionalProperties": false,
+      "description": "Non-secret provenance for one accepted or rejected structured call.",
+      "properties": {
+        "agent_role": {
+          "enum": [
+            "analyst",
+            "rebuttal",
+            "judge"
+          ],
+          "title": "Agent Role",
+          "type": "string"
+        },
+        "attempt": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Attempt",
+          "type": "integer"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "const": "MODEL_RESPONSE_INVALID",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Code"
+        },
+        "model_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Model Id",
+          "type": "string"
+        },
+        "profile_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$",
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "prompt_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Prompt Sha256",
+          "type": "string"
+        },
+        "request_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Request Sha256",
+          "type": "string"
+        },
+        "response_schema": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Response Schema",
+          "type": "string"
+        },
+        "response_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response Sha256"
+        },
+        "status": {
+          "enum": [
+            "accepted",
+            "invalid"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "agent_role",
+        "attempt",
+        "request_sha256",
+        "prompt_sha256",
+        "response_schema",
+        "profile_id",
+        "model_id",
+        "status"
+      ],
+      "title": "ModelInvocationRecord",
+      "type": "object"
+    },
+    "RawResultReference": {
+      "additionalProperties": false,
+      "description": "Stable pointer into the immutable raw SARIF artifact.",
+      "properties": {
+        "raw_sarif_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Raw Sarif Sha256",
+          "type": "string"
+        },
+        "result_index": {
+          "minimum": 0,
+          "title": "Result Index",
+          "type": "integer"
+        },
+        "run_index": {
+          "minimum": 0,
+          "title": "Run Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "raw_sarif_sha256",
+        "run_index",
+        "result_index"
+      ],
+      "title": "RawResultReference",
+      "type": "object"
+    },
+    "RebuttalOutput": {
+      "additionalProperties": false,
+      "description": "Structured Rebuttal result tied to existing Analyst claim IDs.",
+      "properties": {
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/ClaimDraft"
+          },
+          "maxItems": 64,
+          "title": "Claims",
+          "type": "array"
+        },
+        "rebutted_claim_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^cl_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Rebutted Claim Ids",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "unknowns": {
+          "default": [],
+          "items": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Unknowns",
+          "type": "array"
+        }
+      },
+      "required": [
+        "claims"
+      ],
+      "title": "RebuttalOutput",
+      "type": "object"
+    },
+    "TriageResult": {
+      "additionalProperties": false,
+      "description": "Complete in-memory Gate D result for one exact alert occurrence.",
+      "properties": {
+        "analyst": {
+          "$ref": "#/$defs/AnalystOutput"
+        },
+        "analyst_claims": {
+          "items": {
+            "$ref": "#/$defs/Claim"
+          },
+          "title": "Analyst Claims",
+          "type": "array"
+        },
+        "final_decision": {
+          "$ref": "#/$defs/FinalDecision"
+        },
+        "invocations": {
+          "items": {
+            "$ref": "#/$defs/ModelInvocationRecord"
+          },
+          "maxItems": 6,
+          "minItems": 3,
+          "title": "Invocations",
+          "type": "array"
+        },
+        "judge": {
+          "$ref": "#/$defs/JudgeOutput"
+        },
+        "rebuttal": {
+          "$ref": "#/$defs/RebuttalOutput"
+        },
+        "rebuttal_claims": {
+          "items": {
+            "$ref": "#/$defs/Claim"
+          },
+          "title": "Rebuttal Claims",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/TriageTarget"
+        }
+      },
+      "required": [
+        "target",
+        "analyst",
+        "analyst_claims",
+        "rebuttal",
+        "rebuttal_claims",
+        "judge",
+        "final_decision",
+        "invocations"
+      ],
+      "title": "TriageResult",
+      "type": "object"
+    },
+    "TriageTarget": {
+      "additionalProperties": false,
+      "description": "One exact upstream result occurrence selected for triage.",
+      "properties": {
+        "alert_fingerprint": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Alert Fingerprint",
+          "type": "string"
+        },
+        "raw_result_reference": {
+          "$ref": "#/$defs/RawResultReference"
+        }
+      },
+      "required": [
+        "alert_fingerprint",
+        "raw_result_reference"
+      ],
+      "title": "TriageTarget",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "All complete Gate D results persisted before the JUDGED transition.",
+  "properties": {
+    "analysis_identity": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Analysis Identity",
+      "type": "string"
+    },
+    "results": {
+      "items": {
+        "$ref": "#/$defs/TriageResult"
+      },
+      "title": "Results",
+      "type": "array"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "analysis_identity",
+    "results"
+  ],
+  "title": "JudgedRunArtifact",
+  "type": "object"
+}

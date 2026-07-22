@@ -85,3 +85,29 @@ class FeatureNotAvailableError(EviTriageError):
 
     code = "FEATURE_NOT_AVAILABLE"
     exit_code = 7
+
+
+class ModelError(EviTriageError):
+    """A bounded structured-model invocation could not be completed."""
+
+    code = "MODEL_FAILED"
+    exit_code = 8
+
+
+class ModelResponseError(ModelError):
+    """A model response violated its schema or closed evidence boundary."""
+
+    code = "MODEL_RESPONSE_INVALID"
+
+
+class ReplayMissError(ModelError):
+    """An offline replay cache has no response for the canonical request."""
+
+    code = "MODEL_REPLAY_MISS"
+
+
+class PolicyRejectedError(EviTriageError):
+    """A decision candidate could not be evaluated inside the evidence boundary."""
+
+    code = "POLICY_REJECTED"
+    exit_code = 9
