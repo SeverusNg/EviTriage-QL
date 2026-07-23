@@ -43,11 +43,25 @@ artifacts. Do not weaken strict validation merely to accept an ambiguous input.
 - Public APIs need types and concise docstrings.
 - Pydantic input models reject extra fields and perform semantic validation.
 - External commands use validated argument vectors and never `shell=True`.
+- Credential backends implement the provider interface and remain independent
+  of LLM HTTP adapters, workflows, and pipelines. Explicit provider failures
+  fail closed; `auto` may skip only a genuinely unavailable backend.
+- Credential subprocess tests inject a fake command runner. They must not call
+  the operator's real `pass`, GPG, systemd credential, environment key, or a
+  remote model, and must assert that argv, environments, diagnostics, logs, and
+  files contain no test key.
 - Tests must be deterministic, offline by default, and isolated from the user's
   source directory.
 - File-system tests must include traversal/symlink considerations and clean up
   only paths they own.
 - Logs and JSON diagnostics must not expose secrets.
+
+For WSL documentation and testing, prefer the fixed `pass` entry or a one-shot
+environment key. Native Linux may retain the TPM2/systemd path. Do not add
+`.env` loading, plaintext key files, arbitrary credential commands, or a
+Secret Service/Python-keyring dependency that assumes an unlocked desktop
+session. Pass documentation must preserve the passphrase-protected GPG-private-
+key and gpg-agent cache boundaries.
 
 The canonical aggregate command is:
 

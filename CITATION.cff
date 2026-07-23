@@ -6,14 +6,15 @@ title: "EviTriage-QL: Evidence-Grounded LLM-Agent Triage for CodeQL Alerts"
 type: software
 authors:
   - name: "EviTriage-QL contributors"
-version: "0.1.0"
+version: "0.2.0"
 date-released: 2026-07-23
 license: Apache-2.0
 abstract: >-
   A research software system for evidence-grounded, auditable secondary triage
-  of CodeQL alerts. Version 0.1.0 implements the bounded offline vertical path
-  through deterministic TP/FP/NMC reports; its labels are not an accuracy
-  benchmark or authorization to dismiss upstream alerts.
+  of CodeQL alerts. Version 0.2.0 retains the bounded offline vertical path and
+  adds fail-closed environment, TPM2/systemd, and pass/GPG credential providers
+  for the opt-in DeepSeek adapter; its labels are not an accuracy benchmark or
+  authorization to dismiss upstream alerts.
 keywords:
   - CodeQL
   - static analysis

@@ -20,6 +20,7 @@ build/
 .env
 .env.*
 !.env.example
+.password-store/
 *.pem
 *.key
 *.secret
@@ -53,4 +54,3 @@ test-results/
 *~
 .DS_Store
 Thumbs.db
-

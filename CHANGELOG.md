@@ -6,6 +6,38 @@ releases will follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-23
+
+### Added
+
+- Added provider-neutral DeepSeek credential discovery and loading through
+  `EnvironmentCredentialProvider`, `SystemdCredentialProvider`,
+  `PassCredentialProvider`, and `CredentialResolver`.
+- Added `triage --credential-provider
+  environment|systemd-creds|pass|auto`, fixed auto priority, non-secret
+  per-provider JSON status, and hidden double-prompt pass/GPG enrollment.
+
+### Changed
+
+- Moved credential selection out of `DeepSeekLLM`; the adapter now receives one
+  already validated in-memory key and remains responsible only for the fixed
+  official HTTPS request boundary.
+- Retained the fixed TPM2/systemd credential path and legacy enrollment
+  behavior while documenting pass as the persistent WSL-friendly option and
+  environment input as the one-process option.
+
+### Security
+
+- Pass uses the fixed `evitriage/deepseek-api-key` entry, strict ASCII path
+  validation, a validated non-writable root/current-user executable, fixed
+  argument vectors, bounded captured output and timeout, standard-input
+  enrollment, and a pwd-derived minimal child environment with extensions,
+  proxies, tokens, and API keys excluded.
+- Auto fallback stops after any configured provider has malformed data, unsafe
+  permissions, or a load/decrypt failure. Tests use injected runners and
+  simulated HTTPS and verify that key material is absent from argv,
+  environments, status, exceptions, logs, and files.
+
 ## [0.1.0] - 2026-07-23
 
 ### Changed

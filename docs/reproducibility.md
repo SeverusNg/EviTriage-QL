@@ -1,9 +1,9 @@
-# Reproducing the v0.1.0 release
+# Reproducing the v0.2.0 release
 
-This document covers the Gate G `v0.1.0` release path. The release is bounded
-to the offline research vertical described in the release notes and dated
-progress log; a successful reproduction is not an accuracy or production
-readiness claim.
+This document covers the `v0.2.0` release path. It retains the bounded Gate G
+offline research vertical and adds the fail-closed multi-credential extension
+described in the release notes and dated progress log; a successful
+reproduction is not an accuracy or production-readiness claim.
 
 ## Build and verify the release directory
 
@@ -18,10 +18,10 @@ make release-artifacts
 make release-verify
 ```
 
-The default directory is `dist/release/0.1.0/` and is ignored by Git. It
+The default directory is `dist/release/0.2.0/` and is ignored by Git. It
 contains:
 
-- the `0.1.0` wheel and source distribution;
+- the `0.2.0` wheel and source distribution;
 - `requirements-all.lock`, exported from `uv.lock` with package hashes;
 - `evitriage-ql.cdx.json`, a deterministic CycloneDX 1.5 runtime/dev SBOM;
 - `case-matrix.json`, the six case/CWE/source/result/decision bindings;
@@ -48,9 +48,9 @@ path produced above:
 
 ```bash
 mkdir /tmp/evitriage-clean-room
-tar -xzf dist/release/0.1.0/evitriage_ql-0.1.0.tar.gz \
+tar -xzf dist/release/0.2.0/evitriage_ql-0.2.0.tar.gz \
   -C /tmp/evitriage-clean-room
-cd /tmp/evitriage-clean-room/evitriage_ql-0.1.0
+cd /tmp/evitriage-clean-room/evitriage_ql-0.2.0
 uv sync --all-extras
 make check
 make demo

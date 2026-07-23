@@ -7,6 +7,7 @@ from typing import ClassVar, Literal, cast
 import pytest
 from pydantic import JsonValue, ValidationError
 
+from evitriage.credentials import EnvironmentCredentialProvider
 from evitriage.domain.alerts import RawResultReference
 from evitriage.domain.triage import AnalystOutput, TriageTarget
 from evitriage.errors import ConfigurationError, ModelError, ModelResponseError, ReplayMissError
@@ -253,7 +254,10 @@ def test_deepseek_v4_uses_official_https_json_endpoint_without_persisting_key(
     profile = _profile("deepseek")
     context = _context(profile)
 
-    result = DeepSeekLLM.from_environment(profile).complete(
+    result = DeepSeekLLM(
+        profile,
+        api_key=EnvironmentCredentialProvider().load_secret(),
+    ).complete(
         system_prompt="Return JSON only.",
         user_payload={
             "target": "fixture",
@@ -297,8 +301,8 @@ def test_deepseek_key_and_error_body_never_enter_structured_errors(
     profile = _profile("deepseek")
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     with pytest.raises(ConfigurationError) as missing:
-        DeepSeekLLM.from_environment(profile)
-    assert "DEEPSEEK_API_KEY" in str(missing.value)
+        EnvironmentCredentialProvider().load_secret()
+    assert missing.value.details["error_type"] == "secret_missing"
 
     api_key = "test-only-secret-key"
     echoed_payload = "provider-sensitive-content"
@@ -312,7 +316,10 @@ def test_deepseek_key_and_error_body_never_enter_structured_errors(
         status=401,
     )
     with pytest.raises(ModelError) as raised:
-        DeepSeekLLM.from_environment(profile).complete(
+        DeepSeekLLM(
+            profile,
+            api_key=EnvironmentCredentialProvider().load_secret(),
+        ).complete(
             system_prompt="Return JSON only.",
             user_payload={"target": "fixture"},
             response_model=AnalystOutput,

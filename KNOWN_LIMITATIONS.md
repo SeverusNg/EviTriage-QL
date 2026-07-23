@@ -89,8 +89,11 @@ not implicit claims that the complete v0.1 research workflow exists.
   or latency measurements.
 - An opt-in DeepSeek adapter supports only `deepseek-v4-pro` and
   `deepseek-v4-flash` at the fixed official `api.deepseek.com:443` Chat
-  Completions endpoint. It accepts either the one-process `DEEPSEEK_API_KEY`
-  input or the fixed TPM2/systemd encrypted credential store, plus exact
+  Completions endpoint. Its independent credential resolver accepts the
+  one-process `DEEPSEEK_API_KEY`, the fixed TPM2/systemd encrypted store, or the
+  fixed `evitriage/deepseek-api-key` pass/GPG entry. Auto discovery is
+  environment, systemd-creds, then pass, and stops after any selected-provider
+  validation/decryption failure. Remote use still requires exact
   `remote_llm_allowed` declarations in both the LLM Profile and ProjectSpec.
   Checked-in acceptance tests use simulated HTTPS only. One separately
   authorized live smoke on 2026-07-23 verified the TPM2 credential path,
@@ -98,10 +101,13 @@ not implicit claims that the complete v0.1 research workflow exists.
   `JUDGED` run for one synthetic fixture. It did not capture provider token
   usage or billing, exercise retry/rate-limit/error behavior, establish ongoing
   availability, or benchmark output quality and accuracy.
-- Persistent DeepSeek credentials currently require Linux `systemd-creds`, a
-  usable TPM2 device, and operator access to `/dev/tpmrm0`. Enrollment fails
-  closed if those prerequisites, private ownership, or `0600`/`0400` file modes
-  are absent. There is no macOS/Windows keychain adapter yet.
+- Native Linux can retain `systemd-creds`, a usable TPM2 device, and operator
+  access to `/dev/tpmrm0`; enrollment fails closed if those prerequisites,
+  root-owned tooling, private ownership, or `0600`/`0400` ciphertext modes are
+  absent. WSL and native Linux can instead use standard pass/GPG, but the
+  operator must initialize `~/.password-store` and maintain a
+  passphrase-protected GPG private key. There is no macOS/Windows keychain,
+  Vault, or cloud-secret-manager adapter.
 - The `triage` command accepts exactly one of existing SARIF or a new CodeQL
   scan plus a trusted LLM profile, allocates a fresh run, reuses the shared Gate
   B/C path, and persists `ANALYZED → REBUTTED → JUDGED` artifacts. The scan
@@ -198,11 +204,19 @@ not implicit claims that the complete v0.1 research workflow exists.
   remote profile for source that policy or contract forbids uploading.
 - The API key is never placed in model messages or run artifacts, and provider
   error bodies are discarded. It still exists briefly in process memory and in
-  the outbound Authorization header. TPM2 protects the encrypted at-rest blob
-  from off-machine decryption, not from an already authorized same-user
-  process. Root inspection, a compromised runtime, shell tracing, or provider
-  compromise remain outside the repository's protection boundary; use a
-  dedicated account and a secret manager for higher assurance.
+  the outbound Authorization header; environment mode also exposes it to that
+  process environment. TPM2 protects the encrypted at-rest blob from
+  off-machine decryption, not from an already authorized same-user process.
+  Pass protects the stored entry with GPG, but gpg-agent may cache the unlocked
+  private-key capability and make it usable by same-user processes until cache
+  expiry. Root inspection, a compromised runtime, shell tracing, GPG-agent
+  compromise, or provider compromise remain outside the repository's
+  protection boundary; no “absolute security” is claimed.
+- Secret Service/Python keyring is not a reliable default for WSL, CI, SSH, or
+  other headless execution because a desktop D-Bus session and unlocked
+  keyring may not exist. This does not mean pass/GPG is universally stronger;
+  it is the implemented cross-WSL/Linux operational choice, with its own key
+  and agent-management requirements.
 - The commit-eligible secret scan recognizes DeepSeek assignments, common
   `sk-...` tokens, and private-key blocks, but pattern scanning cannot prove the
   absence of every possible credential format. Human review and provider-side

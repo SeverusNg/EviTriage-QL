@@ -12,6 +12,7 @@ from typer.testing import CliRunner
 
 import evitriage.cli as cli_module
 from evitriage.cli import app, find_repository_root
+from evitriage.credentials import CredentialProviderSelection
 from evitriage.errors import ConfigurationError, PathSafetyError
 
 runner = CliRunner()
@@ -123,7 +124,7 @@ def test_version_cli() -> None:
     result = runner.invoke(app, ["version"])
 
     assert result.exit_code == 0
-    assert result.stdout.strip() == "0.1.0"
+    assert result.stdout.strip() == "0.2.0"
 
 
 def test_triage_cli_requires_provider_specific_secret_inputs(
@@ -144,17 +145,15 @@ def test_triage_cli_requires_provider_specific_secret_inputs(
     assert isinstance(missing_cache.exception, ConfigurationError)
     assert "--replay-cache" in str(missing_cache.exception)
 
-    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    class MissingCredentialResolver:
+        def resolve(self, selection: CredentialProviderSelection) -> None:
+            assert selection == "auto"
+            raise ConfigurationError(
+                "credential provider auto failed: no_available_provider",
+                details={"provider": "auto", "error_type": "no_available_provider"},
+            )
 
-    def missing_operator_credential() -> str:
-        raise ConfigurationError(
-            "no DeepSeek credential is installed; set DEEPSEEK_API_KEY for one process"
-        )
-
-    monkeypatch.setattr(
-        "evitriage.llm.structured.load_deepseek_credential",
-        missing_operator_credential,
-    )
+    monkeypatch.setattr(cli_module, "CredentialResolver", MissingCredentialResolver)
     missing_key = runner.invoke(
         app,
         [
@@ -168,7 +167,30 @@ def test_triage_cli_requires_provider_specific_secret_inputs(
         ],
     )
     assert isinstance(missing_key.exception, ConfigurationError)
-    assert "DEEPSEEK_API_KEY" in str(missing_key.exception)
+    assert "no_available_provider" in str(missing_key.exception)
+
+
+def test_triage_cli_rejects_credential_selection_for_replay(
+    monkeypatch: pytest.MonkeyPatch,
+    repository_root: Path,
+) -> None:
+    monkeypatch.setenv("EVITRIAGE_PROJECT_ROOT", str(repository_root))
+
+    result = runner.invoke(
+        app,
+        [
+            "triage",
+            "--project-config",
+            "configs/projects/example-local.yaml",
+            "--sarif",
+            "tests/fixtures/sarif/single-path.sarif",
+            "--credential-provider",
+            "pass",
+        ],
+    )
+
+    assert isinstance(result.exception, ConfigurationError)
+    assert "only with a DeepSeek profile" in str(result.exception)
 
 
 def test_triage_cli_requires_exactly_one_input_branch(
@@ -228,7 +250,7 @@ def test_doctor_human_output_and_failed_required_check(
 ) -> None:
     monkeypatch.setenv("EVITRIAGE_PROJECT_ROOT", str(repository_root))
     report: dict[str, object] = {
-        "evitriage_version": "0.1.0",
+        "evitriage_version": "0.2.0",
         "status": "ok",
         "checks": [{"name": "python", "status": "ok", "detail": "3.12"}],
     }
@@ -236,7 +258,7 @@ def test_doctor_human_output_and_failed_required_check(
 
     human = runner.invoke(app, ["doctor"])
     assert human.exit_code == 0
-    assert "EviTriage-QL 0.1.0: ok" in human.stdout
+    assert "EviTriage-QL 0.2.0: ok" in human.stdout
     assert "python: ok" in human.stdout
 
     report["status"] = "error"

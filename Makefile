@@ -1,7 +1,7 @@
 .PHONY: sync format lock-check lint typecheck schema-check secret-check test security-test check demo release-artifacts release-verify clean
 
 EVITRIAGE_COMMAND ?= uv run --offline evitriage
-RELEASE_DIR ?= dist/release/0.1.0
+RELEASE_DIR ?= dist/release/0.2.0
 DEMO_ARGUMENTS = triage \
 	--project-config configs/projects/gate-e-demo.yaml \
 	--sarif tests/fixtures/sarif/gate-e-three-label.sarif \

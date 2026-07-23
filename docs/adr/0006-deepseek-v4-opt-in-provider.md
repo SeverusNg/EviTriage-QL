@@ -1,6 +1,6 @@
 # ADR 0006: Make DeepSeek V4 an explicit remote-data opt-in
 
-- **Status:** Accepted
+- **Status:** Accepted; credential-source selection amended by ADR 0013
 - **Date:** 2026-07-22
 - **Decision owners:** EviTriage-QL contributors
 - **Applies to:** Optional post-Gate-D real-provider execution
@@ -25,14 +25,12 @@ authentication.
    `deepseek-v4-flash`. Host, port, path, timeout, JSON mode, and disabled
    thinking are adapter constants, not ProjectSpec fields or environment
    overrides. Redirects and tool calls are not followed or enabled.
-2. The API key comes from either one-process `DEEPSEEK_API_KEY` input or a fixed
-   repository-external TPM2/systemd encrypted credential. Enrollment reads a
-   hidden prompt and pipes plaintext directly to `systemd-creds`; only the
-   owner-private ciphertext reaches disk. Each run decrypts through an
-   in-memory pipe. The key is used only to construct the HTTPS Authorization
-   header and never enters the canonical user payload, prompt, manifest,
-   artifact, or error details. Non-success provider bodies are discarded
-   without logging.
+2. The initial API-key sources were one-process `DEEPSEEK_API_KEY` and a fixed
+   repository-external TPM2/systemd encrypted credential. ADR 0013 now places
+   those sources plus pass/GPG behind an independent fail-closed credential
+   resolver. The key is used only to construct the HTTPS Authorization header
+   and never enters the canonical user payload, prompt, manifest, artifact, or
+   error details. Non-success provider bodies are discarded without logging.
 3. Network execution requires two independent matching declarations:
    `LLMProfile.data_policy=remote_llm_allowed` and
    `ProjectSpec.security.source_upload_policy=remote_llm_allowed`. Any mismatch
@@ -42,12 +40,13 @@ authentication.
    JSON Output; returned content still passes the same duplicate-key,
    non-finite-number, Pydantic, evidence-reference, repair, and deterministic
    policy gates as Replay.
-5. The recommended persistent handoff is `evitriage credentials set-deepseek`
-   on a Linux host whose operator can access TPM2. The encrypted blob has a
-   fixed name/path, strict owner/mode/link checks, and an embedded purpose name.
-   A hidden `read -s` inside a one-command subshell remains the ephemeral
-   fallback. Chat, command arguments, YAML, `.env`, scripts, fixtures, and Git
-   are prohibited key transports; a chat-exposed key must be revoked first.
+5. The initial recommended persistent handoff was `evitriage credentials
+   set-deepseek` on a Linux host whose operator can access TPM2. ADR 0013 retains
+   that fixed path and adds the fixed pass/GPG entry for WSL/native Linux plus
+   explicit provider selection. A hidden `read -s` inside a one-command
+   subshell remains the ephemeral fallback. Chat, command arguments, YAML,
+   `.env`, scripts, fixtures, and Git are prohibited key transports; a
+   chat-exposed key must be revoked first.
 6. `make check` scans tracked and non-ignored untracked files for selected
    credential patterns without printing matched values. `.env`, private key,
    model-response, workspace, and artifact paths remain ignored.

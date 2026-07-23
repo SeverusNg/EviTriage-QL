@@ -26,8 +26,9 @@ verified ground truth, or an accuracy benchmark.
 
 An explicitly opt-in DeepSeek V4-Pro/Flash adapter is also present after the
 Gate D offline baseline. It is fixed to DeepSeek's official HTTPS host, reads
-from either one-process `DEEPSEEK_API_KEY` input or the fixed
-repository-external TPM2/systemd encrypted credential store, and requires matching
+one already validated key from an independent resolver supporting one-process
+`DEEPSEEK_API_KEY`, the fixed repository-external TPM2/systemd encrypted
+credential store, or the fixed pass/GPG entry, and requires matching
 `remote_llm_allowed` declarations in the trusted LLM Profile and ProjectSpec.
 Its checked-in tests simulate HTTPS and must not consume an operator credential.
 An operator-authorized live smoke on 2026-07-23 used the TPM2 credential path
@@ -40,7 +41,8 @@ in Git, chat, command arguments, YAML, fixtures, logs, or run artifacts.
 
 Never persist a plaintext API key. The optional DeepSeek credential command
 writes only TPM2-bound ciphertext below the operator's private home data
-directory; chat-exposed keys must be revoked before enrollment.
+directory or asks validated pass/GPG to encrypt the fixed password-store entry
+through standard input; chat-exposed keys must be revoked before enrollment.
 
 The normative product requirements are the dated Chinese blueprint and build
 prompt at the repository root. If prose conflicts with executable behavior,
@@ -157,6 +159,6 @@ the reviewed example reports/run manifest plus machine-readable full/security
 test summaries into the release directory. Prior-run
 continuation, a standalone report path, a general Replay cache producer, and a
 fresh real CodeQL scan-to-`JUDGED` evidence run remain outside this closure.
-Providers beyond the narrow DeepSeek V4
-adapter, remote Git, Gradle, adaptive context, verification, and calibration
-must not displace the v0.1 P0 path.
+Model-platform providers beyond the narrow DeepSeek V4 adapter, remote Git,
+Gradle, adaptive context, verification, and calibration must not displace the
+v0.1 P0 path.

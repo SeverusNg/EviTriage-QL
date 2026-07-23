@@ -1,4 +1,4 @@
-# EviTriage v0.1 architecture through Gate G local candidate closure
+# EviTriage v0.2 architecture through the multi-credential extension
 
 ## Status and scope
 
@@ -46,6 +46,7 @@ runner path but does not establish findings or clean-room reproducibility.
 ```mermaid
 flowchart TB
     O[Trusted operator] -->|CLI arguments| CLI[Typer CLI]
+    O -->|environment / systemd-creds / pass| CRED[CredentialResolver]
     O -->|trusted declarative policy| CFG[ProjectSpec YAML]
     SRC[(Untrusted local source tree)] --> REG[ProjectRegistry]
     CFG --> REG
@@ -72,6 +73,7 @@ flowchart TB
     SLICE --> EVID
     EVID --> GRAPH[(JSON + DOT + source map)]
     GRAPH --> TRIAGE[Analyst → Rebuttal → Judge + policy]
+    CRED -->|validated in-memory key for DeepSeek only| TRIAGE
     TRIAGE --> REPORT[(JSONL + escaped HTML)]
     REPORT --> AUDIT[(Manifest + event log)]
 
@@ -101,6 +103,7 @@ normalize boundary; only their recorded source kind and tool provenance differ.
 | Report renderer | Join exact alert occurrences with run/tool/config provenance, context, Claims, evidence, decisions, unknowns, and limitations; emit strict JSONL and escaped self-contained HTML | Invent missing evidence, calibrate confidence, execute verification, emit active HTML, or dismiss an alert |
 | `RunJournal` | Register config/descriptor and run artifacts, hash/reverify/finalize content, validate states, append events, publish a current/final manifest | Overwrite named artifacts, leave a failed run marked successful, claim the manifest itself is append-only |
 | diagnostics | Report versions/availability and configuration/storage readiness | Treat “not installed” as a successful scan or log secrets |
+| credential providers/resolver | Discover, explicitly or automatically select, and load one validated DeepSeek key through environment, fixed TPM2/systemd, or fixed pass/GPG boundaries | Select model platforms, construct HTTP requests, expose secret/tool output, execute arbitrary commands, or fall back after a selected provider fails |
 | storage/migration | Initialize the minimal SQLite metadata schema through SQLAlchemy | Claim normalized-alert indexing, PostgreSQL, or team-service semantics |
 
 ## ProjectSpec and build boundary
@@ -514,14 +517,18 @@ acceptance matrix and the residual pattern-redaction limitation.
 The DeepSeek path is a deliberate post-Gate-D remote extension. Its adapter
 fixes the target to `api.deepseek.com:443/chat/completions`, accepts only V4-Pro
 or V4-Flash, requests JSON Output with thinking disabled, and supplies no tools.
-It reads the Bearer credential from either the one-process
-`DEEPSEEK_API_KEY` input or a fixed repository-external TPM2/systemd encrypted
-blob. Enrollment and decryption use pipes, so no plaintext credential file is
-created. The credential is not part of the messages or persisted provenance,
-and non-success response bodies are discarded. Before normalization or a model call, the pipeline
-requires both the trusted profile and ProjectSpec to say
+An independent `CredentialResolver` supplies one validated Bearer key from the
+current-process environment, the fixed repository-external TPM2/systemd
+ciphertext, or the fixed pass/GPG entry. Auto order is environment,
+systemd-creds, then pass and falls through only on unavailability; validation
+or decryption failure stops. Enrollment uses pipes, so no plaintext credential
+file is created. The adapter contains no credential-source decisions, and the
+credential is not part of messages or persisted provenance. Non-success
+response bodies are discarded. Before normalization or a model call, the
+pipeline requires both the trusted profile and ProjectSpec to say
 `remote_llm_allowed`; existing offline projects cannot silently transmit their
-evidence. ADR 0006 records the data-governance and secret-handling decision.
+evidence. ADR 0006 records the remote data boundary and ADR 0013 the independent
+credential-provider decision.
 
 ## Verification strategy
 
@@ -589,10 +596,14 @@ Current acceptance evidence consists of:
   runtime/dev scope separation, four-surface version agreement, stale-file and
   symlink rejection, checksum traversal rejection, byte tamper detection, and
   a Git-free source-distribution secret scan;
+- fake-runner credential tests for environment/systemd/pass discovery, fixed
+  auto priority and no-fallback behavior, pass argv/environment/output bounds,
+  malicious entries, executable integrity, hidden standard-input enrollment,
+  and status/error/log/file non-disclosure;
 - simulated-HTTPS DeepSeek tests for the exact official host/path, JSON schema
   payload, complete three-role CLI flow, missing-key/error-body non-disclosure,
-  offline-project rejection, and commit-eligible secret scanning; no live key
-  or paid request is used by acceptance tests;
+  offline-project rejection, and commit-eligible secret scanning; no live key,
+  real pass/GPG/systemd operation, or paid request is used by acceptance tests;
 - a separately authorized 2026-07-23 DeepSeek smoke using the repository-
   external TPM2 credential, recorded as ignored run
   `20260722T174132749958Z-8fce5d0ab3f9`; its three accepted calls and `JUDGED`

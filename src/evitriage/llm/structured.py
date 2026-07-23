@@ -15,7 +15,6 @@ from typing import Annotated, Literal, NoReturn, Protocol, Self, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, model_validator
 
-from evitriage.credentials import load_deepseek_credential
 from evitriage.domain.alerts import Sha256
 from evitriage.domain.triage import AgentRole, TriageTarget
 from evitriage.errors import ConfigurationError, ModelError, ModelResponseError, ReplayMissError
@@ -26,7 +25,6 @@ _MAXIMUM_PROVIDER_RESPONSE_BYTES = 2 * 1024 * 1024
 _MAXIMUM_PROVIDER_REQUEST_BYTES = 4 * 1024 * 1024
 _DEEPSEEK_API_HOST = "api.deepseek.com"
 _DEEPSEEK_API_PATH = "/chat/completions"
-_DEEPSEEK_API_KEY_ENVIRONMENT = "DEEPSEEK_API_KEY"
 _DEEPSEEK_TIMEOUT_SECONDS = 120
 _DEEPSEEK_MODELS = frozenset({"deepseek-v4-flash", "deepseek-v4-pro"})
 _ResponseModelT = TypeVar("_ResponseModelT", bound=BaseModel)
@@ -331,31 +329,8 @@ class DeepSeekLLM:
     def __init__(self, profile: LLMProfile, *, api_key: str) -> None:
         if profile.provider != "deepseek":
             raise ConfigurationError("DeepSeekLLM requires a profile with provider=deepseek")
-        if (
-            not api_key
-            or len(api_key) > 4096
-            or api_key.strip() != api_key
-            or any(ord(character) < 33 or ord(character) == 127 for character in api_key)
-        ):
-            raise ConfigurationError(f"{_DEEPSEEK_API_KEY_ENVIRONMENT} is missing or malformed")
         self._profile = profile
         self._api_key = api_key
-
-    @classmethod
-    def from_environment(cls, profile: LLMProfile) -> DeepSeekLLM:
-        """Load the API key from the process environment without persisting it."""
-
-        api_key = os.environ.get(_DEEPSEEK_API_KEY_ENVIRONMENT, "")
-        return cls(profile, api_key=api_key)
-
-    @classmethod
-    def from_operator_credentials(cls, profile: LLMProfile) -> DeepSeekLLM:
-        """Prefer an ephemeral environment key, then the TPM2 credential store."""
-
-        api_key = os.environ.get(_DEEPSEEK_API_KEY_ENVIRONMENT)
-        if api_key is None:
-            api_key = load_deepseek_credential()
-        return cls(profile, api_key=api_key)
 
     def complete(
         self,

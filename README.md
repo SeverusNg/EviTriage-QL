@@ -3,8 +3,9 @@
 **Evidence-Grounded LLM-Agent Triage for CodeQL Alerts**  
 基于 CodeQL 路径证据与大模型 Agent 的可审计漏洞告警二次筛选系统
 
-> Current release: **v0.1.0**, the Gate G bounded offline research release on
-> top of the Gate F-hardened vertical closure. A source-distribution clean-room
+> Current release: **v0.2.0**, adding fail-closed environment,
+> TPM2/systemd-creds, and pass/GPG credential providers to the bounded Gate G
+> research release. A source-distribution clean-room
 > install passes the full check/demo path, release artifacts are hash-closed
 > with a CycloneDX SBOM, and a fresh pinned CodeQL smoke passes. The six-case
 > matrix and its reviewed JSONL/HTML/manifest/test summaries are included in
@@ -94,7 +95,9 @@ convergence, and context/evidence decisions are recorded in
 bounded offline triage decision is recorded in
 [`ADR 0005`](docs/adr/0005-gate-d-bounded-triage-core.md); the explicit remote
 data and credential boundary for DeepSeek is recorded in
-[`ADR 0006`](docs/adr/0006-deepseek-v4-opt-in-provider.md), and the first
+[`ADR 0006`](docs/adr/0006-deepseek-v4-opt-in-provider.md), with multi-provider
+selection in
+[`ADR 0013`](docs/adr/0013-deepseek-multi-credential-providers.md), and the first
 offline reporting slice in
 [`ADR 0007`](docs/adr/0007-gate-e-offline-reports.md). The first fixed offline
 demo bundle is recorded in [`ADR 0008`](docs/adr/0008-gate-e-offline-demo.md),
@@ -165,7 +168,7 @@ make release-artifacts
 make release-verify
 ```
 
-The default `dist/release/0.1.0/` directory contains the wheel, source
+The default `dist/release/0.2.0/` directory contains the wheel, source
 distribution, a hash-bearing all-extras lock export, a CycloneDX 1.5 SBOM, the
 six-case matrix summary, reviewed example JSONL/HTML and its run manifest,
 machine-readable full/security test summaries, a strict release manifest, and
@@ -176,9 +179,9 @@ files, symlinks, unsafe names, or artifact tampering. It does not create a tag,
 publish, sign, or turn the separate real-CodeQL smoke into a model verdict.
 
 The full source-distribution reinstall procedure and real-tool smoke boundary
-are in [`docs/reproducibility.md`](docs/reproducibility.md). The v0.1.0 scope,
+are in [`docs/reproducibility.md`](docs/reproducibility.md). The v0.2.0 scope,
 evidence, artifacts, and interpretation limits are in
-[`docs/releases/v0.1.0.md`](docs/releases/v0.1.0.md).
+[`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md).
 
 `ingest-sarif` creates a managed source snapshot and a distinct run directory,
 copies the exact input bytes to `input/source.sarif`, records their SHA-256,
@@ -244,19 +247,35 @@ that confidence is uncalibrated, verification was not performed, and no alert
 was automatically dismissed. JSONL can include bounded source excerpts and
 must be protected like the analyzed source tree.
 
-### DeepSeek V4: safe API-key handoff
+### DeepSeek V4: multi-provider API-key handoff
 
 The checked-in DeepSeek profile selects `deepseek-v4-pro`; the alternative
 official model ID `deepseek-v4-flash` is also accepted. The adapter has no
 configurable URL: it connects directly to `api.deepseek.com:443`, posts only to
 `/chat/completions`, requests JSON Output, disables thinking/tool calls, and
 validates the result through the same evidence boundary as Replay.
+[The LLM invocation and credential-flow design](docs/llm-invocation-and-credential-flow.md)
+documents the complete triage path and the implemented WSL/Linux
+multi-provider credential architecture.
 [DeepSeek's official API documentation](https://api-docs.deepseek.com/) is the
 source of the endpoint and current V4 model identifiers.
 
 Do **not** send the API key in chat and do not put it in a command argument,
 YAML, `.env`, shell script, or Git file. A key already sent through chat must be
 revoked before storage because its prior copies cannot be made secret again.
+Credential selection is separate from model selection:
+
+- `environment` reads only this process's `DEEPSEEK_API_KEY` and never
+  persists it;
+- `systemd-creds` retains the fixed TPM2-bound Linux ciphertext path;
+- `pass` reads the fixed `evitriage/deepseek-api-key` password-store entry
+  through GPG;
+- `auto` tries `environment → systemd-creds → pass`.
+
+Explicit selection never falls back. Auto skips only an unavailable provider:
+if a selected environment value is malformed, a systemd ciphertext cannot be
+decrypted, or an installed pass entry fails GPG decryption, triage stops rather
+than trying another credential.
 
 On a Linux host with TPM2 and systemd, use the repository-external encrypted
 credential store. The operator must be able to access `/dev/tpmrm0`; on this
@@ -270,16 +289,43 @@ After starting a new login session, enter the newly rotated key once through a
 hidden prompt and verify only its non-secret status:
 
 ```bash
-uv run evitriage credentials set-deepseek
+uv run evitriage credentials set-deepseek --provider systemd-creds
 uv run evitriage credentials status --json
 ```
 
 The encrypted blob is stored outside the checkout at
 `~/.local/share/evitriage/credentials/evitriage-deepseek-api-key.cred`, with a
 private `0700` directory and `0600` file. `systemd-creds` encrypts it with TPM2;
-`triage` automatically decrypts it through an in-memory pipe on each run. No
-plaintext credential file is created. Use `--replace` only when rotating an
-existing encrypted credential.
+`triage --credential-provider systemd-creds` decrypts it through an in-memory
+pipe on each run. No plaintext credential file is created. Use `--replace` only
+when rotating an existing encrypted credential.
+
+WSL normally lacks a usable TPM2/systemd-creds path. For persistent WSL or
+native-Linux storage, install standard `pass` and GPG, initialize the password
+store with a **passphrase-protected** GPG private key, and then enroll through
+the hidden double prompt:
+
+```bash
+pass init <your-gpg-key-id>  # one-time pass/GPG setup outside EviTriage
+uv run evitriage credentials set-deepseek --provider pass
+
+uv run evitriage triage \
+  --project-config configs/projects/example-local-deepseek-v4.yaml \
+  --sarif tests/fixtures/sarif/single-path.sarif \
+  --llm-profile configs/llm/deepseek-v4-pro.yaml \
+  --credential-provider pass \
+  --json
+```
+
+EviTriage fixes `PASSWORD_STORE_DIR` to the real operator home's
+`~/.password-store`, disables pass extensions, validates the `pass` executable,
+and sends the key to `pass insert` only over standard input. GPG-agent may cache
+the unlocked private-key state: this improves usability but means same-user
+processes can potentially use the agent until its cache expires. Configure a
+short cache TTL appropriate to the host and lock or terminate the agent when
+the session ends. Secret Service/Python keyring is intentionally not the
+default because a desktop D-Bus session and unlocked keyring are unreliable
+assumptions for WSL, CI, SSH, and other headless environments.
 
 For an ephemeral run, or on a host without the encrypted store, use this
 one-time hidden environment prompt instead:
@@ -295,27 +341,25 @@ one-time hidden environment prompt instead:
     --project-config configs/projects/example-local-deepseek-v4.yaml \
     --sarif tests/fixtures/sarif/single-path.sarif \
     --llm-profile configs/llm/deepseek-v4-pro.yaml \
+    --credential-provider environment \
     --json
 )
 ```
 
-In the persistent path, the key flows from hidden terminal input to
-`systemd-creds` standard input, then only TPM2-bound ciphertext reaches disk.
-Each run decrypts through a private pipe and uses the plaintext only for the
-HTTPS `Authorization: Bearer` header. In the ephemeral path, the key exists in
-the subshell environment until the EXIT trap removes it. Neither path includes
-the key in model messages, request/response artifacts, manifests, or structured
-errors. The evidence items and source excerpts **are** sent to DeepSeek, which
-is why the dedicated ProjectSpec must explicitly declare
-`source_upload_policy: remote_llm_allowed`.
+In every backend, plaintext is used only to construct the HTTPS
+`Authorization: Bearer` header. It is not copied into model messages,
+request/response artifacts, manifests, child-process environments, or
+structured errors. Credential protection covers only the API key: evidence
+items and source excerpts **are** still sent to DeepSeek when both trusted
+policies declare `remote_llm_allowed`.
 
-There is no meaningful claim of “absolute” secret safety: the key necessarily
-exists briefly in process memory/environment and is received by the provider.
-TPM2 encryption protects the at-rest blob from being decrypted away from the
-machine, but it does not protect against a process already running as the same
-authorized operator. For higher-assurance deployments, use a dedicated
-execution account and an OS/cloud secret manager. The repository ignores
-`.env`, key, secret, response, workspace, and artifact files; `make check`
+There is no meaningful claim of “absolute security”: the key necessarily
+exists briefly in process memory (and, for `environment`, the process
+environment) and is received by the provider. TPM2 does not protect against an
+authorized same-user process; pass/GPG does not protect an already unlocked
+gpg-agent session. For higher-assurance deployments, use a dedicated execution
+account and an OS/cloud secret manager. The repository ignores `.env`, key,
+secret, password-store, response, workspace, and artifact files; `make check`
 additionally fails if commit-eligible files match credential patterns.
 Run the guard directly with:
 
@@ -524,10 +568,10 @@ research artifacts. See the dated evidence log in
 ## Limitations, safety, and ethics
 
 The current boundary is enumerated in
-[`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md). Providers other than the narrow
-DeepSeek V4 adapter, a general Replay cache producer, prior-run continuation,
-a standalone report command, and independently verified production evidence
-supplements remain unavailable.
+[`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md). Model-platform providers other
+than the narrow DeepSeek V4 adapter, a general Replay cache producer, prior-run
+continuation, a standalone report command, and independently verified
+production evidence supplements remain unavailable.
 Remote Git acquisition, Gradle, adaptive context, and automatic verification
 are also outside this gate.
 

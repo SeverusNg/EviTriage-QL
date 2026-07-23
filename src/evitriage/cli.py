@@ -20,8 +20,9 @@ from typer._click.exceptions import ClickException as TyperClickException
 from evitriage import __version__
 from evitriage.config import load_llm_profile
 from evitriage.credentials import (
-    deepseek_credential_is_present,
-    deepseek_credential_path,
+    CredentialProviderSelection,
+    CredentialResolver,
+    PassCredentialProvider,
     store_deepseek_credential,
 )
 from evitriage.doctor import run_doctor
@@ -99,23 +100,31 @@ def root(
 
 @credentials_app.command("set-deepseek")
 def credentials_set_deepseek(
+    provider: Annotated[
+        Literal["systemd-creds", "pass"],
+        typer.Option(
+            "--provider",
+            help="Persistent backend: TPM2/systemd-creds or pass/GPG.",
+        ),
+    ] = "systemd-creds",
     replace: Annotated[
         bool,
-        typer.Option(
-            "--replace",
-            help="Atomically replace an existing encrypted credential during rotation.",
-        ),
+        typer.Option("--replace", help="Replace an existing encrypted credential during rotation."),
     ] = False,
 ) -> None:
-    """Prompt for and TPM2-encrypt a DeepSeek key without a plaintext file."""
+    """Prompt twice and encrypt a DeepSeek key without a plaintext file."""
 
     api_key = typer.prompt(
         "New DeepSeek API Key",
         hide_input=True,
         confirmation_prompt=True,
     )
-    path = store_deepseek_credential(api_key, replace=replace)
-    typer.echo(f"encrypted DeepSeek credential installed: {path}")
+    if provider == "systemd-creds":
+        path = store_deepseek_credential(api_key, replace=replace)
+        typer.echo(f"encrypted DeepSeek credential installed: {path}")
+    else:
+        PassCredentialProvider().store_secret(api_key, replace=replace)
+        typer.echo("encrypted DeepSeek credential installed via pass")
 
 
 @credentials_app.command("status")
@@ -125,20 +134,21 @@ def credentials_status(
         typer.Option("--json", help="Emit credential presence without exposing its value."),
     ] = False,
 ) -> None:
-    """Report only whether the encrypted DeepSeek credential is installed."""
+    """Report provider availability and auto selection without loading a secret."""
 
-    present = deepseek_credential_is_present()
+    credential_status = CredentialResolver().status()
     payload: dict[str, object] = {
-        "deepseek": {
-            "available": present,
-            "path": str(deepseek_credential_path()),
-        },
+        "deepseek": credential_status,
         "status": "ok",
     }
     if as_json:
         _emit_json(payload)
     else:
-        typer.echo(f"DeepSeek encrypted credential: {'present' if present else 'absent'}")
+        typer.echo(
+            "DeepSeek credential provider: "
+            f"{credential_status['selected_provider'] or 'none'} "
+            f"({credential_status['selection_status']})"
+        )
 
 
 @app.command()
@@ -364,6 +374,13 @@ def triage_command(
             help="Trusted Replay/DeepSeek profile matching ProjectSpec analysis.llm_profile.",
         ),
     ] = Path("configs/llm/replay-v0.1.yaml"),
+    credential_provider: Annotated[
+        CredentialProviderSelection,
+        typer.Option(
+            "--credential-provider",
+            help=("DeepSeek credential source. Auto uses environment, systemd-creds, then pass."),
+        ),
+    ] = "auto",
     as_json: Annotated[
         bool,
         typer.Option("--json", help="Emit one machine-readable Gate D run summary."),
@@ -384,13 +401,18 @@ def triage_command(
     profile = load_llm_profile(_operator_input_path(repository_root, llm_profile))
     llm: StructuredLLM
     if profile.provider == "replay":
+        if credential_provider != "auto":
+            raise ConfigurationError(
+                "--credential-provider can be selected only with a DeepSeek profile"
+            )
         if replay_cache is None:
             raise ConfigurationError("--replay-cache is required for a Replay profile")
         llm = ReplayLLM(profile, _operator_input_path(repository_root, replay_cache))
     elif profile.provider == "deepseek":
         if replay_cache is not None:
             raise ConfigurationError("--replay-cache cannot be used with a DeepSeek profile")
-        llm = DeepSeekLLM.from_operator_credentials(profile)
+        credential = CredentialResolver().resolve(credential_provider)
+        llm = DeepSeekLLM(profile, api_key=credential.secret)
     else:
         raise ConfigurationError("FakeLLM is available only to tests, not the triage CLI")
     allowed_roots = tuple(allowed_source_root) if allowed_source_root else None

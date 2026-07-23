@@ -18,7 +18,7 @@ from evitriage.release import (
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
-def _release_inputs(output: Path, version: str = "0.1.0") -> None:
+def _release_inputs(output: Path, version: str = "0.2.0") -> None:
     output.mkdir()
     (output / ".gitignore").write_bytes(b"*")
     (output / f"evitriage_ql-{version}-py3-none-any.whl").write_bytes(b"wheel\n")
@@ -90,7 +90,7 @@ def test_cyclonedx_closes_over_exact_uv_lock_and_separates_runtime_from_dev() ->
     first = build_cyclonedx(inputs)
     second = build_cyclonedx(inputs)
 
-    assert inputs.version == "0.1.0"
+    assert inputs.version == "0.2.0"
     assert inputs.prompt_version == "gate-d-1.0"
     assert len(inputs.packages) == 40
     assert first == second
@@ -125,7 +125,7 @@ def test_release_writer_registers_and_reverifies_every_file(tmp_path: Path) -> N
     manifest = verify_release_artifacts(output)
 
     assert manifest_path == output / "release-manifest.json"
-    assert manifest["release_version"] == "0.1.0"
+    assert manifest["release_version"] == "0.2.0"
     assert manifest["prompt_version"] == "gate-d-1.0"
     assert manifest["sbom_format"] == "CycloneDX 1.5"
     assert manifest["claims"] == {
@@ -159,7 +159,7 @@ def test_release_verifier_rejects_tampering_and_checksum_traversal(tmp_path: Pat
     output = tmp_path / "release"
     _release_inputs(output)
     write_release_artifacts(REPOSITORY_ROOT, output)
-    wheel = output / "evitriage_ql-0.1.0-py3-none-any.whl"
+    wheel = output / "evitriage_ql-0.2.0-py3-none-any.whl"
     wheel.write_bytes(b"changed")
 
     with pytest.raises(ReleaseArtifactError, match="size/hash verification"):
@@ -227,7 +227,7 @@ def test_release_versions_must_match_all_public_surfaces(tmp_path: Path) -> None
     shutil.copytree(REPOSITORY_ROOT / "schemas", repository / "schemas")
     citation = repository / "CITATION.cff"
     citation.write_text(
-        citation.read_text(encoding="utf-8").replace('version: "0.1.0"', 'version: "0.1.1"'),
+        citation.read_text(encoding="utf-8").replace('version: "0.2.0"', 'version: "0.2.1"'),
         encoding="utf-8",
     )
 
