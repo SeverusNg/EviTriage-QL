@@ -49,6 +49,27 @@ prompt at the repository root. If prose conflicts with executable behavior,
 first preserve safety, then update the implementation and documentation in the
 same change so the discrepancy is visible.
 
+## Bilingual documentation
+
+- Maintain all human-authored project documentation in both English and
+  Simplified Chinese. English files use the existing `*.md` name and their
+  Chinese counterparts use `*.zh-CN.md`; a Chinese source document uses an
+  adjacent `*.en.md` counterpart.
+- Update both language versions in the same change whenever documentation is
+  added or its meaning changes. A documentation change is incomplete if the
+  paired file is missing, stale, or materially weaker.
+- Put an `English | 简体中文` language switch near the top of each paired
+  document and keep headings, links, examples, warnings, version numbers, and
+  stated limitations semantically aligned.
+- Preserve commands, identifiers, configuration keys, paths, hashes, schema
+  names, and quoted machine output exactly unless localization itself requires
+  a clearly explained change.
+- This rule covers README, contribution and security guidance, limitations,
+  architecture and operational guides, ADRs, progress and release notes,
+  fixture documentation, and the dated normative requirements. Generated
+  files, vendored third-party text, licenses, citation metadata, and immutable
+  run artifacts are exempt.
+
 ## Required local checks
 
 Run commands from the repository root:
@@ -132,8 +153,8 @@ validation, and progress evidence together.
 - Use Pydantic v2 conventions, SQLAlchemy 2 APIs, strict typing, and public API
   docstrings. Avoid broad `Any` and blanket exception swallowing.
 - Add or update tests for success, invalid input, and security boundary cases.
-- Update `CHANGELOG.md`, `KNOWN_LIMITATIONS.md`, the relevant ADR, and the dated
-  progress log when behavior or scope changes.
+- Update both language versions of `CHANGELOG.md`, `KNOWN_LIMITATIONS.md`, the
+  relevant ADR, and the dated progress log when behavior or scope changes.
 - Treat fixture licensing and provenance as part of the change; do not copy a
   third-party repository into this repository.
 

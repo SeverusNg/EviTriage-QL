@@ -1,5 +1,7 @@
 # Security policy
 
+[English](SECURITY.md) | [简体中文](SECURITY.zh-CN.md)
+
 ## Supported versions
 
 EviTriage-QL is research software. Security fixes are provided on a

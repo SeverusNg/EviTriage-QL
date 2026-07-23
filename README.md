@@ -1,5 +1,7 @@
 # EviTriage-QL
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 **Evidence-Grounded LLM-Agent Triage for CodeQL Alerts**  
 基于 CodeQL 路径证据与大模型 Agent 的可审计漏洞告警二次筛选系统
 

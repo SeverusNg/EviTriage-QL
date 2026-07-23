@@ -1,5 +1,7 @@
 # Known limitations
 
+[English](KNOWN_LIMITATIONS.md) | [简体中文](KNOWN_LIMITATIONS.zh-CN.md)
+
 This document describes the **v0.1.0 Gate G release on the Gate F-hardened
 offline P0 vertical path**: integrated reporting, both fresh triage inputs, the
 deterministic six-case offline matrix, a directly selectable attack-class

@@ -1,5 +1,7 @@
 # Contributing
 
+[English](CONTRIBUTING.md) | [简体中文](CONTRIBUTING.zh-CN.md)
+
 EviTriage-QL is developed as reproducible security-research software. Changes
 should make their trust assumptions, evidence, and current gate explicit.
 
