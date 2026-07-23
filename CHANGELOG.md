@@ -6,6 +6,8 @@ releases will follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-23
+
 ### Changed
 
 - Expanded the default offline demo from the Gate E three-label fixture to the

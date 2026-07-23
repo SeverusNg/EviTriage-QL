@@ -1,9 +1,9 @@
-# Reproducing the v0.1 release candidate inputs
+# Reproducing the v0.1.0 release
 
-This document covers the Gate G local release-candidate path. It does not
-announce that `v0.1.0-rc1` or `v0.1.0` has been tagged or published. The
-current external-action assessment is in the candidate release notes and dated
-progress log.
+This document covers the Gate G `v0.1.0` release path. The release is bounded
+to the offline research vertical described in the release notes and dated
+progress log; a successful reproduction is not an accuracy or production
+readiness claim.
 
 ## Build and verify the release directory
 

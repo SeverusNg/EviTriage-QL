@@ -2,10 +2,17 @@
 
 ## Supported versions
 
-EviTriage-QL is pre-release research software. Until a tagged release exists,
-only the latest revision on the primary development branch receives security
-fixes. The Gate F-hardened offline vertical prototype must not be treated as a production
-vulnerability-classification service.
+EviTriage-QL is research software. Security fixes are provided on a
+best-effort basis for the latest `0.1.x` release and the primary development
+branch.
+
+| Version | Supported |
+| --- | --- |
+| `0.1.x` | Yes |
+| Earlier revisions | No |
+
+The Gate F-hardened offline vertical release must not be treated as a
+production vulnerability-classification service.
 
 ## Reporting a vulnerability
 

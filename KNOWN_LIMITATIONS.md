@@ -1,10 +1,9 @@
 # Known limitations
 
-This document describes the checked-in **Gate G local release-candidate
-closure on the Gate F-hardened offline P0 vertical path**: integrated reporting,
-both fresh triage inputs, the deterministic six-case offline matrix, a directly
-selectable attack-class suite, and verified wheel/sdist/SBOM/example/test
-release evidence. It is not yet a tagged or published release.
+This document describes the **v0.1.0 Gate G release on the Gate F-hardened
+offline P0 vertical path**: integrated reporting, both fresh triage inputs, the
+deterministic six-case offline matrix, a directly selectable attack-class
+suite, and verified wheel/sdist/SBOM/example/test release evidence.
 Items below are intentional scope boundaries or unresolved verification gaps,
 not implicit claims that the complete v0.1 research workflow exists.
 

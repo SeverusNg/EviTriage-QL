@@ -3,13 +3,14 @@
 **Evidence-Grounded LLM-Agent Triage for CodeQL Alerts**  
 基于 CodeQL 路径证据与大模型 Agent 的可审计漏洞告警二次筛选系统
 
-> Current implementation status: **Gate G local release-candidate closure passes**
-> on top of the Gate F-hardened offline vertical closure. A source-distribution
-> clean-room install now passes the full check/demo path, release artifacts are
-> hash-closed with a CycloneDX SBOM, and a fresh pinned CodeQL smoke passes. The
-> six-case matrix and its reviewed JSONL/HTML/manifest/test summaries are now in
-> that checksum closure. No `v0.1.0-rc1` or `v0.1.0` tag has been created, and
-> hosted/second-host verification and publication have not occurred.
+> Current release: **v0.1.0**, the Gate G bounded offline research release on
+> top of the Gate F-hardened vertical closure. A source-distribution clean-room
+> install passes the full check/demo path, release artifacts are hash-closed
+> with a CycloneDX SBOM, and a fresh pinned CodeQL smoke passes. The six-case
+> matrix and its reviewed JSONL/HTML/manifest/test summaries are included in
+> that checksum closure. This release does not claim a second-host
+> reproduction, artifact signature, model-quality benchmark, or production
+> readiness.
 > The checked-in code supports strict local project configuration, managed source
 > snapshots and workspaces, a real CodeQL command runner, existing-SARIF ingest,
 > deterministic SARIF 2.1.0 normalization, bounded Level 0/1 Java context, an
@@ -157,7 +158,7 @@ fixture, not a model-quality or vulnerability-accuracy claim.
 ## Gate G release artifact and clean-room path
 
 After `make check` and `make demo` pass, build and independently verify the
-candidate package closure:
+release package closure:
 
 ```bash
 make release-artifacts
@@ -175,9 +176,9 @@ files, symlinks, unsafe names, or artifact tampering. It does not create a tag,
 publish, sign, or turn the separate real-CodeQL smoke into a model verdict.
 
 The full source-distribution reinstall procedure and real-tool smoke boundary
-are in [`docs/reproducibility.md`](docs/reproducibility.md). The current candidate
-assessment and pending external release actions are in
-[`docs/releases/v0.1.0-rc1.md`](docs/releases/v0.1.0-rc1.md).
+are in [`docs/reproducibility.md`](docs/reproducibility.md). The v0.1.0 scope,
+evidence, artifacts, and interpretation limits are in
+[`docs/releases/v0.1.0.md`](docs/releases/v0.1.0.md).
 
 `ingest-sarif` creates a managed source snapshot and a distinct run directory,
 copies the exact input bytes to `input/source.sarif`, records their SHA-256,
