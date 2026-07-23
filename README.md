@@ -106,6 +106,15 @@ demo bundle is recorded in [`ADR 0008`](docs/adr/0008-gate-e-offline-demo.md),
 and the three-label evidence/scan closure in
 [`ADR 0009`](docs/adr/0009-gate-e-three-label-and-scan-closure.md).
 
+## Deployment and operations guide
+
+Start a first deployment with
+[`docs/deployment-guide.md`](docs/deployment-guide.md). It progresses from the
+offline demo through existing SARIF and real CodeQL to optional DeepSeek,
+covering environment setup, ProjectSpec onboarding, artifact audit, CI and
+operations, and troubleshooting while keeping synthetic demos, real scans, and
+model verdicts distinct.
+
 ## Five-minute offline quickstart
 
 Prerequisites for the tested Golden SARIF path:

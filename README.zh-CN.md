@@ -93,6 +93,14 @@ flowchart LR
 [`ADR 0008`](docs/adr/0008-gate-e-offline-demo.md)，三标签证据/扫描闭环见
 [`ADR 0009`](docs/adr/0009-gate-e-three-label-and-scan-closure.md)。
 
+## 部署与运行指南
+
+第一次部署请从
+[`docs/deployment-guide.zh-CN.md`](docs/deployment-guide.zh-CN.md) 开始。
+该指南按“离线演示 → 已有 SARIF → 真实 CodeQL → 可选 DeepSeek”的顺序说明
+环境准备、ProjectSpec 接入、产物审计、CI/运维和故障排查，并明确区分合成
+演示、真实扫描和模型裁决。
+
 ## 五分钟离线快速开始
 
 经过测试的 Golden SARIF 路径需要：
