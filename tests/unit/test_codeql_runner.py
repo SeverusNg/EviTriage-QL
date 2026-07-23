@@ -160,6 +160,25 @@ def test_command_builder_uses_argv_and_quotes_only_the_codeql_command_value() ->
     assert "--model-packs=acme/java-models@1.2.3" in analyze
 
 
+@pytest.mark.security
+def test_command_builder_quotes_shell_metacharacters_as_one_maven_argument() -> None:
+    builder = CodeQLCommandBuilder("/tools/codeql")
+    metacharacters = "-Dmessage=$(touch /tmp/owned); & `whoami`"
+    build = _build_spec().model_copy(
+        update={"command": ("./mvnw", "--offline", metacharacters, "package")}
+    )
+
+    create = builder.database_create(
+        spec=_codeql_spec(),
+        build=build,
+        database_path=Path("/managed/database"),
+        source_root=Path("/managed/build"),
+    )
+
+    command_arguments = tuple(argument for argument in create if argument.startswith("--command="))
+    assert command_arguments == (f"--command=./mvnw --offline '{metacharacters}' package",)
+
+
 def test_command_builder_rejects_unmapped_builtin_suite_alias() -> None:
     builder = CodeQLCommandBuilder("/tools/codeql")
     spec = _codeql_spec().model_copy(update={"language": "python"})

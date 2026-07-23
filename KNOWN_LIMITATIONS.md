@@ -1,8 +1,9 @@
 # Known limitations
 
-This document describes the checked-in **Gate E offline P0 vertical closure**:
-integrated reporting, both fresh triage inputs, and a deterministic three-label
-offline demo.
+This document describes the checked-in **Gate F-hardened offline P0 vertical
+closure**: integrated reporting, both fresh triage inputs, a deterministic
+three-label offline demo, and a directly selectable attack-class regression
+suite.
 Items below are intentional scope boundaries or unresolved verification gaps,
 not implicit claims that the complete v0.1 research workflow exists.
 
@@ -131,6 +132,11 @@ not implicit claims that the complete v0.1 research workflow exists.
   must be handled with the same confidentiality controls as the source
   snapshot. HTML escapes untrusted content to prevent active markup; escaping
   is not content redaction or authorization to publish sensitive code.
+- Credential-pattern redaction is applied to workflow payloads and again at
+  the DeepSeek provider boundary, but it is not a general secret classifier.
+  Novel or unlabeled secret formats may survive. Exact local source, SARIF,
+  slice, evidence, and JSONL artifacts are intentionally not rewritten and
+  retain the analyzed source's confidentiality requirements.
 - `make demo` now completes three existing-SARIF cases and emits one TP, one FP,
   and one NMC report without Java, CodeQL, an API key, network access, or a real
   model. Their evidence supplement and Replay responses are synthetic test

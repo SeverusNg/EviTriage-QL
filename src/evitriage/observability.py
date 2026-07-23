@@ -23,14 +23,20 @@ _INLINE_SECRET = re.compile(
 _HTTP_USERINFO = re.compile(r"(?i)(?P<scheme>https?://)[^/@\s]+@")
 
 
+def redact_mapping(value: Mapping[str, object]) -> dict[str, object]:
+    """Return a redacted string-keyed mapping for an outbound trust boundary."""
+
+    redacted: dict[str, object] = {}
+    for raw_key, item in value.items():
+        key = str(raw_key)
+        redacted[key] = "[REDACTED]" if _SECRET_KEY.search(key) else redact(item)
+    return redacted
+
+
 def redact(value: object) -> object:
     """Recursively redact values associated with common secret names."""
     if isinstance(value, Mapping):
-        redacted: dict[str, object] = {}
-        for raw_key, item in value.items():
-            key = str(raw_key)
-            redacted[key] = "[REDACTED]" if _SECRET_KEY.search(key) else redact(item)
-        return redacted
+        return redact_mapping(value)
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         return [redact(item) for item in value]
     if isinstance(value, str):

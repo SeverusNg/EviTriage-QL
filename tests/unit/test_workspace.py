@@ -136,6 +136,7 @@ def test_tampered_snapshot_cannot_seed_a_new_build_copy(tmp_path: Path) -> None:
         )
 
 
+@pytest.mark.security
 def test_symlink_is_rejected_and_cleanup_is_exact(tmp_path: Path) -> None:
     source = _source(tmp_path)
     outside = tmp_path / "outside.txt"

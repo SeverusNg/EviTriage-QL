@@ -80,7 +80,10 @@ addopts = [
 ]
 testpaths = ["tests"]
 markers = [
+  "e2e: exercises a complete user-visible pipeline",
+  "golden: validates a fixed checked-in input or expected output",
   "integration: crosses package boundaries without external network access",
+  "security: exercises a documented trust boundary or attack class",
 ]
 
 [tool.coverage.run]

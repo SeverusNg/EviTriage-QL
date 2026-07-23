@@ -55,6 +55,7 @@ def _document_with_uri(uri: str) -> bytes:
         r"\\attacker.invalid\share\source.java",
     ],
 )
+@pytest.mark.security
 def test_untrusted_uri_cannot_escape_or_select_remote_content(tmp_path: Path, uri: str) -> None:
     sarif_path = tmp_path / "unsafe.sarif"
     sarif_path.write_bytes(_document_with_uri(uri))
@@ -67,6 +68,7 @@ def test_untrusted_uri_cannot_escape_or_select_remote_content(tmp_path: Path, ur
         )
 
 
+@pytest.mark.security
 def test_uri_cannot_traverse_symlink_inside_snapshot(tmp_path: Path) -> None:
     outside = tmp_path / "outside"
     outside.mkdir()
@@ -85,6 +87,8 @@ def test_uri_cannot_traverse_symlink_inside_snapshot(tmp_path: Path) -> None:
         )
 
 
+@pytest.mark.golden
+@pytest.mark.security
 def test_malicious_golden_fixture_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(UnsafeSarifUriError):
         ingest_sarif(

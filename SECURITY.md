@@ -4,7 +4,7 @@
 
 EviTriage-QL is pre-release research software. Until a tagged release exists,
 only the latest revision on the primary development branch receives security
-fixes. The Gate E offline vertical prototype must not be treated as a production
+fixes. The Gate F-hardened offline vertical prototype must not be treated as a production
 vulnerability-classification service.
 
 ## Reporting a vulnerability
@@ -50,6 +50,13 @@ configured, checked-in Maven Wrapper through the constrained CodeQL runner, but
 Gate B does not yet provide a complete OS filesystem/network/resource sandbox.
 Run real scans only for trusted fixtures or inside a disposable external
 sandbox without valuable credentials.
+
+`make security-test` runs the checked-in offline regressions for the frozen
+Gate F attack classes. Model payloads receive deterministic credential-pattern
+redaction at the workflow and remote-provider boundaries, but original local
+audit artifacts intentionally preserve evidence exactly. Pattern matching may
+miss novel or unlabeled secrets; treat workspaces and reports as confidential
+source-derived data.
 
 ## Responsible use
 

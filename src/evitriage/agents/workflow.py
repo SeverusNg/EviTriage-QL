@@ -29,6 +29,7 @@ from evitriage.llm import (
     StructuredLLM,
     canonical_request_sha256,
 )
+from evitriage.observability import redact_mapping
 
 _PROMPT_VERSION = "gate-d-1.0"
 _ResponseT = TypeVar("_ResponseT", bound=BaseModel)
@@ -226,7 +227,9 @@ class TriageWorkflow:
                 )
                 raise error
             prompt = system_prompt
-            payload = dict(user_payload)
+            # Evidence and prior model text remain immutable in local artifacts, but
+            # credential-shaped content must not cross the model trust boundary.
+            payload = redact_mapping(user_payload)
             if attempt:
                 prompt += (
                     "\nSchema repair attempt: the previous object was invalid. Return a fresh "

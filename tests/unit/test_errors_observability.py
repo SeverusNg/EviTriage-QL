@@ -5,6 +5,8 @@ import logging
 from io import StringIO
 from pathlib import Path
 
+import pytest
+
 from evitriage.errors import ConfigurationError
 from evitriage.observability import configure_logging, redact
 from evitriage.secret_scan import detect_secret_rules, scan_repository
@@ -23,6 +25,7 @@ def test_typed_error_has_stable_machine_representation() -> None:
     }
 
 
+@pytest.mark.security
 def test_redaction_handles_nested_secrets_and_bearer_values() -> None:
     value = {
         "api_key": "top-secret",

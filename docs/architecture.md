@@ -1,4 +1,4 @@
-# EviTriage v0.1 architecture through Gate E offline reporting
+# EviTriage v0.1 architecture through Gate F quality/security hardening
 
 ## Status and scope
 
@@ -490,6 +490,26 @@ synthetic reproducibility/policy evidence, not model quality, independent
 ground truth, or a fresh CodeQL scan. ADR 0009 records this boundary and the
 controlled-runner scan-to-report acceptance path.
 
+## Gate F quality and security boundary
+
+All model task payloads now pass through the shared credential-pattern
+redactor before the workflow computes their canonical request SHA-256 and
+before a StructuredLLM receives them. The DeepSeek adapter repeats this check
+at the provider boundary for callers outside the standard workflow. Exact
+source, SARIF, slice, and evidence artifacts remain unchanged in the local
+audit trail; the redaction boundary is outbound, not a mutation of evidence.
+
+Pytest exposes `security`, `golden`, and `e2e` markers. `make security-test`
+runs the representative trust-boundary subset covering prompt injection,
+malicious and symlink-crossing SARIF URIs, workspace symlink escape, HTML
+injection, shell metacharacter quoting, structured-log redaction, and provider
+body redaction. Its integrated case carries an injected source comment and
+script-shaped SARIF text through the normal triage/report path, verifies that
+the source instruction is absent from the minimal model payload, and verifies
+that report markup is escaped. `make check` separately enforces the complete
+suite and the 80% branch-aware coverage floor. ADR 0010 records the exact
+acceptance matrix and the residual pattern-redaction limitation.
+
 The DeepSeek path is a deliberate post-Gate-D remote extension. Its adapter
 fixes the target to `api.deepseek.com:443/chat/completions`, accepts only V4-Pro
 or V4-Flash, requests JSON Output with thinking disabled, and supplies no tools.
@@ -541,6 +561,10 @@ Current acceptance evidence consists of:
 - Gate E integration tests that reject a source/SARIF identity-mismatched
   evidence supplement and carry controlled CodeQL runner output through the
   same `--scan` triage/report path;
+- a directly selectable Gate F security suite covering the six frozen attack
+  classes, including source-comment prompt containment, outbound workflow and
+  provider redaction, shell-metacharacter quoting, and an ordinary
+  triage-to-escaped-report E2E path;
 - simulated-HTTPS DeepSeek tests for the exact official host/path, JSON schema
   payload, complete three-role CLI flow, missing-key/error-body non-disclosure,
   offline-project rejection, and commit-eligible secret scanning; no live key

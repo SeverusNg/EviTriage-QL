@@ -1,4 +1,4 @@
-.PHONY: sync format lock-check lint typecheck schema-check secret-check test check demo clean
+.PHONY: sync format lock-check lint typecheck schema-check secret-check test security-test check demo clean
 
 EVITRIAGE_COMMAND ?= uv run --offline evitriage
 
@@ -27,6 +27,9 @@ secret-check:
 
 test:
 	uv run pytest
+
+security-test:
+	uv run pytest -m security --no-cov
 
 check: lock-check lint typecheck schema-check secret-check test
 

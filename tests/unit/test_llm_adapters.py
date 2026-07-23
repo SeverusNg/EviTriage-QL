@@ -230,10 +230,12 @@ class _FakeDeepSeekConnection:
         self.captured["closed"] = True
 
 
+@pytest.mark.security
 def test_deepseek_v4_uses_official_https_json_endpoint_without_persisting_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     api_key = "test-only-deepseek-key"
+    sensitive_marker = "gate-f-provider-boundary-" + "sensitive"
     monkeypatch.setenv("DEEPSEEK_API_KEY", api_key)
     monkeypatch.setattr(
         "evitriage.llm.structured.http.client.HTTPSConnection",
@@ -253,7 +255,10 @@ def test_deepseek_v4_uses_official_https_json_endpoint_without_persisting_key(
 
     result = DeepSeekLLM.from_environment(profile).complete(
         system_prompt="Return JSON only.",
-        user_payload={"target": "fixture"},
+        user_payload={
+            "target": "fixture",
+            "note": "authorization=" + sensitive_marker,
+        },
         response_model=AnalystOutput,
         invocation_context=context,
     )
@@ -277,9 +282,13 @@ def test_deepseek_v4_uses_official_https_json_endpoint_without_persisting_key(
     assert body["response_format"] == {"type": "json_object"}
     assert body["thinking"] == {"type": "disabled"}
     user_content = json.loads(body["messages"][1]["content"])
-    assert user_content["task_payload"] == {"target": "fixture"}
+    assert user_content["task_payload"] == {
+        "note": "authorization=[REDACTED]",
+        "target": "fixture",
+    }
     assert "properties" in user_content["response_schema"]
     assert api_key not in cast(bytes, captured["body"]).decode()
+    assert sensitive_marker not in cast(bytes, captured["body"]).decode()
 
 
 def test_deepseek_key_and_error_body_never_enter_structured_errors(

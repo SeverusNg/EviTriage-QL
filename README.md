@@ -3,7 +3,8 @@
 **Evidence-Grounded LLM-Agent Triage for CodeQL Alerts**  
 基于 CodeQL 路径证据与大模型 Agent 的可审计漏洞告警二次筛选系统
 
-> Current implementation status: **Gate E offline P0 vertical closure passes**.
+> Current implementation status: **Gate F P0 quality/security gate passes** on
+> top of the Gate E offline vertical closure.
 > The
 > checked-in code supports strict local project configuration, managed source
 > snapshots and workspaces, a real CodeQL command runner, existing-SARIF ingest,
@@ -288,6 +289,16 @@ Run the guard directly with:
 uv run python -m evitriage.secret_scan
 ```
 
+Run the directly selectable Gate F attack-class regression suite with:
+
+```bash
+make security-test
+```
+
+This offline subset covers prompt injection containment, malicious SARIF URIs,
+path/symlink escape, HTML escaping, shell metacharacter quoting, and secret
+redaction. The authoritative quality/coverage gate remains `make check`.
+
 Run an individual test while developing with, for example:
 
 ```bash
@@ -364,7 +375,10 @@ The bounded Gate D path adds:
   critical evidence, or weaker cases to NMC; `auto_dismiss` is always false;
 - prompt boundaries that keep repository/SARIF text inside
   `untrusted_code_data` and explicitly deny instructions or tool permissions
-  found in that data.
+  found in that data;
+- deterministic credential-pattern redaction before canonical request hashing
+  and every model/provider boundary, while retaining exact local evidence for
+  audit.
 
 The `triage` command requires exactly one of an existing `--sarif` input or a
 real `--scan`, allocates a fresh run, reuses the shared normalization/context/

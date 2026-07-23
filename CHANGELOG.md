@@ -8,6 +8,9 @@ releases will follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Hardened every triage model task payload with deterministic secret redaction
+  before canonical request hashing, and repeated the check at the DeepSeek
+  provider boundary without mutating exact local evidence artifacts.
 - Pinned the development frontend to `uv 0.8.3` with an executable
   `tool.uv.required-version` gate and made persistent, login-shell-discoverable
   tool installation part of environment acceptance; ephemeral `/tmp`
@@ -36,6 +39,12 @@ releases will follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Gate F `security`, `golden`, and `e2e` pytest markers plus a directly
+  selectable `make security-test` acceptance suite for prompt injection,
+  malicious URI, path/symlink escape, HTML escape, shell metacharacters, and
+  secret redaction.
+- ADR 0010 documenting the Gate F attack-class matrix, outbound redaction
+  boundary, coverage contract, and residual confidentiality limits.
 - Gate A Python package and CLI engineering foundation.
 - Strict local `ProjectSpec` validation and a registry shared by two example
   Java fixture configurations.
@@ -170,6 +179,13 @@ releases will follow [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- Credential-shaped content in evidence or prior model text is now redacted
+  before it can enter Fake/Replay/remote model requests; direct DeepSeek calls
+  apply the same defense before constructing the HTTPS body.
+- The Gate F E2E regression proves an injected source comment cannot become a
+  model instruction and script-shaped untrusted report text is HTML-escaped;
+  a separate command-builder regression preserves shell metacharacters as one
+  quoted Maven argument while subprocess execution remains `shell=False`.
 - Local targets are treated as untrusted input and original source directories
   remain outside writable run areas.
 - Secrets and generated runtime state are excluded from version control.
@@ -241,7 +257,7 @@ releases will follow [Semantic Versioning](https://semver.org/).
 
 ### Not yet implemented or verified
 
-- Gate E+/Gate F: the standalone `report --run-id` command, a general trusted
+- Post-v0.1: the standalone `report --run-id` command, a general trusted
   Replay cache writer/producer attestation, prior-run continuation, and a fresh
   real CodeQL scan-to-`JUDGED` acceptance artifact. Providers beyond the narrow
   DeepSeek V4 integration,

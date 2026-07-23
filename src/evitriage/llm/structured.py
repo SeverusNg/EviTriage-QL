@@ -19,6 +19,7 @@ from evitriage.credentials import load_deepseek_credential
 from evitriage.domain.alerts import Sha256
 from evitriage.domain.triage import AgentRole, TriageTarget
 from evitriage.errors import ConfigurationError, ModelError, ModelResponseError, ReplayMissError
+from evitriage.observability import redact_mapping
 
 _MAXIMUM_REPLAY_BYTES = 2 * 1024 * 1024
 _MAXIMUM_PROVIDER_RESPONSE_BYTES = 2 * 1024 * 1024
@@ -369,7 +370,9 @@ class DeepSeekLLM:
         _require_profile(invocation_context, self._profile)
         request_content = {
             "response_schema": response_model.model_json_schema(),
-            "task_payload": dict(user_payload),
+            # Keep the provider boundary safe even when an adapter is invoked by a
+            # caller other than the standard triage workflow.
+            "task_payload": redact_mapping(user_payload),
         }
         try:
             user_content = _canonical_json_bytes(request_content).decode("utf-8")

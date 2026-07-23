@@ -90,6 +90,7 @@ def test_gate_e_replay_bundle_manifest_closes_over_checked_in_inputs() -> None:
 
 
 @pytest.mark.integration
+@pytest.mark.e2e
 def test_make_demo_replays_complete_pipeline_in_an_isolated_checkout(tmp_path: Path) -> None:
     repository = tmp_path / "repository"
     repository.mkdir()

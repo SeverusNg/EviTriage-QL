@@ -12,7 +12,9 @@ a conservative deterministic decision policy, a `triage` CLI, durable
 `ANALYZED → REBUTTED → JUDGED` states, model/decision artifacts, the Gate E
 integrated JSONL/escaped-HTML report path, direct scan-to-triage chaining, a
 strict identity-bound supplemental-evidence input, and a deterministic offline
-`make demo` backed by fixed synthetic TP/FP/NMC Replay entries. A pinned
+`make demo` backed by fixed synthetic TP/FP/NMC Replay entries. Gate F adds a
+directly selectable attack-class suite plus deterministic redaction before
+model request hashing and at the remote-provider boundary. A pinned
 CodeQL 2.26.1 scan of the original Socket-based CWE-22 case produced one
 `java/path-injection` result with an eight-step path and reached
 `CONTEXT_READY`; the exact run is recorded in the 2026-07-22 evidence log. This
@@ -52,6 +54,7 @@ Run commands from the repository root:
 ```bash
 uv sync --all-extras
 make check
+make security-test
 make demo
 uv run evitriage doctor --json
 uv run evitriage project validate --config configs/projects/example-local.yaml --json
@@ -145,7 +148,10 @@ closure produces strict TP/FP/NMC reports from three synthetic cases without
 weakening the policy, and a controlled-runner test carries `--scan` through
 the same `JUDGED` report path. The recorded real zero-result smoke and
 positive-query scan remain environment-specific evidence; clean-room/release
-validation must still reproduce them with the pinned external tools. Prior-run
+validation must still reproduce them with the pinned external tools. Gate F's
+P0 quality/security gate now passes with explicit prompt-injection, malicious-
+URI, path/symlink, HTML-escape, shell-metacharacter, and secret-redaction
+coverage plus an enforced 80% branch-aware floor. Prior-run
 continuation, a standalone report path, a general Replay cache producer, and a
 fresh real CodeQL scan-to-`JUDGED` evidence run remain outside this closure.
 Providers beyond the narrow DeepSeek V4
