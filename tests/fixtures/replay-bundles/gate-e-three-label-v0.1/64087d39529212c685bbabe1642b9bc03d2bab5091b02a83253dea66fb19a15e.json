@@ -1,0 +1,1 @@
+{"claims":[{"evidence_ids":["ev_ecf6057a2e1d4a7039b38876c11e9fb564a01c020a1f5abd0dc7269b8f819dd9"],"kind":"path_feasible","statement":"CodeQL records a syntactic source-to-sink flow.","status":"supported"}],"schema_version":"1.0","unknowns":[]}

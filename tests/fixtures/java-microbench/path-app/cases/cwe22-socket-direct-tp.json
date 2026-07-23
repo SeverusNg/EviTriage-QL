@@ -1,6 +1,7 @@
 {
   "schema_version": "1.0",
   "case_id": "cwe22-socket-direct-tp",
+  "matrix_role": "cwe22-direct-tp",
   "cwe_id": "CWE-22",
   "language": "java",
   "provenance": {
@@ -17,8 +18,13 @@
     "source_fact": "Socket.getInputStream supplies remote data that BufferedReader.readLine consumes as a filename.",
     "sink_fact": "The unvalidated filename reaches Path.resolve and Files.readString without a containment check."
   },
+  "sarif": {
+    "run_index": 0,
+    "result_index": 0
+  },
   "expected_codeql": {
     "cli_version": "2.26.1",
+    "evidence_mode": "real-query-smoke",
     "query_suite": "security-extended",
     "rule_id": "java/path-injection",
     "minimum_result_count": 1,

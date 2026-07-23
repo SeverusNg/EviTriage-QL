@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "case_id": "cwe78-allowlist-fp",
+  "matrix_role": "cwe78-allowlist-fp",
+  "cwe_id": "CWE-78",
+  "language": "java",
+  "provenance": {
+    "kind": "original-synthetic",
+    "license_spdx": "Apache-2.0",
+    "description": "Original EviTriage-QL v0.1 release-matrix fixture."
+  },
+  "source": {
+    "project_relative_path": "src/main/java/org/evitriage/demo/AllowlistCommandCase.java",
+    "sha256": "2389c20515dc39bed91a7387339ed7270516e7436e160ae645c7e0562e9f78ce",
+    "callable": "runAllowedFromSocket",
+    "source_line": 18,
+    "sink_line": 22,
+    "source_fact": "Socket input supplies a requested command name.",
+    "sink_fact": "Only one of two exact allowlisted executable names can reach ProcessBuilder."
+  },
+  "sarif": {"run_index": 0, "result_index": 4},
+  "expected_codeql": {
+    "cli_version": "2.26.1",
+    "evidence_mode": "synthetic-golden",
+    "query_suite": "security-extended",
+    "rule_id": "java/command-line-injection",
+    "minimum_result_count": 1,
+    "require_code_flows": true
+  },
+  "ground_truth": {
+    "label": "FP",
+    "rationale": "An exact allowlist rejects every other executable and no shell interpreter is used."
+  },
+  "execution": {"build_only": true, "runtime_exploit_required": false}
+}

@@ -2,13 +2,13 @@ schema_version: "1.0"
 
 project:
   id: gate-e-demo
-  display_name: Gate E Three-Label Offline Demo
+  display_name: v0.1 Six-Case Offline Demo
   language: java
   license_hint: Apache-2.0
 
 source:
   type: local
-  path: tests/fixtures/java-microbench
+  path: tests/fixtures/java-microbench/gate-e-demo
   snapshot_mode: copy
   require_clean_git: false
   submodules: false
@@ -16,7 +16,7 @@ source:
 build:
   adapter: maven
   jdk: "17"
-  working_directory: path-app
+  working_directory: "."
   command: ["./mvnw", "--offline", "-q", "-DskipTests", "package"]
   timeout_seconds: 600
   network_policy: disabled
@@ -30,7 +30,7 @@ codeql:
   include_query_help: true
 
 analysis:
-  target_cwes: [CWE-22]
+  target_cwes: [CWE-22, CWE-78]
   context_policy: path_function_slice
   workflow: evidence_three_agent
   llm_profile: replay-v0.1

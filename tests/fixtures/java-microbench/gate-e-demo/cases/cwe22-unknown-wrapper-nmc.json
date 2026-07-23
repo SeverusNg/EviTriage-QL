@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "case_id": "cwe22-unknown-wrapper-nmc",
+  "matrix_role": "cwe22-unknown-wrapper-nmc",
+  "cwe_id": "CWE-22",
+  "language": "java",
+  "provenance": {
+    "kind": "original-synthetic",
+    "license_spdx": "Apache-2.0",
+    "description": "Original EviTriage-QL v0.1 release-matrix fixture."
+  },
+  "source": {
+    "project_relative_path": "src/main/java/org/evitriage/demo/UnknownWrapperCase.java",
+    "sha256": "126ce9ebb9ff805ab26579976c266624aa14e6ea2062b8295379e10e32cc7110",
+    "callable": "readThroughPolicy",
+    "source_line": 22,
+    "sink_line": 24,
+    "source_fact": "Socket input supplies a requested path.",
+    "sink_fact": "PathPolicy decides the path, but its implementation is not present in the bounded case."
+  },
+  "sarif": {"run_index": 0, "result_index": 2},
+  "expected_codeql": {
+    "cli_version": "2.26.1",
+    "evidence_mode": "synthetic-golden",
+    "query_suite": "security-extended",
+    "rule_id": "java/path-injection",
+    "minimum_result_count": 1,
+    "require_code_flows": true
+  },
+  "ground_truth": {
+    "label": "NMC",
+    "rationale": "The bounded record cannot establish whether the unresolved policy wrapper permits or blocks traversal."
+  },
+  "execution": {"build_only": true, "runtime_exploit_required": false}
+}

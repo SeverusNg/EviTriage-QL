@@ -1,90 +1,153 @@
 {
-  "analysis_identity": "analysis-9affe1d9b20c2c3214ba46fe1721f07b3d5a1d7cf38e8d8624880cb27a9751d8",
-  "bundle_id": "gate-e-three-label-v0-1",
+  "analysis_identity": "analysis-de8e383cbc3cd49aefe5d9363d963d68a632fd9d1cfb2198c0f55fe1985a9ab0",
+  "bundle_id": "v01-six-case-matrix",
   "entries": [
     {
       "agent_role": "analyst",
-      "result_index": 0,
-      "request_sha256": "4dece11086b0d5869306e0126fb1bea3434121a3bca11d8028c568a80219cce1",
-      "response_file": "4dece11086b0d5869306e0126fb1bea3434121a3bca11d8028c568a80219cce1.json",
-      "response_sha256": "9d4b6660b8af703b66e791cfdcb4bff9ffe1a445b244d4010525ab1987cf8410"
+      "request_sha256": "5ca176aed564455f3ac35d72036cc0ed5775cfc59121c09ad94dfbac3ececb88",
+      "response_file": "5ca176aed564455f3ac35d72036cc0ed5775cfc59121c09ad94dfbac3ececb88.json",
+      "response_sha256": "4e1eacf8b081e1593a92d47351ba083e77e92fd79cb3a01f905be0cb473647aa",
+      "result_index": 0
     },
     {
       "agent_role": "rebuttal",
-      "result_index": 0,
-      "request_sha256": "db08ab5d47b3013b2ef632d94b98f1d60eea5f982618eea2e91630a58e1c6add",
-      "response_file": "db08ab5d47b3013b2ef632d94b98f1d60eea5f982618eea2e91630a58e1c6add.json",
-      "response_sha256": "41c745c849b81add4a8419bc3594176f10550de9c3d69bf8cafcea0f1e3a94c8"
+      "request_sha256": "0c4bcb50567298ed37ff1a7973be034f457cb1b1391087fefe97121cb8252b55",
+      "response_file": "0c4bcb50567298ed37ff1a7973be034f457cb1b1391087fefe97121cb8252b55.json",
+      "response_sha256": "668f40da74c7883f79deb1d824bc4ce0729503bc022954485587798caddfc29e",
+      "result_index": 0
     },
     {
       "agent_role": "judge",
-      "result_index": 0,
-      "request_sha256": "9077bce5ea8f894d07621a9a6d01a49e67edc5e5a209a91df051678734d616e4",
-      "response_file": "9077bce5ea8f894d07621a9a6d01a49e67edc5e5a209a91df051678734d616e4.json",
-      "response_sha256": "c5419eb647b4bb87bcf8b2b7747dd9afba0db53b0952834c43658c0ff47818b2"
+      "request_sha256": "fa270ef7025e3af6302144d7b1477476d7fe8da965aa5db16f30965497782a55",
+      "response_file": "fa270ef7025e3af6302144d7b1477476d7fe8da965aa5db16f30965497782a55.json",
+      "response_sha256": "d1a9c314e7cbec063ad6c0751654deac9c63b19ef6cd95cce5cd5b4ff11209d3",
+      "result_index": 0
     },
     {
       "agent_role": "analyst",
-      "result_index": 1,
-      "request_sha256": "e73a16e5cae19ff1334110f54ca7bb5e96355715f54499ac7975949e3b143678",
-      "response_file": "e73a16e5cae19ff1334110f54ca7bb5e96355715f54499ac7975949e3b143678.json",
-      "response_sha256": "25f7a0dad43974da232b41206f57bba23068194f562418af5c36a74202388599"
+      "request_sha256": "b0d166e5fe8848761c2835793c0b8416cce2ce9949ea754960021cf2ad00369b",
+      "response_file": "b0d166e5fe8848761c2835793c0b8416cce2ce9949ea754960021cf2ad00369b.json",
+      "response_sha256": "92f72c0750c722e3dc957749ec7a14ad3d5e6d63bd05613254f02d32b640fe4c",
+      "result_index": 1
     },
     {
       "agent_role": "rebuttal",
-      "result_index": 1,
-      "request_sha256": "655b782b7d9efa3f72ffe2e1ba0fd7075ee65faa4cc81beb895036e2e0f7c51d",
-      "response_file": "655b782b7d9efa3f72ffe2e1ba0fd7075ee65faa4cc81beb895036e2e0f7c51d.json",
-      "response_sha256": "abcb40d5df7016cdea99d2cb5a4d8e6442f780850328c05c553dda938489c4e2"
+      "request_sha256": "06e57255554315c5e0fc51f18e5ab61a7ff164649074fcfdce4d8de2fdce5404",
+      "response_file": "06e57255554315c5e0fc51f18e5ab61a7ff164649074fcfdce4d8de2fdce5404.json",
+      "response_sha256": "d9aaa7c83c2c5294adc2ecc2ce158839fb95dd3fdadff39a0bd7136c3cdf98ad",
+      "result_index": 1
     },
     {
       "agent_role": "judge",
-      "result_index": 1,
-      "request_sha256": "9727c8d917ea6d5730eda260f490d35363778085d9a7c602a6ed3491b66e48a0",
-      "response_file": "9727c8d917ea6d5730eda260f490d35363778085d9a7c602a6ed3491b66e48a0.json",
-      "response_sha256": "5afe8cfdb2227348fb1ab1b9a600f436db51c6fbbbd0cfa4f71cc224b927b980"
+      "request_sha256": "30703aedbccfada200ad5c18d6c367db23a38ad1857f744477824f01247bcdff",
+      "response_file": "30703aedbccfada200ad5c18d6c367db23a38ad1857f744477824f01247bcdff.json",
+      "response_sha256": "c7c4e9f1a120b6fff84c7af4d4c2a823fd42f6cd5b23f7877805e30d30f76596",
+      "result_index": 1
     },
     {
       "agent_role": "analyst",
-      "result_index": 2,
-      "request_sha256": "a5520b304dd314f55ce972a0ee00f91078ffd8f886f88e44bcfaec76c58967d1",
-      "response_file": "a5520b304dd314f55ce972a0ee00f91078ffd8f886f88e44bcfaec76c58967d1.json",
-      "response_sha256": "0790e0fd8e577446de2834ae42837290612fed3133b44f54f553ef258a7ea808"
+      "request_sha256": "1d49a3c5243945f8034e9d5477616c964523cdcbba7bd6f61ae8e94977e054dc",
+      "response_file": "1d49a3c5243945f8034e9d5477616c964523cdcbba7bd6f61ae8e94977e054dc.json",
+      "response_sha256": "22bc46f4a8a8e7bf0b483d57cd5a51e3ab90b981335e9d1d90a7f86086a78680",
+      "result_index": 2
     },
     {
       "agent_role": "rebuttal",
-      "result_index": 2,
-      "request_sha256": "ed4094ee68cefece402a9d04f5945979379ec95f154eadabd3701255672f8b83",
-      "response_file": "ed4094ee68cefece402a9d04f5945979379ec95f154eadabd3701255672f8b83.json",
-      "response_sha256": "c1414e4984a46836dbc3413fdf3c4565504fc9f0d17125cdae9cffd984ecb3cc"
+      "request_sha256": "c08421359cb2fd50571b63a52a76fb11377c4b6b4d421af54db52a003da8be99",
+      "response_file": "c08421359cb2fd50571b63a52a76fb11377c4b6b4d421af54db52a003da8be99.json",
+      "response_sha256": "5149307528f6bb753a78819348f7f1165277ba7cf5be5f499a7a3f6b67db0128",
+      "result_index": 2
     },
     {
       "agent_role": "judge",
-      "result_index": 2,
-      "request_sha256": "687416adf33bb20a8929372525a56a5f858ded342f0dc542e229eec8abe4ab17",
-      "response_file": "687416adf33bb20a8929372525a56a5f858ded342f0dc542e229eec8abe4ab17.json",
-      "response_sha256": "8cadafb3ec3b8731e3404e9686c312b065c8535daa53c05612da7b58aac7eeb7"
+      "request_sha256": "022c2d80b094f2d466e5026627e1490777c14b6e49cbe61ee3578f7fc7bb5390",
+      "response_file": "022c2d80b094f2d466e5026627e1490777c14b6e49cbe61ee3578f7fc7bb5390.json",
+      "response_sha256": "9bfb9ec5c60a97d4fcbeec4f9c7c83d883b14f6fd6e4810af190c6749bab912c",
+      "result_index": 2
+    },
+    {
+      "agent_role": "analyst",
+      "request_sha256": "306da3fed46a86969c72271243f09256af4b9d9df8f8a224831eb081a254fa30",
+      "response_file": "306da3fed46a86969c72271243f09256af4b9d9df8f8a224831eb081a254fa30.json",
+      "response_sha256": "50ab066ad36347bfa7b471c8f024f5679b4eedee98da81554bf9fd470f398f8d",
+      "result_index": 3
+    },
+    {
+      "agent_role": "rebuttal",
+      "request_sha256": "8f8595e4faaacd188a1e6da86f345997dd5a91519b7452fce01ea73270a1fe93",
+      "response_file": "8f8595e4faaacd188a1e6da86f345997dd5a91519b7452fce01ea73270a1fe93.json",
+      "response_sha256": "668f40da74c7883f79deb1d824bc4ce0729503bc022954485587798caddfc29e",
+      "result_index": 3
+    },
+    {
+      "agent_role": "judge",
+      "request_sha256": "75979ab01be8e5a1d21c0fb5e320bf4428bf58d18f7c7c7547eb1a08045953c5",
+      "response_file": "75979ab01be8e5a1d21c0fb5e320bf4428bf58d18f7c7c7547eb1a08045953c5.json",
+      "response_sha256": "8c81664714c255c4fc42214f5801657fb15a1875fc3d490798b0fa0a84e5c756",
+      "result_index": 3
+    },
+    {
+      "agent_role": "analyst",
+      "request_sha256": "64087d39529212c685bbabe1642b9bc03d2bab5091b02a83253dea66fb19a15e",
+      "response_file": "64087d39529212c685bbabe1642b9bc03d2bab5091b02a83253dea66fb19a15e.json",
+      "response_sha256": "d48ae72b45c6f66bdf81961661a24dbecc09d48a5fd3742bf321fcb3b7aa040f",
+      "result_index": 4
+    },
+    {
+      "agent_role": "rebuttal",
+      "request_sha256": "e2e333845c8176f177b238b3934ac29d6ffaff179d54fea4817aff87f1010b89",
+      "response_file": "e2e333845c8176f177b238b3934ac29d6ffaff179d54fea4817aff87f1010b89.json",
+      "response_sha256": "03cf29075cabc17562229ea83fc837a64e027747fc5079883dfb68d3684b2d2a",
+      "result_index": 4
+    },
+    {
+      "agent_role": "judge",
+      "request_sha256": "8b961cdbe7602ebd62990b3554070901de4feab22df46960ca440935160f1a9f",
+      "response_file": "8b961cdbe7602ebd62990b3554070901de4feab22df46960ca440935160f1a9f.json",
+      "response_sha256": "f67b0b0026fa729d47eda8ac1d10ae747c89c7c154669aee8adf5e01502a6470",
+      "result_index": 4
+    },
+    {
+      "agent_role": "analyst",
+      "request_sha256": "3cea6e812442be862cf1d5628c1a3f78407819dd90bb74124dc53868ebba5aac",
+      "response_file": "3cea6e812442be862cf1d5628c1a3f78407819dd90bb74124dc53868ebba5aac.json",
+      "response_sha256": "cff34ae85b3d13b134ad15f6e3518291dfc7ae54f4f65682ecb30422ed7a0b3b",
+      "result_index": 5
+    },
+    {
+      "agent_role": "rebuttal",
+      "request_sha256": "00b142dcfa61def36c72b58a08cdb60dde3cecc71478f736c17148c1bc27530b",
+      "response_file": "00b142dcfa61def36c72b58a08cdb60dde3cecc71478f736c17148c1bc27530b.json",
+      "response_sha256": "668f40da74c7883f79deb1d824bc4ce0729503bc022954485587798caddfc29e",
+      "result_index": 5
+    },
+    {
+      "agent_role": "judge",
+      "request_sha256": "ff30a71dd67831e1cfcc4079ff968da834c086a29875eac05b663b9ea08fbe86",
+      "response_file": "ff30a71dd67831e1cfcc4079ff968da834c086a29875eac05b663b9ea08fbe86.json",
+      "response_sha256": "9ca572e4ae87d5e7787e87c684c281cfdf8d71006d408250526698b19e1cb8c7",
+      "result_index": 5
     }
   ],
   "expected_result": {
-    "alert_count": 3,
+    "alert_count": 6,
     "auto_dismiss": false,
     "label_counts": {
-      "FP": 1,
+      "FP": 2,
       "NMC": 1,
-      "TP": 1
+      "TP": 3
     }
   },
   "fixture_provenance": {
-    "authored_for": "EviTriage-QL Gate E deterministic TP/FP/NMC report acceptance",
+    "authored_for": "EviTriage-QL v0.1 deterministic six-case release acceptance",
     "license": "Apache-2.0",
     "producer": "EviTriage-QL contributors",
     "synthetic": true
   },
   "limitations": [
-    "Responses and supplemental observations are synthetic fixtures, not real-model or verifier outputs.",
+    "Responses, SARIF, and supplemental observations are synthetic fixtures, not real-model or verifier outputs.",
     "Labels are case-specific policy acceptance examples, not vulnerability verdicts for arbitrary code.",
-    "The bundle demonstrates report completeness and replayability, not calibration or model quality."
+    "The bundle demonstrates six-case report completeness and replayability, not calibration or model quality."
   ],
   "profile": {
     "digest": "5ea8a4730592829790096aabf1df833df234593ad92db32de3d42ed11e312706",
@@ -93,18 +156,18 @@
     "path": "configs/llm/replay-v0.1.yaml"
   },
   "project": {
-    "config_sha256": "8a79fd162d973a4f8d0aca1f1281db3329ed35e253303f01032da9f9e8bb62f2",
+    "config_sha256": "c14c697a1805ad258b683e91b17b1a8d8a2d7c60dda56b435d949ea7ff6323df",
     "id": "gate-e-demo",
     "path": "configs/projects/gate-e-demo.yaml",
-    "source_tree_sha256": "93c07e6150fdaa122807b2c9bef033950c741986e1e8d460cedf046e886789d3"
+    "source_tree_sha256": "5535da5f4d2e98499fb693e20be94896f70c45ca5fedaaa2f0f544e24bfe4c11"
   },
   "sarif": {
     "path": "tests/fixtures/sarif/gate-e-three-label.sarif",
-    "sha256": "5ba6d042a067825992fac238b1db096f54816f611216d6a6c6b7ba7f51c8dedd"
+    "sha256": "b188c4a9d1fd9e0ef27455e703a2891da92cff63a5e9161ca6b0054c71875b01"
   },
   "schema_version": "1.0",
   "supplement": {
     "path": "tests/fixtures/evidence/gate-e-three-label-supplement.json",
-    "sha256": "88d6fa25af1a0d9cdcb644adfc3798f9f378bca6e1d79d3db851b0e2cb4091d6"
+    "sha256": "48dd69dc7c8c897249a4dc04a2b3c7ace189499dfce4ec81dc1a13068e69daa0"
   }
 }

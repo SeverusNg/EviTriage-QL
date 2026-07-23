@@ -1,4 +1,4 @@
-# EviTriage v0.1 architecture through Gate F quality/security hardening
+# EviTriage v0.1 architecture through Gate G local candidate closure
 
 ## Status and scope
 
@@ -31,7 +31,7 @@ The checked-in implementation includes:
 - strict per-alert JSONL and escaped HTML reports registered before finalization;
 - a strict identity-bound supplemental-evidence input and direct
   CodeQL-scan-to-triage orchestration;
-- a deterministic three-alert TP/FP/NMC offline demo;
+- a deterministic six-case CWE-22/CWE-78/prompt-injection offline demo;
 - original Golden SARIF inputs and offline unit/integration/security tests.
 
 Ordinary Gate C input commands do **not** call an LLM, generate Claims, or
@@ -462,7 +462,7 @@ prevents markup execution but is not secret redaction.
 
 ## Gate E deterministic offline demo
 
-`make demo` selects only checked-in inputs: `gate-e-demo.yaml`, three original
+`make demo` selects only checked-in inputs: `gate-e-demo.yaml`, six original
 Java microcases, `gate-e-three-label.sarif`, an exact identity-bound synthetic
 test-evidence supplement, the `replay-v0.1` offline profile, and
 `gate-e-three-label-v0.1` Replay entries. `uv run --offline` prevents
@@ -473,8 +473,8 @@ identity, and profile; stale inputs fail as a Replay miss.
 
 The bundle manifest is fixture provenance rather than a second runtime source
 of truth. It inventories the raw ProjectSpec/SARIF, canonical profile digest,
-source-tree identity, nine request/response hashes, synthetic authorship and
-license, expected one-TP/one-FP/one-NMC result, and limitations. Runtime
+source-tree identity, eighteen request/response hashes, synthetic authorship and
+license, expected three-TP/two-FP/one-NMC result, and limitations. Runtime
 decisions still pass
 the ordinary strict response, evidence-closure, and deterministic policy
 checks. The resulting report and run manifest explicitly retain
@@ -485,7 +485,8 @@ The E2E test copies these inputs into an isolated repository, invokes the Make
 target as a subprocess with no DeepSeek key, parses the one-line public
 summary, rehashes every registered artifact, checks final `0400` modes, and
 compares the entire source fixture before and after. It strictly parses all
-three report rows and verifies one TP, one decisive FP, and one NMC. This is
+six report rows and verifies CWE-22 TP/FP/NMC, CWE-78 TP/FP, and a prompt-
+injection case that remains TP with no added capability. This is
 synthetic reproducibility/policy evidence, not model quality, independent
 ground truth, or a fresh CodeQL scan. ADR 0009 records this boundary and the
 controlled-runner scan-to-report acceptance path.
@@ -524,6 +525,25 @@ evidence. ADR 0006 records the data-governance and secret-handling decision.
 
 ## Verification strategy
 
+Gate G adds a release-only boundary after application tests. `uv build` creates
+the wheel and source distribution, `uv export` emits a hash-bearing inventory
+from the frozen lock, and the release metadata builder derives a CycloneDX 1.5
+SBOM plus a closed checksum manifest. Four public version surfaces must agree;
+the public schema set and Agent prompt version are frozen into the manifest.
+The verifier follows no symlinks and accepts no unknown release-directory
+files. In a Git checkout the secret scan continues to use Git's commit-eligible
+set; an identified sdist instead scans its releasable regular files while
+excluding explicit top-level runtime/build outputs. ADR 0011 records this
+boundary and why no tag/publication action is automatic.
+
+Before metadata generation, the release target runs the full coverage suite,
+the directly selected security suite, and a fresh six-case demo. The assembler
+revalidates the finalized run manifest, every registered artifact hash/size and
+`0400` mode, all six strict JSONL rows, the case/source/SARIF/decision mapping,
+and the prompt-injection expectation. It then registers the example JSONL,
+escaped HTML, run manifest, demo/matrix summaries, and both pytest summaries in
+the same release checksum closure. ADR 0012 records this acceptance boundary.
+
 Current acceptance evidence consists of:
 
 - Ruff formatting/linting, mypy strict checks, generated-schema consistency,
@@ -556,7 +576,7 @@ Current acceptance evidence consists of:
   rather than emitted as active HTML;
 - a Gate E subprocess test that validates the fixed Replay bundle manifest,
   executes `make demo` in an isolated checkout, rehashes and permission-checks
-  the complete finalized artifact set, strictly verifies the three label rows,
+  the complete finalized artifact set, strictly verifies the six matrix rows,
   and proves source immutability;
 - Gate E integration tests that reject a source/SARIF identity-mismatched
   evidence supplement and carry controlled CodeQL runner output through the
@@ -565,6 +585,10 @@ Current acceptance evidence consists of:
   classes, including source-comment prompt containment, outbound workflow and
   provider redaction, shell-metacharacter quoting, and an ordinary
   triage-to-escaped-report E2E path;
+- Gate G release tests for lock-complete deterministic SBOM generation,
+  runtime/dev scope separation, four-surface version agreement, stale-file and
+  symlink rejection, checksum traversal rejection, byte tamper detection, and
+  a Git-free source-distribution secret scan;
 - simulated-HTTPS DeepSeek tests for the exact official host/path, JSON schema
   payload, complete three-role CLI flow, missing-key/error-body non-disclosure,
   offline-project rejection, and commit-eligible secret scanning; no live key
@@ -578,6 +602,7 @@ Current acceptance evidence consists of:
   successful pinned Java/CodeQL smoke, recorded with commands, exit codes, and
   artifact hashes in the dated progress log.
 
-The recorded external Java/CodeQL smoke is environment-specific. A hosted CI
-result and clean-room reproduction remain separate evidence that must be
-recorded honestly when those environments exist.
+The recorded external Java/CodeQL smokes remain environment-specific. The
+same-host sdist clean-room check/demo is separate evidence and does not imply a
+hosted CI result, second-host reproduction, or a combined clean-room CodeQL
+run.

@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "case_id": "cwe78-direct-tp",
+  "matrix_role": "cwe78-direct-tp",
+  "cwe_id": "CWE-78",
+  "language": "java",
+  "provenance": {
+    "kind": "original-synthetic",
+    "license_spdx": "Apache-2.0",
+    "description": "Original EviTriage-QL v0.1 release-matrix fixture."
+  },
+  "source": {
+    "project_relative_path": "src/main/java/org/evitriage/demo/DirectCommandCase.java",
+    "sha256": "52622cf56917f0fa7665fb6ca9e18e7e46150ad0bdaa303b924c24e8653c175f",
+    "callable": "runFromSocket",
+    "source_line": 15,
+    "sink_line": 16,
+    "source_fact": "Socket input supplies an attacker-controlled command string.",
+    "sink_fact": "The string reaches sh -c through ProcessBuilder without validation."
+  },
+  "sarif": {"run_index": 0, "result_index": 3},
+  "expected_codeql": {
+    "cli_version": "2.26.1",
+    "evidence_mode": "synthetic-golden",
+    "query_suite": "security-extended",
+    "rule_id": "java/command-line-injection",
+    "minimum_result_count": 1,
+    "require_code_flows": true
+  },
+  "ground_truth": {
+    "label": "TP",
+    "rationale": "Remote input is interpreted by a shell without an allowlist or structured argument boundary."
+  },
+  "execution": {"build_only": true, "runtime_exploit_required": false}
+}

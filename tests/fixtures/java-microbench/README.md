@@ -12,6 +12,9 @@ tools actually execute.
   machine-readable ground truth.
 - `command-app`: direct user-controlled command execution (planned CWE-78
   direct-TP case).
+- `gate-e-demo`: the compiled v0.1 six-case release matrix covering CWE-22
+  TP/FP/NMC, CWE-78 TP/FP, and prompt-injection containment. Its offline SARIF,
+  supplemental observations, and Replay labels are explicitly synthetic.
 
 Each project is a Maven Java 17 project. Its checked-in `mvnw` is the Apache
 Maven Wrapper 3.3.4 `only-script` launcher from upstream tag
@@ -22,5 +25,6 @@ the configured scan build itself uses Maven `--offline`. Java, Maven cache,
 and CodeQL availability are not assumed by offline CI.
 
 `case.schema.json` is the strict shared contract for microbenchmark ground
-truth. Case manifests bind labels and expected upstream CodeQL behavior to an
-exact source SHA-256; a label in this metadata is not an EviTriage decision.
+truth. Case manifests bind labels, SARIF result indexes, input provenance, and
+expected upstream CodeQL behavior to an exact source SHA-256; a label in this
+metadata is not independently verified ground truth.

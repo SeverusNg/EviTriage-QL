@@ -8,6 +8,22 @@ releases will follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Expanded the default offline demo from the Gate E three-label fixture to the
+  exact v0.1 six-case matrix: CWE-22 TP/FP/NMC, CWE-78 TP/FP, and a prompt-
+  injection case, with 18 identity-bound Replay calls and no automatic dismiss.
+- Made the six-case Maven fixture self-contained with its own Maven 3.9.9/SHA-
+  pinned wrapper and a matching source/build root; a real CodeQL 2.26.1 scan
+  now completes over that project and records four query results separately
+  from the synthetic six-result decision fixture.
+- Made the Git checkout secret scan tolerate tracked files that are genuinely
+  deleted in the working tree while continuing to reject existing symlinks,
+  non-regular files, and paths outside the checkout.
+- Made the credential scan work in both Git checkouts and identified source
+  distributions, while rejecting non-runtime symlinks/non-regular files; this
+  closes the first Gate G clean-room `make check` blocker without weakening the
+  checkout's Git commit-eligible boundary.
+- Aligned `CITATION.cff` with the package/lock/runtime `0.1.0` version and
+  updated its scope statement to the bounded offline vertical path.
 - Hardened every triage model task payload with deterministic secret redaction
   before canonical request hashing, and repeated the check at the DeepSeek
   provider boundary without mutating exact local evidence artifacts.
@@ -39,6 +55,18 @@ releases will follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Strict SHA-bound manifests and Java 17 compile coverage for all six v0.1
+  microcases, plus ADR 0012 documenting their synthetic provenance and release
+  acceptance boundary.
+- Release assembly of the reviewed six-row JSONL report, escaped HTML, finalized
+  run manifest, case/demo summaries, and actual full/security pytest summaries;
+  all are registered in `release-manifest.json` and `SHA256SUMS`.
+- Gate G `make release-artifacts` and `make release-verify` targets for the
+  wheel, source distribution, hash-bearing locked dependency inventory,
+  CycloneDX 1.5 SBOM, prompt/schema/version freeze metadata, closed manifest,
+  and `SHA256SUMS` verification.
+- ADR 0011, source-distribution reproducibility instructions, draft rc1 release
+  notes/blocker assessment, and release tamper/symlink/version-drift tests.
 - Gate F `security`, `golden`, and `e2e` pytest markers plus a directly
   selectable `make security-test` acceptance suite for prompt injection,
   malicious URI, path/symlink escape, HTML escape, shell metacharacters, and

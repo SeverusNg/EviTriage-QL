@@ -12,7 +12,7 @@ a conservative deterministic decision policy, a `triage` CLI, durable
 `ANALYZED → REBUTTED → JUDGED` states, model/decision artifacts, the Gate E
 integrated JSONL/escaped-HTML report path, direct scan-to-triage chaining, a
 strict identity-bound supplemental-evidence input, and a deterministic offline
-`make demo` backed by fixed synthetic TP/FP/NMC Replay entries. Gate F adds a
+`make demo` backed by the fixed synthetic six-case v0.1 matrix. Gate F adds a
 directly selectable attack-class suite plus deterministic redaction before
 model request hashing and at the remote-provider boundary. A pinned
 CodeQL 2.26.1 scan of the original Socket-based CWE-22 case produced one
@@ -21,7 +21,7 @@ CodeQL 2.26.1 scan of the original Socket-based CWE-22 case produced one
 is query and pipeline evidence, not an EviTriage TP/FP/NMC decision or evidence
 about arbitrary code. The Gate D decision fixtures, Gate E supplement, and
 Replay entries are synthetic. The one-command demo is pipeline/reproducibility
-evidence for three test cases, not a real-model decision, independently
+evidence for six test cases, not a real-model decision, independently
 verified ground truth, or an accuracy benchmark.
 
 An explicitly opt-in DeepSeek V4-Pro/Flash adapter is also present after the
@@ -144,14 +144,17 @@ Gate D now passes its bounded offline core and CLI/journal integration tests.
 Ordinary `scan` and `ingest-sarif` commands still stop at `CONTEXT_READY`;
 `triage` allocates a fresh auditable run, requires exactly one of `--sarif` or
 `--scan`, and can use a trusted read-only Replay cache. Gate E's offline P0
-closure produces strict TP/FP/NMC reports from three synthetic cases without
+closure produces strict TP/FP/NMC reports without
 weakening the policy, and a controlled-runner test carries `--scan` through
 the same `JUDGED` report path. The recorded real zero-result smoke and
 positive-query scan remain environment-specific evidence; clean-room/release
 validation must still reproduce them with the pinned external tools. Gate F's
 P0 quality/security gate now passes with explicit prompt-injection, malicious-
 URI, path/symlink, HTML-escape, shell-metacharacter, and secret-redaction
-coverage plus an enforced 80% branch-aware floor. Prior-run
+coverage plus an enforced 80% branch-aware floor. Gate G closes the six-case
+CWE-22 TP/FP/NMC, CWE-78 TP/FP, and prompt-injection matrix and checksum-binds
+the reviewed example reports/run manifest plus machine-readable full/security
+test summaries into the release directory. Prior-run
 continuation, a standalone report path, a general Replay cache producer, and a
 fresh real CodeQL scan-to-`JUDGED` evidence run remain outside this closure.
 Providers beyond the narrow DeepSeek V4

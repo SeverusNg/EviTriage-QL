@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "case_id": "cwe22-direct-tp",
+  "matrix_role": "cwe22-direct-tp",
+  "cwe_id": "CWE-22",
+  "language": "java",
+  "provenance": {
+    "kind": "original-synthetic",
+    "license_spdx": "Apache-2.0",
+    "description": "Original EviTriage-QL v0.1 release-matrix fixture."
+  },
+  "source": {
+    "project_relative_path": "src/main/java/org/evitriage/demo/DirectPathCase.java",
+    "sha256": "56d1b2040190447f6851cee81fc3c1a50c2005687be9282166dcbddaac8a8611",
+    "callable": "readFromSocket",
+    "source_line": 17,
+    "sink_line": 18,
+    "source_fact": "Socket input supplies an attacker-controlled path string.",
+    "sink_fact": "The path reaches Files.readString without a containment check."
+  },
+  "sarif": {"run_index": 0, "result_index": 0},
+  "expected_codeql": {
+    "cli_version": "2.26.1",
+    "evidence_mode": "synthetic-golden",
+    "query_suite": "security-extended",
+    "rule_id": "java/path-injection",
+    "minimum_result_count": 1,
+    "require_code_flows": true
+  },
+  "ground_truth": {
+    "label": "TP",
+    "rationale": "Remote input reaches a file-read sink without a containment guard."
+  },
+  "execution": {"build_only": true, "runtime_exploit_required": false}
+}

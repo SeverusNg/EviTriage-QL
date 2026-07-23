@@ -3,10 +3,14 @@
 **Evidence-Grounded LLM-Agent Triage for CodeQL Alerts**  
 基于 CodeQL 路径证据与大模型 Agent 的可审计漏洞告警二次筛选系统
 
-> Current implementation status: **Gate F P0 quality/security gate passes** on
-> top of the Gate E offline vertical closure.
-> The
-> checked-in code supports strict local project configuration, managed source
+> Current implementation status: **Gate G local release-candidate closure passes**
+> on top of the Gate F-hardened offline vertical closure. A source-distribution
+> clean-room install now passes the full check/demo path, release artifacts are
+> hash-closed with a CycloneDX SBOM, and a fresh pinned CodeQL smoke passes. The
+> six-case matrix and its reviewed JSONL/HTML/manifest/test summaries are now in
+> that checksum closure. No `v0.1.0-rc1` or `v0.1.0` tag has been created, and
+> hosted/second-host verification and publication have not occurred.
+> The checked-in code supports strict local project configuration, managed source
 > snapshots and workspaces, a real CodeQL command runner, existing-SARIF ingest,
 > deterministic SARIF 2.1.0 normalization, bounded Level 0/1 Java context, an
 > artifact-addressed evidence registry, and run-scoped audit artifacts. The
@@ -14,17 +18,21 @@
 > 17/CodeQL 2.26.1 scan of the original Socket-based CWE-22 case produced one
 > `java/path-injection` result with an eight-step path and reached
 > `CONTEXT_READY` on 2026-07-22. That is real query/pipeline evidence, not a
-> vulnerability verdict or a substitute for clean-room reproduction. A new
+> vulnerability verdict or a substitute for clean-room reproduction. A fresh
+> 2026-07-23 scan of the self-contained six-case Maven project produced four
+> real query results and also reached `CONTEXT_READY`; it is deliberately
+> separate from the synthetic six-result decision matrix. A new
 > offline-only Gate D path provides strict Fake/Replay structured model
 > adapters, bounded Analyst/Rebuttal/Judge sequencing, evidence-closed Claims,
 > conservative TP/FP/NMC policy, a `triage` CLI, durable Agent states, and
 > registered decision artifacts. Successful triage also registers strict
 > per-alert JSONL and escaped HTML reports before finalization, and accepts
 > either an existing SARIF artifact or a same-run CodeQL scan. The default
-> `make demo` path binds three checked-in Java microcases, Golden SARIF, a
+> `make demo` path binds six checked-in Java microcases, Golden SARIF, a
 > strict identity-bound synthetic evidence supplement, the offline Replay
-> profile, and nine SHA-256-addressed responses into one deterministic no-key
-> workflow that produces one TP, one FP, and one NMC report. These are
+> profile, and eighteen SHA-256-addressed responses into one deterministic no-key
+> workflow that produces CWE-22 TP/FP/NMC, CWE-78 TP/FP, and prompt-injection
+> safety evidence. These are
 > synthetic workflow/policy fixtures, not accuracy evidence. An opt-in
 > DeepSeek V4-Pro/Flash adapter is
 > restricted to DeepSeek's official HTTPS endpoint and an explicit remote-data
@@ -135,7 +143,7 @@ uv run evitriage ingest-sarif \
 uv run evitriage doctor --json
 ```
 
-`make demo` emits one machine-readable `TriageRunSummary` for three alerts. Its
+`make demo` emits one machine-readable `TriageRunSummary` for six alerts. Its
 `artifact_run_root` contains the preserved SARIF, normalized alerts, context,
 evidence, three Agent stages, `reports/decisions.jsonl`, `reports/index.html`,
 the append-only workflow event log, and the final run manifest. It uses only
@@ -143,8 +151,33 @@ the fixed synthetic Replay bundle under
 `tests/fixtures/replay-bundles/gate-e-three-label-v0.1` and the strictly bound
 supplement under `tests/fixtures/evidence/`; changing a prompt, response schema,
 profile, source, SARIF, supplement, or request identity produces an explicit
-failure. The one-TP/one-FP/one-NMC output is a reproducibility and policy
+failure. The three-TP/two-FP/one-NMC output is a reproducibility and policy
 fixture, not a model-quality or vulnerability-accuracy claim.
+
+## Gate G release artifact and clean-room path
+
+After `make check` and `make demo` pass, build and independently verify the
+candidate package closure:
+
+```bash
+make release-artifacts
+make release-verify
+```
+
+The default `dist/release/0.1.0/` directory contains the wheel, source
+distribution, a hash-bearing all-extras lock export, a CycloneDX 1.5 SBOM, the
+six-case matrix summary, reviewed example JSONL/HTML and its run manifest,
+machine-readable full/security test summaries, a strict release manifest, and
+`SHA256SUMS`. `make release-artifacts` executes the full and security pytest
+suites plus a fresh six-case demo before assembly. The builder fails on version
+drift, failed test summaries, mismatched case/report identities, unknown/stale
+files, symlinks, unsafe names, or artifact tampering. It does not create a tag,
+publish, sign, or turn the separate real-CodeQL smoke into a model verdict.
+
+The full source-distribution reinstall procedure and real-tool smoke boundary
+are in [`docs/reproducibility.md`](docs/reproducibility.md). The current candidate
+assessment and pending external release actions are in
+[`docs/releases/v0.1.0-rc1.md`](docs/releases/v0.1.0-rc1.md).
 
 `ingest-sarif` creates a managed source snapshot and a distinct run directory,
 copies the exact input bytes to `input/source.sarif`, records their SHA-256,
@@ -392,7 +425,7 @@ hashes do not depend on the fresh operational `run_id`.
 
 Existing finalized Gate C runs are not reopened or relabelled. The repository
 includes fixed synthetic, SHA-256-inventoried Replay bundles, including the
-default three-alert TP/FP/NMC `make demo`. Its identity-bound supplement makes
+default six-case v0.1 `make demo`. Its identity-bound supplement makes
 the synthetic test oracle explicit; binding and hashing do not independently
 prove the asserted evidence true. A general cache writer/producer attestation,
 triage continuation by prior `run_id`, and a standalone `report --run-id`

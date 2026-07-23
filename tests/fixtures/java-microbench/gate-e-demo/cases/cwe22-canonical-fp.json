@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "case_id": "cwe22-canonical-fp",
+  "matrix_role": "cwe22-canonical-fp",
+  "cwe_id": "CWE-22",
+  "language": "java",
+  "provenance": {
+    "kind": "original-synthetic",
+    "license_spdx": "Apache-2.0",
+    "description": "Original EviTriage-QL v0.1 release-matrix fixture."
+  },
+  "source": {
+    "project_relative_path": "src/main/java/org/evitriage/demo/CanonicalPathCase.java",
+    "sha256": "0ae55b8abe8d5dfcb383ec789dc51a23ce5f9c05efe70fd289a4a1c47006c4b9",
+    "callable": "readContained",
+    "source_line": 17,
+    "sink_line": 23,
+    "source_fact": "Socket input supplies a requested path.",
+    "sink_fact": "The only file read occurs after normalized base containment is enforced."
+  },
+  "sarif": {"run_index": 0, "result_index": 1},
+  "expected_codeql": {
+    "cli_version": "2.26.1",
+    "evidence_mode": "synthetic-golden",
+    "query_suite": "security-extended",
+    "rule_id": "java/path-injection",
+    "minimum_result_count": 1,
+    "require_code_flows": true
+  },
+  "ground_truth": {
+    "label": "FP",
+    "rationale": "The candidate path is normalized and rejected unless it remains under the normalized base."
+  },
+  "execution": {"build_only": true, "runtime_exploit_required": false}
+}

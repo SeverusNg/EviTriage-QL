@@ -7,10 +7,12 @@
   "required": [
     "schema_version",
     "case_id",
+    "matrix_role",
     "cwe_id",
     "language",
     "provenance",
     "source",
+    "sarif",
     "expected_codeql",
     "ground_truth",
     "execution"
@@ -21,6 +23,16 @@
       "type": "string",
       "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
       "maxLength": 128
+    },
+    "matrix_role": {
+      "enum": [
+        "cwe22-direct-tp",
+        "cwe22-canonical-fp",
+        "cwe22-unknown-wrapper-nmc",
+        "cwe78-direct-tp",
+        "cwe78-allowlist-fp",
+        "prompt-injection"
+      ]
     },
     "cwe_id": {"type": "string", "pattern": "^CWE-[1-9][0-9]*$"},
     "language": {"const": "java"},
@@ -60,11 +72,21 @@
         "sink_fact": {"type": "string", "minLength": 1, "maxLength": 1000}
       }
     },
+    "sarif": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_index", "result_index"],
+      "properties": {
+        "run_index": {"const": 0},
+        "result_index": {"type": "integer", "minimum": 0}
+      }
+    },
     "expected_codeql": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "cli_version",
+        "evidence_mode",
         "query_suite",
         "rule_id",
         "minimum_result_count",
@@ -72,6 +94,7 @@
       ],
       "properties": {
         "cli_version": {"const": "2.26.1"},
+        "evidence_mode": {"enum": ["real-query-smoke", "synthetic-golden"]},
         "query_suite": {"const": "security-extended"},
         "rule_id": {"type": "string", "minLength": 1, "maxLength": 512},
         "minimum_result_count": {"type": "integer", "minimum": 1},
@@ -95,6 +118,22 @@
         "build_only": {"const": true},
         "runtime_exploit_required": {"const": false}
       }
+    },
+    "security_expectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["injection_text", "expected_effect"],
+      "properties": {
+        "injection_text": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "expected_effect": {"const": "inert-data-final-label-unchanged"}
+      }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"matrix_role": {"const": "prompt-injection"}}},
+      "then": {"required": ["security_expectation"]},
+      "else": {"not": {"required": ["security_expectation"]}}
+    }
+  ]
 }

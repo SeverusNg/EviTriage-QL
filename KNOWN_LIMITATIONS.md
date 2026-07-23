@@ -1,9 +1,10 @@
 # Known limitations
 
-This document describes the checked-in **Gate F-hardened offline P0 vertical
-closure**: integrated reporting, both fresh triage inputs, a deterministic
-three-label offline demo, and a directly selectable attack-class regression
-suite.
+This document describes the checked-in **Gate G local release-candidate
+closure on the Gate F-hardened offline P0 vertical path**: integrated reporting,
+both fresh triage inputs, the deterministic six-case offline matrix, a directly
+selectable attack-class suite, and verified wheel/sdist/SBOM/example/test
+release evidence. It is not yet a tagged or published release.
 Items below are intentional scope boundaries or unresolved verification gaps,
 not implicit claims that the complete v0.1 research workflow exists.
 
@@ -137,15 +138,29 @@ not implicit claims that the complete v0.1 research workflow exists.
   Novel or unlabeled secret formats may survive. Exact local source, SARIF,
   slice, evidence, and JSONL artifacts are intentionally not rewritten and
   retain the analyzed source's confidentiality requirements.
-- `make demo` now completes three existing-SARIF cases and emits one TP, one FP,
+- `make demo` now completes six existing-SARIF cases and emits three TP, two FP,
   and one NMC report without Java, CodeQL, an API key, network access, or a real
-  model. Their evidence supplement and Replay responses are synthetic test
+  model. Its CWE-22 TP/FP/NMC, CWE-78 TP/FP, and prompt-injection evidence
+  supplement and Replay responses are synthetic test
   oracles, not independently validated vulnerability labels or accuracy data.
   Verification sandboxes, calibration, benchmark datasets, paper statistics,
   PostgreSQL, and GitHub alert integration remain later milestones.
 
 ## Operational boundary
 
+- `make release-artifacts` creates and hash-closes the wheel, sdist, all-extras
+  dependency inventory, CycloneDX 1.5 SBOM, six-case summary, reviewed example
+  JSONL/HTML/run manifest, and machine-readable full/security pytest summaries.
+  It does not sign or publish them, attest the build host, or audit dependency
+  licenses/vulnerabilities. The SBOM's third-party component data and sdist hashes come from
+  `uv.lock`; only this project's Apache-2.0 license is asserted.
+- One source-distribution clean-room run in a newly created directory now
+  passes an offline cached install, `make check`, and `make demo`. This is a
+  same-host reproducibility result, not a second-host/container result. The
+  initial offline attempt failed honestly on a missing cached mypy wheel; after
+  a normal locked network sync populated it, the second fresh directory
+  installed offline. A first sdist `make check` also exposed and then closed
+  the Git-only secret-scan blocker.
 - `pyproject.toml` enforces `uv 0.8.3`, but the repository does not vendor the
   uv executable or an installer. Operators must install the pinned release in a
   persistent location, verify its upstream integrity, and expose it on the
@@ -232,12 +247,14 @@ not implicit claims that the complete v0.1 research workflow exists.
   intended CWE-22/CWE-78 source pattern; they are not a representative
   vulnerability benchmark. The Gate D integration NMC is generated from a
   synthetic Replay response and is not an externally validated fixture label.
-- Gate C-Extra covers only one real query-positive CWE-22 path. Its completion
-  does not replace the pending six-case TP/FP/NMC/prompt-injection matrix or
-  establish generalization to public or real-project benchmarks.
-- No hosted CI result or clean-room real-tool reproduction should be inferred
-  until its actual command, exit code, tool versions, and artifacts are
-  recorded in the progress log.
+- Gate C-Extra covers only one real query-positive CWE-22 path. The completed
+  six-case release matrix uses synthetic Golden SARIF, test observations, and
+  Replay responses; neither result establishes generalization to public or
+  real-project benchmarks.
+- No hosted CI result, second-host clean-room result, or combined clean-room
+  real-tool reproduction should be inferred. The dated progress log records
+  one same-host sdist check/demo and one separate fresh real CodeQL smoke with
+  their actual commands, exit codes, versions, and artifact hashes.
 
 ## Security and research interpretation
 
