@@ -356,7 +356,7 @@ src/evitriage/     CLI、Domain 模型、流水线、适配器、策略、报告
 configs/           严格的系统、项目和 LLM Profile 示例
 schemas/           生成的公共 JSON Schema
 tests/             单元、集成、安全测试、夹具和 Replay 包
-docs/              架构、ADR、部署、进度和发布文档
+docs/              需求、架构、ADR、部署、进度和发布文档
 migrations/        最小本地 SQLite schema
 ```
 
@@ -366,6 +366,14 @@ migrations/        最小本地 SQLite schema
 
 ## 文档
 
+- 历史需求与完成度复核：
+  [项目蓝图](docs/requirements/project-blueprint-2026-07-20.zh-CN.md)、
+  [Codex 完整构建提示词](docs/requirements/codex-build-prompt-2026-07-20.zh-CN.md)和
+  [v0.1 日期推进计划](docs/progress/2026-07-20-v0.1-delivery-plan.zh-CN.md)。
+  `v0.1` P0/Gate A–G 发布范围已经完成；更长期的科研蓝图仅部分实现，日期
+  推进计划是历史基线，不是实时待办清单。
+- [双环境阶段总结与可执行计划](docs/progress/2026-07-23-stage-summary.zh-CN.md) |
+  [Dual-environment stage summary](docs/progress/2026-07-23-stage-summary.md)
 - [部署与运行](docs/deployment-guide.zh-CN.md) |
   [Deployment and operations](docs/deployment-guide.md)
 - [架构与信任边界（英文）](docs/architecture.md)

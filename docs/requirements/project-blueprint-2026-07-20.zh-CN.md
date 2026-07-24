@@ -1,5 +1,16 @@
 # EviTriage-QL 最终项目蓝图
 
+> **文档状态（2026-07-24 复核）**：这是 2026-07-20 冻结的长期研究与
+> 产品蓝图，现已从仓库根目录归档到 `docs/requirements/`，正文的历史目标
+> 和日期口径保持不变。蓝图中的 `v0.1.0` 最小纵向闭环、Gate A–G
+> 工程门禁和发布要求已经完成；稳定版 `v0.1.0` 与当前 `v0.2.0` 均于
+> 2026-07-23 发布。长期科研议程仍然**仅部分完成**：多语言/Gradle/远程
+> Git、adaptive context、选择性验证、数据集实验、校准和独立准确率结论等
+> 不在当前可执行边界内。完成证据见
+> [v0.1 交付日志](../progress/2026-07-27-v0.1.md)，当前能力应以
+> [README](../../README.zh-CN.md)、CLI/schema/tests 和
+> [已知限制](../../KNOWN_LIMITATIONS.zh-CN.md)为准。
+
 **文档版本**：Final 1.0（2026-07-20，Asia/Tokyo）  
 **项目全称**：EviTriage-QL：基于 CodeQL 路径证据与大模型 Agent 的可审计漏洞告警二次筛选系统  
 **英文题目**：EviTriage-QL: Evidence-Grounded LLM-Agent Triage for CodeQL Alerts  

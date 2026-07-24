@@ -44,8 +44,15 @@ writes only TPM2-bound ciphertext below the operator's private home data
 directory or asks validated pass/GPG to encrypt the fixed password-store entry
 through standard input; chat-exposed keys must be revoked before enrollment.
 
-The normative product requirements are the dated Chinese blueprint and build
-prompt at the repository root. If prose conflicts with executable behavior,
+The long-term normative product requirements are the dated Chinese
+[`docs/requirements/project-blueprint-2026-07-20.zh-CN.md`](docs/requirements/project-blueprint-2026-07-20.zh-CN.md)
+and
+[`docs/requirements/codex-build-prompt-2026-07-20.zh-CN.md`](docs/requirements/codex-build-prompt-2026-07-20.zh-CN.md).
+The dated
+[`docs/progress/2026-07-20-v0.1-delivery-plan.zh-CN.md`](docs/progress/2026-07-20-v0.1-delivery-plan.zh-CN.md)
+is the historical v0.1 plan; do not treat its original unchecked boxes as the
+current backlog. Use the later delivery evidence log and release notes to
+assess completion. If requirements prose conflicts with executable behavior,
 first preserve safety, then update the implementation and documentation in the
 same change so the discrepancy is visible.
 
@@ -69,6 +76,38 @@ same change so the discrepancy is visible.
   fixture documentation, and the dated normative requirements. Generated
   files, vendored third-party text, licenses, citation metadata, and immutable
   run artifacts are exempt.
+- The three dated 2026-07-20 Chinese requirement/plan files are preserved
+  source records from the repository's initial input and currently have no
+  complete English translation. Keep their original bodies intact, mirror
+  current status and navigation in both root READMEs, and do not create a
+  materially weaker summary file merely to imply a translation exists. Any
+  substantive future edit to those bodies must add and maintain a complete
+  English counterpart.
+
+## Documentation authority and completion claims
+
+- Current executable behavior is established by the CLI, strict schemas,
+  tests, release evidence, and `KNOWN_LIMITATIONS.md`, not by future-looking
+  examples in the dated requirements.
+- The v0.1 P0 vertical slice and Gate A-G release scope are complete. The
+  historical evidence is in `docs/progress/2026-07-27-v0.1.md`, and the current
+  package/code version is v0.2.0.
+- The project blueprint and build prompt also describe a longer-term research
+  platform. Do not mark those documents wholly complete: remote Git and
+  dataset acquisition, Gradle and additional languages, adaptive context,
+  selective verification, calibration, broader experiments, and independent
+  accuracy evidence remain outside the current executable boundary.
+- The original plan expected a separate `v0.1.0-rc1` tag. Candidate checks
+  passed, but no RC tag was created; the stable v0.1.0 release superseded that
+  candidate. Do not rewrite the historical schedule to imply otherwise.
+- Use the bilingual
+  [`2026-07-23 stage summary`](docs/progress/2026-07-23-stage-summary.md) /
+  [`阶段工作总结`](docs/progress/2026-07-23-stage-summary.zh-CN.md) as the
+  executability handoff for the Ubuntu/WSL evidence and next experiments.
+  Preserve its distinction between checked-in evidence and host-local,
+  Git-ignored `artifacts/`/`dist/` files. Real scans execute target build code,
+  and remote DeepSeek runs require explicit operator authorization; the
+  summary is guidance, not standing authorization.
 
 ## Required local checks
 

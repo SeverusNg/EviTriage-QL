@@ -401,7 +401,7 @@ src/evitriage/     CLI, domain models, pipeline, adapters, policy, reporting
 configs/           Strict system, project, and LLM profile examples
 schemas/           Generated public JSON Schemas
 tests/             Unit, integration, security, fixtures, and Replay bundles
-docs/              Architecture, ADRs, deployment, progress, and releases
+docs/              Requirements, architecture, ADRs, deployment, progress, releases
 migrations/        Minimal local SQLite schema
 ```
 
@@ -412,6 +412,15 @@ guide to what is available now.
 
 ## Documentation
 
+- Historical requirements and completion review:
+  [project blueprint (Chinese source)](docs/requirements/project-blueprint-2026-07-20.zh-CN.md),
+  [Codex build prompt (Chinese source)](docs/requirements/codex-build-prompt-2026-07-20.zh-CN.md),
+  and [v0.1 delivery plan (Chinese source)](docs/progress/2026-07-20-v0.1-delivery-plan.zh-CN.md).
+  The v0.1 P0/Gate A-G release scope is complete; the broader research
+  blueprint is only partially implemented, and the delivery plan is a
+  historical baseline rather than a live checklist.
+- [Dual-environment stage summary and executable next steps](docs/progress/2026-07-23-stage-summary.md) |
+  [双环境阶段总结与可执行计划](docs/progress/2026-07-23-stage-summary.zh-CN.md)
 - [Deployment and operations](docs/deployment-guide.md) |
   [部署与运行](docs/deployment-guide.zh-CN.md)
 - [Architecture and trust boundaries](docs/architecture.md)
