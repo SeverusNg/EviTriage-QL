@@ -2,529 +2,208 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-**Evidence-Grounded LLM-Agent Triage for CodeQL Alerts**  
-基于 CodeQL 路径证据与大模型 Agent 的可审计漏洞告警二次筛选系统
+**Evidence-grounded, auditable secondary triage for CodeQL alerts.**
 
-> Current release: **v0.2.0**, adding fail-closed environment,
-> TPM2/systemd-creds, and pass/GPG credential providers to the bounded Gate G
-> research release. A source-distribution clean-room
-> install passes the full check/demo path, release artifacts are hash-closed
-> with a CycloneDX SBOM, and a fresh pinned CodeQL smoke passes. The six-case
-> matrix and its reviewed JSONL/HTML/manifest/test summaries are included in
-> that checksum closure. This release does not claim a second-host
-> reproduction, artifact signature, model-quality benchmark, or production
-> readiness.
-> The checked-in code supports strict local project configuration, managed source
-> snapshots and workspaces, a real CodeQL command runner, existing-SARIF ingest,
-> deterministic SARIF 2.1.0 normalization, bounded Level 0/1 Java context, an
-> artifact-addressed evidence registry, and run-scoped audit artifacts. The
-> offline Golden SARIF path is tested without Java or CodeQL. A pinned Java
-> 17/CodeQL 2.26.1 scan of the original Socket-based CWE-22 case produced one
-> `java/path-injection` result with an eight-step path and reached
-> `CONTEXT_READY` on 2026-07-22. That is real query/pipeline evidence, not a
-> vulnerability verdict or a substitute for clean-room reproduction. A fresh
-> 2026-07-23 scan of the self-contained six-case Maven project produced four
-> real query results and also reached `CONTEXT_READY`; it is deliberately
-> separate from the synthetic six-result decision matrix. A new
-> offline-only Gate D path provides strict Fake/Replay structured model
-> adapters, bounded Analyst/Rebuttal/Judge sequencing, evidence-closed Claims,
-> conservative TP/FP/NMC policy, a `triage` CLI, durable Agent states, and
-> registered decision artifacts. Successful triage also registers strict
-> per-alert JSONL and escaped HTML reports before finalization, and accepts
-> either an existing SARIF artifact or a same-run CodeQL scan. The default
-> `make demo` path binds six checked-in Java microcases, Golden SARIF, a
-> strict identity-bound synthetic evidence supplement, the offline Replay
-> profile, and eighteen SHA-256-addressed responses into one deterministic no-key
-> workflow that produces CWE-22 TP/FP/NMC, CWE-78 TP/FP, and prompt-injection
-> safety evidence. These are
-> synthetic workflow/policy fixtures, not accuracy evidence. An opt-in
-> DeepSeek V4-Pro/Flash adapter is
-> restricted to DeepSeek's official HTTPS endpoint and an explicit remote-data
-> policy. Acceptance tests use a simulated endpoint. A separately authorized
-> 2026-07-23 live smoke completed three structured calls and reached `JUDGED`
-> for one synthetic fixture; it is provider-path evidence, not a quality
-> benchmark.
+EviTriage-QL starts from CodeQL's source-to-sink facts, preserves their
+provenance, builds bounded source context and evidence, and runs a constrained
+Analyst → Rebuttal → Judge workflow. A deterministic policy then produces one
+of three review labels:
 
-## Problem
+- `TP` — the available evidence supports a true positive;
+- `FP` — decisive rebuttal evidence supports a false positive;
+- `NMC` — more context is needed, so the system refuses to force a binary
+  answer.
 
-CodeQL can identify many potentially security-relevant data flows, but a human
-still has to decide whether each path is feasible and exploitable. The complete
-EviTriage-QL design will preserve CodeQL's source-to-sink facts, attach every
-claim to stable evidence, and use a bounded Analyst/Rebuttal/Judge workflow to
-produce one of three auditable outcomes: true positive (`TP`), false positive
-(`FP`), or needs more context (`NMC`). It will never automatically dismiss an
-upstream alert.
+Every conclusion remains linked to the exact SARIF result occurrence and the
+artifacts that support it. `auto_dismiss` is always `false`: EviTriage-QL never
+closes an upstream CodeQL alert.
 
-Gate B establishes the two input branches. Gate C consumes their shared output:
-a real
-`scan` and an operator-supplied `ingest-sarif` both preserve and hash their raw
-SARIF, enter the same normalizer, and then use the same context/evidence path.
-This keeps offline reproduction useful without presenting Golden data as a real
-CodeQL result.
+> **Current codebase: v0.2.0 (alpha research infrastructure).** This is a local
+> CLI, not a production vulnerability classifier, hosted service, or
+> autonomous remediation system. The checked-in offline demo is deterministic
+> and synthetic. It demonstrates workflow, policy, and artifact
+> reproducibility—not model quality, vulnerability accuracy, or independent
+> ground truth.
 
-## Gate C/D pipeline and Gate E offline reports
+## What it does
 
-```mermaid
-flowchart LR
-    U[Trusted operator] --> C{CLI}
-    C --> V[ProjectSpec validation]
-    V --> W[Managed source snapshot and build copy]
-    C --> I[ingest-sarif / normalize]
-    W --> S[scan]
-    S --> R[CodeQLRunner]
-    R -->|real tool output| RAW[Preserved raw SARIF artifact]
-    I -->|operator input copy| RAW
-    RAW --> N[Shared SARIF 2.1.0 normalizer]
-    N --> A[Normalized AlertBundle]
-    A --> X[Level 0/1 SliceArtifact per alert]
-    X --> E[Evidence Registry + DOT + source map]
-    G[Trusted identity-bound evidence supplement] --> E
-    E --> T[Bounded Analyst → Rebuttal → Judge]
-    F[FakeLLM / ReplayLLM] --> T
-    T --> P[Deterministic TP / FP / NMC policy]
-    P --> D[Strict TriageResult + stage artifacts]
-    D --> Q[Strict JSONL + escaped HTML report]
-    Q --> J[Run manifest + append-only event log at JUDGED]
-```
+- Accepts either an existing SARIF 2.1.0 artifact or a fresh CodeQL scan.
+- Sends both input modes through one strict normalization, context, and
+  evidence pipeline.
+- Preserves raw SARIF bytes and every alert's exact
+  `(SARIF SHA-256, run_index, result_index)` identity without upstream
+  deduplication.
+- Creates copy-only source snapshots and a separate writable build copy for
+  every run. EviTriage-QL's own file adapters treat the original source tree
+  as input-only.
+- Extracts bounded Level 0/1 Java context with explicit omissions when source
+  is missing, unsafe, binary, oversized, changed, out of bounds, or over
+  budget.
+- Restricts model claims to a closed, artifact-addressed Evidence Registry.
+- Supports deterministic offline Replay triage and an explicitly authorized
+  DeepSeek path.
+- Writes strict JSONL, escaped HTML, stage artifacts, a SHA-256 manifest, and
+  an append-only workflow event log.
 
-The detailed boundaries and trust assumptions are documented in
-[`docs/architecture.md`](docs/architecture.md). The foundation, input
-convergence, and context/evidence decisions are recorded in
-[`ADR 0001`](docs/adr/0001-initial-architecture.md) and
-[`ADR 0002`](docs/adr/0002-gate-b-input-convergence.md),
-[`ADR 0003`](docs/adr/0003-gate-c-context-evidence.md), and
-[`ADR 0004`](docs/adr/0004-gate-c-extra-query-positive-benchmark.md). The
-bounded offline triage decision is recorded in
-[`ADR 0005`](docs/adr/0005-gate-d-bounded-triage-core.md); the explicit remote
-data and credential boundary for DeepSeek is recorded in
-[`ADR 0006`](docs/adr/0006-deepseek-v4-opt-in-provider.md), with multi-provider
-selection in
-[`ADR 0013`](docs/adr/0013-deepseek-multi-credential-providers.md), and the first
-offline reporting slice in
-[`ADR 0007`](docs/adr/0007-gate-e-offline-reports.md). The first fixed offline
-demo bundle is recorded in [`ADR 0008`](docs/adr/0008-gate-e-offline-demo.md),
-and the three-label evidence/scan closure in
-[`ADR 0009`](docs/adr/0009-gate-e-three-label-and-scan-closure.md).
+## Choose a workflow
 
-## Deployment and operations guide
+| Workflow | Additional requirements | Executes target code | Model network | Successful state |
+| --- | --- | ---: | ---: | --- |
+| `make demo` | Synced Python dependencies | No | No | `JUDGED`, six synthetic decisions |
+| `ingest-sarif` / `normalize` | Matching local source and SARIF | No | No | `CONTEXT_READY`, no label |
+| `scan` | JDK 17, CodeQL 2.26.1, prepared Maven 3.9.9 distribution/dependency caches | Yes | No | `CONTEXT_READY`, no label |
+| `triage --sarif` with Replay | Exact trusted read-only Replay entries | No | No | `JUDGED`, JSONL and HTML |
+| `triage --scan` | Real-scan environment plus Replay or authorized DeepSeek | Yes | Provider-dependent | `JUDGED`, JSONL and HTML |
+| DeepSeek `triage` | Dual upload-policy opt-in, network, and a secure credential | Input-dependent | Yes | `JUDGED`, JSONL and HTML |
 
-Start a first deployment with
-[`docs/deployment-guide.md`](docs/deployment-guide.md). It progresses from the
-offline demo through existing SARIF and real CodeQL to optional DeepSeek,
-covering environment setup, ProjectSpec onboarding, artifact audit, CI and
-operations, and troubleshooting while keeping synthetic demos, real scans, and
-model verdicts distinct.
+`CONTEXT_READY` means that input, normalization, context, and evidence
+processing completed. It is not a `TP`/`FP`/`NMC` verdict. Only a fresh
+`triage` run continues through `ANALYZED → REBUTTED → JUDGED`.
+The `triage --scan` path has controlled-runner integration coverage, but this
+codebase does not claim a fresh real-CodeQL-to-`JUDGED` acceptance artifact.
 
 ## Five-minute offline quickstart
 
-Prerequisites for the tested Golden SARIF path:
+The documented acceptance baseline uses:
 
-- Python 3.12;
-- [`uv 0.8.3`](https://docs.astral.sh/uv/) installed in a persistent location
-  and available on `PATH` in a fresh login shell;
-- GNU Make (or a compatible `make`).
+- Python 3.12; package metadata permits Python `>=3.12,<3.14`;
+- exactly [`uv 0.8.3`](https://docs.astral.sh/uv/), installed persistently and
+  available on `PATH`;
+- GNU Make or a compatible `make`.
 
-The executable `tool.uv.required-version` gate in `pyproject.toml` rejects a
-different uv version. A temporary bootstrap below `/tmp` is useful for recovery
-but is not a completed development-environment installation. Verify the
-environment before synchronization:
+From the repository root:
 
 ```bash
-command -v uv
 uv --version  # expected: uv 0.8.3
+uv sync --all-extras
+uv run evitriage doctor --json
+make demo
 ```
 
-Java, Maven, CodeQL, and API keys are not required for this Golden path. Once
-the locked Python dependencies are available, the ingest command itself makes
-no network request; a first `uv sync` may still need an existing package cache
-or package-index access. From the repository root:
+The first `uv sync` may need a package index or a populated cache. Once the
+locked dependencies are available, `make demo` uses `uv run --offline` and
+does not require Java, CodeQL, an API key, a real model, or a model-service
+request.
+
+The demo prints one machine-readable `TriageRunSummary`. A successful result
+has:
+
+- `state: "JUDGED"` and `real_codeql: false`;
+- six alerts and eighteen Replay calls;
+- three `TP`, two `FP`, and one `NMC`;
+- an `artifact_run_root` pointing to the complete audit directory.
+
+Open `<artifact_run_root>/reports/index.html` for the self-contained report or
+process `<artifact_run_root>/reports/decisions.jsonl` as strict JSONL. These
+labels come from fixed Golden SARIF, synthetic evidence, and synthetic Replay
+responses. They are a reproducibility fixture, not an accuracy benchmark.
+
+`doctor` returning `status: "ok"` means its required checks passed: the Python
+version, an executable `uv`, SQLite, the loadable system config, and writable
+managed roots. It may create or permission those roots and writes bounded
+probes. It does not verify the uv pin, Make, dependency/cache completeness, or
+scan readiness. Java, `javac`, and CodeQL are optional diagnostics there; the
+real scan runner checks their versions against the ProjectSpec.
+
+## How it works
+
+```mermaid
+flowchart LR
+    P[Strict ProjectSpec + local source] --> W[Managed source snapshot]
+    X[Existing SARIF] --> R[Preserved raw SARIF]
+    W --> K[Run-isolated writable build copy]
+    K --> C[Real CodeQL scan]
+    C --> R
+    R --> N[Strict shared SARIF normalizer]
+    W --> B[Bounded Java context]
+    N --> B
+    B --> E[Closed Evidence Registry]
+    S[Identity-bound trusted supplement] --> E
+    E --> G[CONTEXT_READY]
+    E --> A[Analyst → Rebuttal → Judge]
+    M[Offline Replay or opt-in DeepSeek] --> A
+    A --> D[Deterministic TP / FP / NMC policy]
+    D --> Q[Strict JSONL + escaped HTML]
+    Q --> J[Manifest + append-only event log]
+```
+
+The two input branches have different acquisition and tool provenance. Both
+allocate an isolated build copy, but only a scan executes it and emits CodeQL
+tool logs. Once raw SARIF exists, both branches share the same parser,
+normalizer, context builder, Evidence Registry, artifact journal, and—when
+`triage` is selected—decision/report path.
+
+Model output is a candidate, not the final authority. Claims must reference
+evidence for the exact alert occurrence. The deterministic policy downgrades
+conflicts, unknowns, unresolved critical claims, and insufficient support to
+`NMC`. An optional evidence supplement is identity-bound and auditable, but
+its assertions are still trusted input rather than independently proven facts.
+
+## Connect an existing SARIF artifact
+
+Start from [`configs/projects/example-local.yaml`](configs/projects/example-local.yaml).
+For private targets, use a filename such as
+`configs/projects/private-my-project.yaml`; that pattern is ignored by Git.
+Set `source.path` to the exact local source revision corresponding to the
+SARIF.
+
+Validate the ProjectSpec, then ingest:
 
 ```bash
-uv sync --all-extras
-make check
-
-# Complete offline TP/FP/NMC demo: no Java, CodeQL, API key, or real model.
-make demo
-
 uv run evitriage project validate \
-  --config configs/projects/example-local.yaml \
+  --config configs/projects/private-my-project.yaml \
+  --allowed-source-root /absolute/path/to/source \
   --json
 
 uv run evitriage ingest-sarif \
-  --project-config configs/projects/example-local.yaml \
-  --sarif tests/fixtures/sarif/single-path.sarif \
-  --json
-
-uv run evitriage doctor --json
-```
-
-`make demo` emits one machine-readable `TriageRunSummary` for six alerts. Its
-`artifact_run_root` contains the preserved SARIF, normalized alerts, context,
-evidence, three Agent stages, `reports/decisions.jsonl`, `reports/index.html`,
-the append-only workflow event log, and the final run manifest. It uses only
-the fixed synthetic Replay bundle under
-`tests/fixtures/replay-bundles/gate-e-three-label-v0.1` and the strictly bound
-supplement under `tests/fixtures/evidence/`; changing a prompt, response schema,
-profile, source, SARIF, supplement, or request identity produces an explicit
-failure. The three-TP/two-FP/one-NMC output is a reproducibility and policy
-fixture, not a model-quality or vulnerability-accuracy claim.
-
-## Gate G release artifact and clean-room path
-
-After `make check` and `make demo` pass, build and independently verify the
-release package closure:
-
-```bash
-make release-artifacts
-make release-verify
-```
-
-The default `dist/release/0.2.0/` directory contains the wheel, source
-distribution, a hash-bearing all-extras lock export, a CycloneDX 1.5 SBOM, the
-six-case matrix summary, reviewed example JSONL/HTML and its run manifest,
-machine-readable full/security test summaries, a strict release manifest, and
-`SHA256SUMS`. `make release-artifacts` executes the full and security pytest
-suites plus a fresh six-case demo before assembly. The builder fails on version
-drift, failed test summaries, mismatched case/report identities, unknown/stale
-files, symlinks, unsafe names, or artifact tampering. It does not create a tag,
-publish, sign, or turn the separate real-CodeQL smoke into a model verdict.
-
-The full source-distribution reinstall procedure and real-tool smoke boundary
-are in [`docs/reproducibility.md`](docs/reproducibility.md). The v0.2.0 scope,
-evidence, artifacts, and interpretation limits are in
-[`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md).
-
-`ingest-sarif` creates a managed source snapshot and a distinct run directory,
-copies the exact input bytes to `input/source.sarif`, records their SHA-256,
-and writes `normalized/alerts.json`, one `context/slices/*.json` per alert,
-`context/index.json`, `evidence/registry.json`, `evidence/graph.dot`, and an
-escaped `context/source-map.html`, plus the resolved ProjectSpec/workspace
-descriptor and audit files. Before finalizing,
-the journal reopens every registered artifact, verifies its size and SHA-256,
-then makes the artifact and audit files owner-read-only (`0400`). The
-`normalize` command accepts the same arguments and deliberately exercises the
-same normalizer as a separate CLI operation:
-
-```bash
-uv run evitriage normalize \
-  --project-config configs/projects/example-local.yaml \
-  --sarif tests/fixtures/sarif/multi-path.sarif \
+  --project-config configs/projects/private-my-project.yaml \
+  --sarif /absolute/path/to/results.sarif \
+  --allowed-source-root /absolute/path/to/source \
   --json
 ```
 
-Both commands are read-only with respect to the configured fixture source.
-Runtime databases, workspaces, and artifacts are deliberately ignored by Git.
-For a local source outside this checkout, the trusted operator must explicitly
-repeat `--allowed-source-root /canonical/root`; a ProjectSpec cannot widen its
-own filesystem permissions.
+For source inside this checkout, `--allowed-source-root` can be omitted. A
+ProjectSpec cannot grant itself access to an external source root; the trusted
+operator must repeat that boundary on each command.
 
-Gate D consumes an operator-controlled, request-hash-addressed Replay cache:
+Existing-SARIF ingest never runs Maven or CodeQL. It preserves the exact input
+bytes, snapshots the selected source, normalizes every supported result
+occurrence, extracts context, and builds the evidence artifacts. If a
+referenced regular source file exists, EviTriage-QL hashes it independently
+and rejects a conflicting SARIF hash. Missing source stays unknown and partial;
+the system does not claim that missing-file coordinates were verified.
+The operator still supplies the source/SARIF correspondence: containment and
+file-hash checks can detect some conflicts, but cannot prove that the selected
+snapshot produced the SARIF.
 
-```bash
-uv run evitriage triage \
-  --project-config configs/projects/example-local.yaml \
-  --sarif tests/fixtures/sarif/single-path.sarif \
-  --llm-profile configs/llm/replay-v0.1.yaml \
-  --replay-cache /trusted/read-only/replay-cache \
-  --json
-```
+`normalize` accepts the same `--project-config` and `--sarif` arguments. It is
+an explicit operator alias over the same complete path, so it also builds
+context/evidence and ends at `CONTEXT_READY`; it is not a normalization-only
+shortcut.
 
-For a scan and downstream triage in one fresh run, use exactly `--scan` instead
-of `--sarif`:
+## Run a real CodeQL scan
 
-```bash
-uv run evitriage triage \
-  --project-config configs/projects/example-local.yaml \
-  --scan \
-  --llm-profile configs/llm/replay-v0.1.yaml \
-  --replay-cache /trusted/read-only/replay-cache \
-  --json
-```
+> **A real scan executes the target repository's checked-in Maven Wrapper as
+> the current host user.** Managed copies, validated argument vectors, an
+> environment allowlist, and timeouts are not an operating-system sandbox.
+> Scan only trusted repositories unless you provide an external isolated
+> account, VM, or container with filesystem, network, process, CPU, and memory
+> controls. Without that isolation, target build code can read or modify files
+> accessible to the host account, including material under its home directory
+> and a writable original source tree.
 
-The repository ships only fixed synthetic demo responses, not a general cache
-writer. Every required `<request-sha256>.json` entry must already exist and
-satisfy the strict role schema; a missing entry creates an auditable
-`MODEL_FAILED` run rather than falling back to a network provider. A trusted
-evidence supplement can be supplied with `--evidence-supplement`; its project,
-snapshot, raw-SARIF, and exact result-occurrence identities must match, and it
-adds assertions only—it cannot set Claims or a desired label.
+EviTriage-QL does not install the external scan toolchain. The checked-in
+examples require:
 
-On success, the same finalized run contains
-`reports/decisions.jsonl` (one strict `AlertReport` per normalized alert) and
-`reports/index.html` (a self-contained audit view). Both are registered in the
-manifest with role `report`, reverified by SHA-256, and made owner-read-only.
-The HTML view escapes untrusted source/SARIF/model text and explicitly records
-that confidence is uncalibrated, verification was not performed, and no alert
-was automatically dismissed. JSONL can include bounded source excerpts and
-must be protected like the analyzed source tree.
+- CodeQL CLI `2.26.1` on `PATH`;
+- `java` and `javac` from the same JDK 17;
+- an executable, non-symlink, checked-in `./mvnw`;
+- the declared Maven 3.9.9 distribution in the Wrapper cache and project
+  dependencies in the Maven local repository/cache for the configured
+  `--offline` build;
+- exact `scope/name@x.y.z` pins for optional query/model packs.
 
-### DeepSeek V4: multi-provider API-key handoff
-
-The checked-in DeepSeek profile selects `deepseek-v4-pro`; the alternative
-official model ID `deepseek-v4-flash` is also accepted. The adapter has no
-configurable URL: it connects directly to `api.deepseek.com:443`, posts only to
-`/chat/completions`, requests JSON Output, disables thinking/tool calls, and
-validates the result through the same evidence boundary as Replay.
-[The LLM invocation and credential-flow design](docs/llm-invocation-and-credential-flow.md)
-documents the complete triage path and the implemented WSL/Linux
-multi-provider credential architecture.
-[DeepSeek's official API documentation](https://api-docs.deepseek.com/) is the
-source of the endpoint and current V4 model identifiers.
-
-Do **not** send the API key in chat and do not put it in a command argument,
-YAML, `.env`, shell script, or Git file. A key already sent through chat must be
-revoked before storage because its prior copies cannot be made secret again.
-Credential selection is separate from model selection:
-
-- `environment` reads only this process's `DEEPSEEK_API_KEY` and never
-  persists it;
-- `systemd-creds` retains the fixed TPM2-bound Linux ciphertext path;
-- `pass` reads the fixed `evitriage/deepseek-api-key` password-store entry
-  through GPG;
-- `auto` tries `environment → systemd-creds → pass`.
-
-Explicit selection never falls back. Auto skips only an unavailable provider:
-if a selected environment value is malformed, a systemd ciphertext cannot be
-decrypted, or an installed pass entry fails GPG decryption, triage stops rather
-than trying another credential.
-
-On a Linux host with TPM2 and systemd, use the repository-external encrypted
-credential store. The operator must be able to access `/dev/tpmrm0`; on this
-host that requires one administrator action followed by a full logout/login:
-
-```bash
-sudo usermod -aG tss liyitao
-```
-
-After starting a new login session, enter the newly rotated key once through a
-hidden prompt and verify only its non-secret status:
-
-```bash
-uv run evitriage credentials set-deepseek --provider systemd-creds
-uv run evitriage credentials status --json
-```
-
-The encrypted blob is stored outside the checkout at
-`~/.local/share/evitriage/credentials/evitriage-deepseek-api-key.cred`, with a
-private `0700` directory and `0600` file. `systemd-creds` encrypts it with TPM2;
-`triage --credential-provider systemd-creds` decrypts it through an in-memory
-pipe on each run. No plaintext credential file is created. Use `--replace` only
-when rotating an existing encrypted credential.
-
-WSL normally lacks a usable TPM2/systemd-creds path. For persistent WSL or
-native-Linux storage, install standard `pass` and GPG, initialize the password
-store with a **passphrase-protected** GPG private key, and then enroll through
-the hidden double prompt:
-
-```bash
-pass init <your-gpg-key-id>  # one-time pass/GPG setup outside EviTriage
-uv run evitriage credentials set-deepseek --provider pass
-
-uv run evitriage triage \
-  --project-config configs/projects/example-local-deepseek-v4.yaml \
-  --sarif tests/fixtures/sarif/single-path.sarif \
-  --llm-profile configs/llm/deepseek-v4-pro.yaml \
-  --credential-provider pass \
-  --json
-```
-
-EviTriage fixes `PASSWORD_STORE_DIR` to the real operator home's
-`~/.password-store`, disables pass extensions, validates the `pass` executable,
-and sends the key to `pass insert` only over standard input. GPG-agent may cache
-the unlocked private-key state: this improves usability but means same-user
-processes can potentially use the agent until its cache expires. Configure a
-short cache TTL appropriate to the host and lock or terminate the agent when
-the session ends. Secret Service/Python keyring is intentionally not the
-default because a desktop D-Bus session and unlocked keyring are unreliable
-assumptions for WSL, CI, SSH, and other headless environments.
-
-For an ephemeral run, or on a host without the encrypted store, use this
-one-time hidden environment prompt instead:
-
-```bash
-(
-  trap 'unset DEEPSEEK_API_KEY' EXIT
-  read -rsp 'DeepSeek API Key: ' DEEPSEEK_API_KEY
-  printf '\n'
-  export DEEPSEEK_API_KEY
-
-  uv run evitriage triage \
-    --project-config configs/projects/example-local-deepseek-v4.yaml \
-    --sarif tests/fixtures/sarif/single-path.sarif \
-    --llm-profile configs/llm/deepseek-v4-pro.yaml \
-    --credential-provider environment \
-    --json
-)
-```
-
-In every backend, plaintext is used only to construct the HTTPS
-`Authorization: Bearer` header. It is not copied into model messages,
-request/response artifacts, manifests, child-process environments, or
-structured errors. Credential protection covers only the API key: evidence
-items and source excerpts **are** still sent to DeepSeek when both trusted
-policies declare `remote_llm_allowed`.
-
-There is no meaningful claim of “absolute security”: the key necessarily
-exists briefly in process memory (and, for `environment`, the process
-environment) and is received by the provider. TPM2 does not protect against an
-authorized same-user process; pass/GPG does not protect an already unlocked
-gpg-agent session. For higher-assurance deployments, use a dedicated execution
-account and an OS/cloud secret manager. The repository ignores `.env`, key,
-secret, password-store, response, workspace, and artifact files; `make check`
-additionally fails if commit-eligible files match credential patterns.
-Run the guard directly with:
-
-```bash
-uv run python -m evitriage.secret_scan
-```
-
-Run the directly selectable Gate F attack-class regression suite with:
-
-```bash
-make security-test
-```
-
-This offline subset covers prompt injection containment, malicious SARIF URIs,
-path/symlink escape, HTML escaping, shell metacharacter quoting, and secret
-redaction. The authoritative quality/coverage gate remains `make check`.
-
-Run an individual test while developing with, for example:
-
-```bash
-uv run pytest tests/unit/test_sarif_normalizer.py -q
-```
-
-Use `uv run pytest --collect-only -q` to discover the exact test names present
-in the current checkout.
-
-## Implemented Gate B/C outputs and Gate D triage
-
-The two example ProjectSpecs select different original synthetic Java 17
-fixtures through one `ProjectRegistry`. Their build plans invoke only the
-checked-in Apache Maven Wrapper 3.3.4 launcher and declare Maven 3.9.9; bare
-host `mvn`, Gradle, explicit commands, shells, and inline interpreters are
-rejected. Local acquisition is copy-only: each run builds from an isolated
-writable copy of a content-addressed read-only snapshot, never the original
-source directory.
-
-The SARIF boundary currently supports:
-
-- SARIF 2.1.0 runs, rules, results, primary/additional/related locations,
-  artifacts, URI bases, `codeFlows`, fingerprints, and partial fingerprints;
-- single-path, multi-path, pathless, duplicate-result, missing-snippet,
-  multi-run, and Windows-URI inputs;
-- occurrence-preserving path order and stable alert/path SHA-256 identities;
-- an exact raw reference `(raw SARIF SHA-256, run index, result index)` on every
-  normalized alert;
-- rejection of malformed coordinates, duplicate JSON keys, traversal, remote
-  or UNC source URIs, symlink escapes, and missing/unsupported `columnKind` on
-  non-empty result runs.
-
-Snapshot binding here is a path-containment rule, not a source-revision proof.
-For existing SARIF, the operator must select the corresponding source revision;
-when a referenced regular file exists, Gate B independently computes its
-SHA-256 and rejects a conflicting SARIF assertion. A missing file remains
-allowed with normalized `artifact_sha256=null`. Coordinates are validated for
-positive/order semantics; Gate C checks coordinates against a safely opened
-regular UTF-8 file before including source, using the run-declared UTF-16-code-
-unit or Unicode-code-point measurement. A missing, binary, oversized, or out-
-of-bounds source remains an explicit `partial` omission rather than an invented
-excerpt. The primary Golden SARIF path, lines, snippet, and declared hash match
-the checked-in `PathReader.java` fixture.
-
-Successful input runs end at `CONTEXT_READY`. `path_function_slice` selects the
-smallest lexically identified Java callable for primary/additional/related and
-source/sink/path locations; `fixed_window` is also executable. The 24,000-token
-estimate is a deterministic byte-based budget, and over-budget ranges are
-recorded as omissions. `adaptive_slice` remains explicitly unavailable.
-Evidence items cite only registered normalized/slice artifact hashes;
-relationships and Claim contracts reject dangling evidence IDs. Generated
-claims and vulnerability classifications are not produced by these CLI input
-runs. The source-map HTML is escaped navigation, not a verdict or Gate E report.
-
-Gate C-Extra completed its bounded acceptance follow-up with real run
-`20260721T201029897333Z-849cee21ce99`: the original Socket-based CWE-22 case
-produced one CodeQL `java/path-injection` result, one complete eight-step path,
-one complete `readRequestedFile` slice, four evidence items, and zero claims at
-`CONTEXT_READY`. Its Golden equivalent could not satisfy this gate. See ADR
-0004 and the dated progress log for the frozen boundary and artifact hashes.
-
-The bounded Gate D path adds:
-
-- strict `LLMProfile`, Analyst, Rebuttal, Judge, `FinalDecision`, and
-  `TriageResult` contracts with generated JSON Schemas;
-- ordered Fake/Replay structured calls, canonical request hashes, a maximum of
-  one schema/evidence repair per role, six calls per alert, and bounded Replay
-  cache reads with no symlink following;
-- exact alert-occurrence evidence validation and code-assigned content-derived
-  Claim IDs;
-- deterministic gates that require matching source-control, data-flow, and
-  sink-semantics evidence (or decisive successful verification) for TP,
-  decisive Rebuttal evidence for FP, and downgrade conflicts, unknowns, missing
-  critical evidence, or weaker cases to NMC; `auto_dismiss` is always false;
-- prompt boundaries that keep repository/SARIF text inside
-  `untrusted_code_data` and explicitly deny instructions or tool permissions
-  found in that data;
-- deterministic credential-pattern redaction before canonical request hashing
-  and every model/provider boundary, while retaining exact local evidence for
-  audit.
-
-The `triage` command requires exactly one of an existing `--sarif` input or a
-real `--scan`, allocates a fresh run, reuses the shared normalization/context/
-evidence implementation, and continues through `ANALYZED`, `REBUTTED`, and
-`JUDGED`. It persists `triage/analyst.json`,
-`triage/rebuttal.json`, and `triage/judged.json`, records non-secret
-prompt/request/response hashes plus profile/model identity, revalidates all
-registered artifact hashes, and finalizes them owner-read-only. Equivalent
-source/SARIF input receives a stable `analysis_identity` so Replay request
-hashes do not depend on the fresh operational `run_id`.
-
-Existing finalized Gate C runs are not reopened or relabelled. The repository
-includes fixed synthetic, SHA-256-inventoried Replay bundles, including the
-default six-case v0.1 `make demo`. Its identity-bound supplement makes
-the synthetic test oracle explicit; binding and hashing do not independently
-prove the asserted evidence true. A general cache writer/producer attestation,
-triage continuation by prior `run_id`, and a standalone `report --run-id`
-command remain unimplemented. The DeepSeek
-adapter has simulated HTTP/CLI coverage plus one separately authorized live
-smoke recorded in the dated progress log. Run
-`20260722T174132749958Z-8fce5d0ab3f9` used the TPM2 credential path, accepted
-all three role responses, and conservatively finalized one synthetic alert as
-`NMC` with `auto_dismiss=false`. That single run verifies the credential,
-provider, strict-response, and decision path at that time; token usage, cost,
-repeatability, rate-limit behavior, and model quality remain unmeasured.
-
-The Gate A commands remain available:
-
-- `project validate` strictly validates and resolves a ProjectSpec;
-- `doctor` reports Python, uv, SQLite, managed-root, Java, `javac`, and CodeQL
-  status without inventing unavailable tools;
-- `db migrate` creates or upgrades the minimal local SQLite schema;
-- `WorkspaceManager` allocates and prepares source snapshots and isolated
-  writable paths.
-
-## Running a real CodeQL scan
-
-CodeQL and a JDK are **not installed by this project**. A real Gate B scan
-requires all of the following in the controlled execution environment:
-
-- CodeQL CLI `2.26.1` on `PATH`, matching the ProjectSpec pin;
-- matching `java` and `javac` executables from the same configured JDK (JDK 17
-  for the checked-in examples);
-- the declared Maven 3.9.9 distribution already available in the Maven Wrapper
-  cache when using the checked-in offline build command.
-
-The Maven Wrapper launcher is checked in, but its first bootstrap may otherwise
-download Maven. Populate and verify that cache in a separately controlled step;
-the configured target build itself passes `--offline`. The ProjectSpec/wrapper
-properties declare the Maven distribution and checksum; the Gate B runner does
-not independently attest an already cached Maven binary or observe its actual
-version. It does validate that wrapper properties use a credential-free HTTPS
-URL for one exact Apache Maven release and contain a lowercase distribution
-SHA-256. Optional CodeQL query/model packs must use exact
-`scope/name@x.y.z` pins.
-
-Confirm the external installation, then invoke the same project configuration:
+Verify the external tools, then scan:
 
 ```bash
 codeql version --format=terse
@@ -536,69 +215,218 @@ uv run evitriage scan \
   --json
 ```
 
-The runner validates its managed paths and wrapper plan, invokes external tools
-as argument vectors with `shell=False`, passes an explicit non-secret environment
-allowlist, applies timeouts, and preserves command metadata plus bounded,
-redacted stdout/stderr artifacts. A missing tool, version mismatch, timeout,
-non-zero exit, or unsafe artifact is a structured failed run, never a synthetic
-success. Failed runs persist a redacted `metadata/error.json`, link its hash from
-the terminal event, and register any bounded CodeQL command/log artifacts that
-were produced before failure. Golden SARIF fixtures are original test data and
-are not evidence that CodeQL analyzed either Java fixture.
+The runner checks the configured CodeQL/JDK versions and fails structurally on
+missing tools, mismatches, timeouts, non-zero exits, unsafe output, or invalid
+SARIF. It never substitutes Golden SARIF for a failed real scan. A successful
+`scan` reports `real_codeql: true` and ends at `CONTEXT_READY`.
 
-A successful local smoke is recorded as run
-`20260721T114113190209Z-8d9afd2ef3b7`: CodeQL database creation and
-`java-security-extended.qls` analysis both exited 0, the run reached
-`NORMALIZED`, and the preserved SARIF SHA-256 is
-`f6ba2d5bacc5bf6ca88e9a66063a2bff9579cddcb0e0176d40c3d4185ded62c1`.
-Its 120 rule descriptors and zero results prove that the fixture completed the
-real tool path; they do not prove that other code is vulnerability-free. The
-dated evidence log also retains the earlier missing-tool and invalid-suite
-failures instead of rewriting that history.
+`build.network_policy: disabled` requires Maven's `--offline` flag; it is not
+an OS-enforced network namespace. Preparing and attesting the Maven cache is an
+external supply-chain responsibility.
 
-## Reproducibility
+## Run Analyst / Rebuttal / Judge triage
 
-The reproducible offline baseline is:
+For offline Replay:
 
 ```bash
-uv sync --all-extras
-make check
-uv run evitriage doctor --json
-uv run evitriage ingest-sarif \
-  --project-config configs/projects/example-local.yaml \
-  --sarif tests/fixtures/sarif/single-path.sarif \
+uv run evitriage triage \
+  --project-config configs/projects/private-my-project.yaml \
+  --sarif /absolute/path/to/results.sarif \
+  --llm-profile configs/llm/replay-v0.1.yaml \
+  --replay-cache /trusted/read-only/replay-cache \
+  --allowed-source-root /absolute/path/to/source \
   --json
 ```
 
-Keep `uv.lock` and the generated JSON Schemas committed. Do not edit resolved
-configuration or source snapshots after a run starts, and retain the manifest,
-event log, raw SARIF, normalized bundle, and their SHA-256 identities with
-research artifacts. See the dated evidence log in
-[`docs/progress/2026-07-27-v0.1.md`](docs/progress/2026-07-27-v0.1.md).
+Use exactly one of `--sarif` and `--scan`. Replacing `--sarif ...` with
+`--scan` performs a fresh CodeQL scan and continues through reports in that
+same new run.
 
-## Limitations, safety, and ethics
+Replay is request-hash addressed: every required
+`<canonical-request-sha256>.json` response must already exist and satisfy the
+strict role schema. The repository includes only the fixed synthetic demo
+bundle, not a general Replay-cache producer for arbitrary projects. A missing
+entry creates an auditable `MODEL_FAILED` run and never falls back to a remote
+provider.
 
-The current boundary is enumerated in
-[`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md). Model-platform providers other
-than the narrow DeepSeek V4 adapter, a general Replay cache producer, prior-run
-continuation, a standalone report command, and independently verified
-production evidence supplements remain unavailable.
-Remote Git acquisition, Gradle, adaptive context, and automatic verification
-are also outside this gate.
+### Optional DeepSeek provider
 
-Target repositories, source comments, build files, and SARIF documents are
-untrusted data. They must not select model endpoints, supply secrets, expand
-tool permissions, or become shell commands. A real `scan` executes a target
-build and the current managed workspace is not a complete operating-system
-sandbox; the current runner is suitable only for trusted fixtures/repositories
-unless an external least-privilege network/resource/process sandbox is supplied.
-Do not use this research software to attack systems without explicit
-authorization or publish sensitive vulnerability details before coordinated
-disclosure. See [`SECURITY.md`](SECURITY.md) for reporting guidance.
+The opt-in adapter accepts the two fixed model IDs implemented by this
+codebase, `deepseek-v4-pro` and `deepseek-v4-flash`, and fixes the connection to
+`api.deepseek.com:443/chat/completions`. Remote triage is allowed only when
+both the trusted ProjectSpec and LLM Profile declare
+`remote_llm_allowed`.
+
+**Never put an API key in chat, command arguments, YAML, `.env`, shell scripts,
+logs, Git, or run artifacts. Revoke a key exposed through chat before enrolling
+a replacement.** The implemented credential sources are a one-process
+`DEEPSEEK_API_KEY`, TPM2/systemd-creds, and pass/GPG. Enrollment and provider
+selection are documented in the
+[deployment guide](docs/deployment-guide.md#9-optional-remote-deepseek-triage).
+
+Credential protection covers the key, not the uploaded data. Authorized
+evidence and bounded source excerpts are sent to DeepSeek and may be subject to
+provider retention, cost, and jurisdiction rules. Pattern redaction is not a
+general DLP system.
+
+## Run artifacts and audit trail
+
+After preflight validation succeeds and the pipeline starts, each
+`ingest-sarif`, `normalize`, `scan`, or `triage` invocation allocates a fresh
+run. A pre-allocation validation failure has no run directory. A successful
+triage run has this shape:
+
+```text
+artifacts/runs/<run-id>/
+├── project-spec.resolved.yaml
+├── workflow-events.jsonl
+├── run-manifest.json
+├── input/source.sarif or codeql/results.sarif
+├── normalized/alerts.json
+├── context/
+│   ├── index.json
+│   ├── slices/*.json
+│   └── source-map.html
+├── evidence/
+│   ├── registry.json
+│   └── graph.dot
+├── triage/
+│   ├── analyst.json
+│   ├── rebuttal.json
+│   └── judged.json
+└── reports/
+    ├── decisions.jsonl
+    └── index.html
+```
+
+`workflow-events.jsonl` is the append-only state history.
+`run-manifest.json` is the current/final projection, not an append-only
+database. Before finalization, the journal reopens every registered artifact,
+rechecks its size and SHA-256, and makes artifacts and audit files
+owner-read-only (`0400`). Failures after allocation retain structured,
+redacted error metadata and any bounded tool artifacts already produced.
+
+Hashes and read-only modes make accidental changes detectable; they are not a
+tamper-proof ledger. The filesystem owner or root can still change permissions
+and bytes. Archive important runs under independent controls.
+
+Reports can contain bounded source excerpts. HTML escaping prevents active
+markup; it is not secret redaction or authorization to publish the content.
+Protect JSONL, HTML, SARIF, workspaces, and run artifacts at least as strongly
+as the analyzed source.
+
+## Current boundaries
+
+- Only local Java projects can be materialized. Git and dataset source types
+  are reserved in the schema, but remote acquisition, dataset adapters, and
+  submodule materialization are not implemented.
+- Real scanning supports CodeQL `java-kotlin` through a checked-in Maven
+  Wrapper only. Gradle, bare Maven, arbitrary build commands, and other
+  languages are unavailable.
+- The SARIF parser intentionally supports a bounded SARIF 2.1.0 subset; this is
+  not a source-free general SARIF viewer.
+- Java context uses bounded fixed windows or lexical callable boundaries, not
+  compiler AST/CFG semantics, path-feasibility proof, or whole-repository
+  analysis. `adaptive_slice` is explicitly unavailable.
+- `analysis.target_cwes` is validated and recorded but does not currently
+  filter SARIF results.
+- There is no automatic verification, calibrated confidence, general Replay
+  producer, prior-run continuation, crash recovery, caller-selected run ID,
+  standalone `report --run-id`, or cross-run aggregation.
+- A minimal SQLite schema and migration command exist, but the current
+  workflow does not write or index runs there. Its auditable record is
+  file-backed under each run directory.
+- No output should be the sole basis for alert dismissal, disclosure, or
+  production risk acceptance.
+
+See the detailed Gate G [limitation inventory](KNOWN_LIMITATIONS.md), the
+[v0.2.0 extension notes](docs/releases/v0.2.0.md), and the
+[security/disclosure process](SECURITY.md). Some linked historical documents
+retain v0.1 scope labels; the executable code and package version here are
+v0.2.0.
+
+## Evidence is not a claim of accuracy
+
+| Recorded evidence | What it demonstrates | What it does not demonstrate |
+| --- | --- | --- |
+| Deterministic six-case `make demo` | Offline workflow, policy, report, and artifact reproducibility | Model quality, independent labels, or generalization |
+| Pinned real CodeQL smoke runs | The external runner/query/SARIF/context path worked in the recorded environment | Exploitability, a TP/FP/NMC verdict, or arbitrary-project readiness |
+| One authorized DeepSeek smoke on a synthetic fixture | Credential, HTTPS provider, strict response, and three-role path worked at that time | Accuracy, cost, retry/rate-limit behavior, or ongoing availability |
+| Hash-closed wheel/sdist/SBOM/test/example bundle | Same-host release assembly and integrity verification | Artifact signature, second-host reproduction, or production readiness |
+
+Exact commands, run IDs, hashes, failures, and interpretation limits are kept
+in the
+[historical delivery evidence log](docs/progress/2026-07-27-v0.1.md), not
+repeated as headline product claims.
+
+## Development and release verification
+
+After synchronizing dependencies:
+
+```bash
+# Lock, formatting, lint, strict typing, schemas, secret scan, tests,
+# and the branch-aware coverage floor.
+make check
+
+# Directly selected trust-boundary regressions; the full authority remains check.
+make security-test
+
+# Deterministic end-to-end synthetic workflow.
+make demo
+```
+
+Run a focused test while developing:
+
+```bash
+uv run pytest tests/unit/test_sarif_normalizer.py -q
+```
+
+Build and independently verify the local release closure:
+
+```bash
+make release-artifacts
+make release-verify
+```
+
+The default `dist/release/0.2.0/` closure contains the wheel, source
+distribution, hash-bearing dependency inventory, CycloneDX 1.5 SBOM,
+machine-readable test summaries, reviewed demo evidence, a strict release
+manifest, and `SHA256SUMS`. These commands do not tag, publish, or sign a
+release. See the [reproducibility guide](docs/reproducibility.md).
+
+## Repository map
+
+```text
+src/evitriage/     CLI, domain models, pipeline, adapters, policy, reporting
+configs/           Strict system, project, and LLM profile examples
+schemas/           Generated public JSON Schemas
+tests/             Unit, integration, security, fixtures, and Replay bundles
+docs/              Architecture, ADRs, deployment, progress, and releases
+migrations/        Minimal local SQLite schema
+```
+
+The dated project blueprint describes the longer-term research design and
+includes capabilities beyond this executable v0.2.0 boundary. Treat the
+current CLI help, strict schemas, tests, and known-limitations document as the
+guide to what is available now.
+
+## Documentation
+
+- [Deployment and operations](docs/deployment-guide.md) |
+  [部署与运行](docs/deployment-guide.zh-CN.md)
+- [Architecture and trust boundaries](docs/architecture.md)
+- [Gate G limitation inventory](KNOWN_LIMITATIONS.md) |
+  [Gate G 限制清单](KNOWN_LIMITATIONS.zh-CN.md)
+- [Security policy](SECURITY.md) | [安全策略](SECURITY.zh-CN.md)
+- [Reproducing v0.2.0](docs/reproducibility.md) and
+  [v0.2.0 notes](docs/releases/v0.2.0.md)
+- [Architecture decisions](docs/adr/) and
+  [historical delivery evidence log](docs/progress/2026-07-27-v0.1.md)
+- [Contributing](CONTRIBUTING.md) | [参与贡献](CONTRIBUTING.zh-CN.md)
 
 ## License and citation
 
-EviTriage-QL is distributed under the [Apache License 2.0](LICENSE). That license
-covers this repository's own code and documentation only; target repositories,
-CodeQL, Maven, fixtures derived from third parties, and datasets retain their
-own licenses. Citation metadata is available in [`CITATION.cff`](CITATION.cff).
+EviTriage-QL is distributed under the [Apache License 2.0](LICENSE). That
+license covers this repository's own code and documentation only; target
+repositories, CodeQL, Maven, and external datasets retain their own terms.
+Citation metadata is available in [`CITATION.cff`](CITATION.cff).
