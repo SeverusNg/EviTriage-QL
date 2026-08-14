@@ -1,6 +1,8 @@
 # Apache RocketMQ 资源泄露 V2 实验协议
 
-[English](rocketmq-resource-leak-v2-protocol.md) | [简体中文](rocketmq-resource-leak-v2-protocol.zh-CN.md)
+[English](protocol.md) | [简体中文](protocol.zh-CN.md)
+
+[实验目录](README.zh-CN.md)
 
 **协议日期：** 2026-08-14  
 **状态：** 已完成经授权的真实 DeepSeek batch 和固化后 V1 比较

@@ -259,7 +259,7 @@ uv run evitriage experiment evaluate \
 
 基线只能在自动决策只读后按 `(raw SARIF SHA-256, run_index, result_index)`
 连接，绝不成为模型证据或策略输入。参见[资源泄露指南](docs/resource-leak-triage.zh-CN.md)、
-[实验协议](docs/experiments/rocketmq-resource-leak-v2-protocol.zh-CN.md)和
+[可安全提交的实验目录](experiments/rocketmq-resource-leak-20260812-v2/README.zh-CN.md)和
 [ADR 0014](docs/adr/0014-resource-leak-v2-closed-loop.zh-CN.md)。
 
 2026-08-14 经操作员授权的 RocketMQ 运行完成全部 37 条研判，成功尝试包含
@@ -425,8 +425,8 @@ migrations/        最小本地 SQLite schema
 - [架构与信任边界（英文）](docs/architecture.md)
 - [资源泄露研判与 existing-SARIF 批处理指南](docs/resource-leak-triage.zh-CN.md) |
   [Resource-leak triage and existing-SARIF batch guide](docs/resource-leak-triage.md)
-- [RocketMQ V2 实验协议](docs/experiments/rocketmq-resource-leak-v2-protocol.zh-CN.md) |
-  [RocketMQ V2 experiment protocol](docs/experiments/rocketmq-resource-leak-v2-protocol.md)
+- [RocketMQ V2 实验目录](experiments/rocketmq-resource-leak-20260812-v2/README.zh-CN.md) |
+  [RocketMQ V2 experiment package](experiments/rocketmq-resource-leak-20260812-v2/README.md)
 - [Gate G 限制清单](KNOWN_LIMITATIONS.zh-CN.md) |
   [Gate G limitation inventory](KNOWN_LIMITATIONS.md)
 - [安全策略](SECURITY.zh-CN.md) | [Security policy](SECURITY.md)

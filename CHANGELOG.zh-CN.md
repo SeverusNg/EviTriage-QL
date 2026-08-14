@@ -20,6 +20,9 @@
   repair 和证据 ID 的测试。
 - 增加严格 manifest 驱动的 existing-SARIF `preflight`/`run`/`evaluate`、逐 case
   run 隔离、零结果闭合、历史前后比较、中英聚合报告和固化后 V1 基线评估。
+- 在 `experiments/` 下增加可安全提交的 RocketMQ V2 实验包，包含冻结输入
+  身份、脱敏结果/run 索引、双语报告和目录级 SHA-256 校验；含源码的原始产物
+  继续保持 Git 忽略。
 
 ### 变更
 

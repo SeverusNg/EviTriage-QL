@@ -21,6 +21,9 @@ releases will follow [Semantic Versioning](https://semver.org/).
 - Added strict manifest-driven existing-SARIF preflight/run/evaluate commands,
   per-case run isolation, zero-result closure, before/after comparison,
   bilingual aggregate reports, and post-finalization V1-baseline evaluation.
+- Added a Git-safe RocketMQ V2 experiment package under `experiments/` with
+  frozen input identities, sanitized result/run indexes, bilingual reports, and
+  package-level SHA-256 verification; raw source-bearing artifacts remain ignored.
 
 ### Changed
 

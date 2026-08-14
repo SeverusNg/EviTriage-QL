@@ -1,0 +1,120 @@
+{
+  "schema_version": "rocketmq-resource-leak-v2-public-manifest-1.0",
+  "experiment_id": "rocketmq-resource-leak-20260812-v2",
+  "experiment_date": "2026-08-14",
+  "source_project": "apache/rocketmq",
+  "source_revisions": {
+    "historical_pre": "04711367b7378115ed0c8e656aea88dab2a050da",
+    "historical_fix": "a6c5604b6cb6fce255fe9e0e6e860f94d37c2050",
+    "current": "e3458616d207ee636b1762f0f8dcf788a590d59d"
+  },
+  "toolchain": {
+    "evitriage": "0.2.0",
+    "codeql": "2.26.1",
+    "codeql_java_queries": "1.11.6",
+    "python": "3.12.3",
+    "uv": "0.8.3",
+    "java": "17.0.19",
+    "llm_profile": "deepseek-v4-pro",
+    "resource_schema": "resource-leak-1.0"
+  },
+  "identity_rule": [
+    "raw_sarif_sha256",
+    "run_index",
+    "result_index"
+  ],
+  "cases": [
+    {
+      "case_id": "historical-pre-lock",
+      "mode": "triage",
+      "source_revision": "historical_pre",
+      "sarif_file": "pre-unreleased-lock.sarif",
+      "sarif_sha256": "b226de0d01f682c38f37335a55f6496ec8902a8530d784b5772fac1864b2069e",
+      "query_family": "lock",
+      "result_count": 6
+    },
+    {
+      "case_id": "historical-post-lock",
+      "mode": "triage",
+      "source_revision": "historical_fix",
+      "sarif_file": "post-unreleased-lock.sarif",
+      "sarif_sha256": "a10bd1d24be5046d11683be74d7cd11abb187e5e4b098d709dbf75dd7c683193",
+      "query_family": "lock",
+      "result_count": 5
+    },
+    {
+      "case_id": "historical-pre-full-suite",
+      "mode": "audit-only",
+      "source_revision": "historical_pre",
+      "sarif_file": "pre-security-and-quality.sarif",
+      "sarif_sha256": "a42993f6a345ea67a3529972e9bba19a5dc262cbee75ddb6a6d18657728546ec",
+      "query_family": "security-and-quality",
+      "result_count": 680
+    },
+    {
+      "case_id": "historical-post-full-suite",
+      "mode": "audit-only",
+      "source_revision": "historical_fix",
+      "sarif_file": "post-security-and-quality.sarif",
+      "sarif_sha256": "69be7987a11fe7aad703673f736b321a5385280b7c8b51c9370e090eb57c3446",
+      "query_family": "security-and-quality",
+      "result_count": 679
+    },
+    {
+      "case_id": "current-input",
+      "mode": "triage",
+      "source_revision": "current",
+      "sarif_file": "current-input.sarif",
+      "sarif_sha256": "5d899cf425a0b2713426d3e685fcb12881c8cd94ade1c1c4fe3ce7832ebd8788",
+      "query_family": "input-resource",
+      "result_count": 3
+    },
+    {
+      "case_id": "current-output",
+      "mode": "triage",
+      "source_revision": "current",
+      "sarif_file": "current-output.sarif",
+      "sarif_sha256": "3604c6c1c7d13316caa1a09f290b8957f0a041265bf5e6e6cbd05f355238b7f8",
+      "query_family": "output-resource",
+      "result_count": 1
+    },
+    {
+      "case_id": "current-database",
+      "mode": "triage",
+      "source_revision": "current",
+      "sarif_file": "current-database.sarif",
+      "sarif_sha256": "5b8ad61ccc5fb911cb637b551d5197ea2518df73a817e2a7995c1b81c98c1908",
+      "query_family": "database-resource",
+      "result_count": 0
+    },
+    {
+      "case_id": "current-lock",
+      "mode": "triage",
+      "source_revision": "current",
+      "sarif_file": "current-lock.sarif",
+      "sarif_sha256": "9601a9b7a6304cecb26fe6f119d8c8b8fec5f54684d05d564756eb150e0bb493",
+      "query_family": "lock",
+      "result_count": 22
+    },
+    {
+      "case_id": "current-full-suite",
+      "mode": "audit-only",
+      "source_revision": "current",
+      "sarif_file": "current-security-and-quality.sarif",
+      "sarif_sha256": "6b1b74611978ecf919d5dafb3242c8300134e9940dfaab1442a11c4464a7d79b",
+      "query_family": "security-and-quality",
+      "result_count": 1939
+    }
+  ],
+  "triage_occurrence_count": 37,
+  "current_occurrence_count": 26,
+  "exclusions": [
+    "raw_sarif",
+    "rocketmq_source",
+    "codeql_databases",
+    "private_paths_and_configs",
+    "credentials",
+    "source_bearing_evidence",
+    "raw_model_requests_and_responses"
+  ]
+}

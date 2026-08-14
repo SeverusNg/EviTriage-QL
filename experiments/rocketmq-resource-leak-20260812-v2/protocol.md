@@ -1,6 +1,8 @@
 # Apache RocketMQ resource-leak V2 experiment protocol
 
-[English](rocketmq-resource-leak-v2-protocol.md) | [简体中文](rocketmq-resource-leak-v2-protocol.zh-CN.md)
+[English](protocol.md) | [简体中文](protocol.zh-CN.md)
+
+[Experiment package](README.md)
 
 **Protocol date:** 2026-08-14  
 **Status:** authorized live DeepSeek batch and post-freeze V1 comparison completed

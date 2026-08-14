@@ -1,0 +1,181 @@
+{
+  "schema_version": "rocketmq-resource-leak-v2-public-result-1.0",
+  "experiment_id": "rocketmq-resource-leak-20260812-v2",
+  "final_status": "complete",
+  "successful_attempt": "attempt-2",
+  "final_batch": {
+    "occurrence_count": 37,
+    "accepted_calls": 111,
+    "calls_by_role": {
+      "analyst": 37,
+      "rebuttal": 37,
+      "judge": 37
+    },
+    "repairs": 0,
+    "failures": 0,
+    "transport_retries": 0,
+    "judge_candidates": {
+      "TP": 1,
+      "FP": 25,
+      "NMC": 11
+    },
+    "final_decisions": {
+      "TP": 0,
+      "FP": 0,
+      "NMC": 37
+    },
+    "auto_dismiss_true": 0,
+    "policy_partitions": {
+      "unknown_or_unresolved": 19,
+      "resource_context_incomplete": 7,
+      "judge_requested_nmc": 11
+    }
+  },
+  "case_results": [
+    {
+      "case_id": "historical-pre-lock",
+      "occurrences": 6,
+      "decisions": {
+        "TP": 0,
+        "FP": 0,
+        "NMC": 6
+      }
+    },
+    {
+      "case_id": "historical-post-lock",
+      "occurrences": 5,
+      "decisions": {
+        "TP": 0,
+        "FP": 0,
+        "NMC": 5
+      }
+    },
+    {
+      "case_id": "current-input",
+      "occurrences": 3,
+      "decisions": {
+        "TP": 0,
+        "FP": 0,
+        "NMC": 3
+      }
+    },
+    {
+      "case_id": "current-output",
+      "occurrences": 1,
+      "decisions": {
+        "TP": 0,
+        "FP": 0,
+        "NMC": 1
+      }
+    },
+    {
+      "case_id": "current-database",
+      "occurrences": 0,
+      "decisions": {
+        "TP": 0,
+        "FP": 0,
+        "NMC": 0
+      }
+    },
+    {
+      "case_id": "current-lock",
+      "occurrences": 22,
+      "decisions": {
+        "TP": 0,
+        "FP": 0,
+        "NMC": 22
+      }
+    }
+  ],
+  "historical_comparison": {
+    "target_rule": "java/unreleased-lock",
+    "target_method": "org.apache.rocketmq.client.impl.factory.MQClientInstance.sendHeartbeatToBroker",
+    "pre_fix_target_decision": "NMC",
+    "post_fix_corresponding_occurrence": "absent",
+    "post_fix_absence_is_model_fp": false,
+    "target_query_count": {
+      "pre": 6,
+      "post": 5
+    },
+    "full_suite_count": {
+      "pre": 680,
+      "post": 679
+    }
+  },
+  "v1_baseline_evaluation": {
+    "performed_after_decision_finalization": true,
+    "baseline_registered_as_model_evidence": false,
+    "aligned_current_occurrences": 26,
+    "missing_baseline_historical_occurrences": 11,
+    "v1_labels": {
+      "TP": 5,
+      "FP": 18,
+      "NMC": 3
+    },
+    "v2_labels": {
+      "TP": 0,
+      "FP": 0,
+      "NMC": 26
+    },
+    "agreements": 3,
+    "agreement_rate": 0.11538461538461539,
+    "determined_rate": 0,
+    "nmc_rate": 1,
+    "confusion_matrix": {
+      "TP": {
+        "TP": 0,
+        "FP": 0,
+        "NMC": 5
+      },
+      "FP": {
+        "TP": 0,
+        "FP": 0,
+        "NMC": 18
+      },
+      "NMC": {
+        "TP": 0,
+        "FP": 0,
+        "NMC": 3
+      }
+    },
+    "per_class_metrics": {
+      "TP": {
+        "precision": 0,
+        "recall": 0,
+        "f1": 0
+      },
+      "FP": {
+        "precision": 0,
+        "recall": 0,
+        "f1": 0
+      },
+      "NMC": {
+        "precision": 0.11538461538461539,
+        "recall": 1,
+        "f1": 0.20689655172413793
+      }
+    },
+    "caveat": "Engineering comparison against a human-review baseline, not independently verified ground truth or an unbiased accuracy benchmark."
+  },
+  "all_live_call_accounting": {
+    "logical_calls": 127,
+    "accepted": 117,
+    "invalid_structured_responses": 10,
+    "schema_repairs": 5,
+    "observed_http_or_transport_events": {
+      "http_401": 0,
+      "http_403": 0,
+      "http_429": 0,
+      "http_5xx": 0,
+      "transport_retries": 0
+    }
+  },
+  "aggregate_artifact_hashes": {
+    "automatic_decisions_jsonl": "d0e9bdd7082f983885b78c8db91dcad5afe457dc0108d963309757f7f3625795",
+    "batch_manifest_resolved_json": "901f9bf1ae5daa2a6b89d3f5d002ae3b260b390c4e611d8e2368e3a7c2d6d01b",
+    "evaluation_v1_baseline_json": "8346e156a8828f95ce2739c64695caba8957e5498c5d561e1234c1996d0451fd",
+    "execution_summary_json": "de0ec96e985d9ec2235a55ccbb2274d33f869ed9d20f6446669cd5a529e58b33",
+    "historical_comparison_json": "5c65fd2c29effc6668b5f85a1c885cc7f36731f3f36946e40a65872a06cab9f9",
+    "preflight_json": "f3f6efb8bc5d7f104731624a0546b3aecc267cdef252f967ba73fd1162071e68"
+  }
+}

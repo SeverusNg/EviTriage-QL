@@ -5,6 +5,8 @@
 **Date:** 2026-08-14  
 **State:** authorized live closed loop complete; all 37 final decisions are conservative NMC
 
+[Git-safe experiment package](../../experiments/rocketmq-resource-leak-20260812-v2/README.md)
+
 ## Implemented and verified
 
 - Exact four-resource-family dispatch with unchanged legacy security identities.
@@ -31,7 +33,7 @@ redacted failure records were preserved. A post-fix one-alert resource smoke,
 run `20260814T063250067970Z-79184cd88a3a`, completed three accepted calls.
 
 The successful aggregate is
-`/home/nigeriacrop/code/EviTriage-QL/artifacts/rocketmq-resource-leak-20260812-v2/attempt-2`.
+`artifacts/rocketmq-resource-leak-20260812-v2/attempt-2`.
 
 | Case | Run ID | Alerts / calls | Final |
 | --- | --- | ---: | --- |

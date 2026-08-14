@@ -5,6 +5,8 @@
 **日期：** 2026-08-14  
 **状态：** 经授权的真实闭环已完成；37 条最终决策均为保守 NMC
 
+[可安全提交的实验目录](../../experiments/rocketmq-resource-leak-20260812-v2/README.zh-CN.md)
+
 ## 已实现并验证
 
 - 四类资源精确分派，legacy security 身份不变。
@@ -30,7 +32,7 @@ ProjectSpec validate、ingest smoke、`make demo`、dry-run 和 `git diff --chec
 资源 smoke run `20260814T063250067970Z-79184cd88a3a` 以三次 accepted 完成。
 
 成功聚合根为
-`/home/nigeriacrop/code/EviTriage-QL/artifacts/rocketmq-resource-leak-20260812-v2/attempt-2`。
+`artifacts/rocketmq-resource-leak-20260812-v2/attempt-2`。
 
 | Case | Run ID | 告警 / 调用 | 最终 |
 | --- | --- | ---: | --- |

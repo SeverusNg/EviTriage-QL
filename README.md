@@ -291,7 +291,7 @@ uv run evitriage experiment evaluate \
 The baseline is joined only by `(raw SARIF SHA-256, run_index, result_index)`
 after automatic decisions are read-only; it is never model evidence or policy
 input. See the [resource-leak guide](docs/resource-leak-triage.md),
-[experiment protocol](docs/experiments/rocketmq-resource-leak-v2-protocol.md),
+[Git-safe experiment package](experiments/rocketmq-resource-leak-20260812-v2/README.md),
 and [ADR 0014](docs/adr/0014-resource-leak-v2-closed-loop.md).
 
 An operator-authorized 2026-08-14 RocketMQ run completed all 37 triage
@@ -479,8 +479,8 @@ guide to what is available now.
 - [Architecture and trust boundaries](docs/architecture.md)
 - [Resource-leak triage and existing-SARIF batch guide](docs/resource-leak-triage.md) |
   [资源泄露研判与 existing-SARIF 批处理指南](docs/resource-leak-triage.zh-CN.md)
-- [RocketMQ V2 experiment protocol](docs/experiments/rocketmq-resource-leak-v2-protocol.md) |
-  [RocketMQ V2 实验协议](docs/experiments/rocketmq-resource-leak-v2-protocol.zh-CN.md)
+- [RocketMQ V2 experiment package](experiments/rocketmq-resource-leak-20260812-v2/README.md) |
+  [RocketMQ V2 实验目录](experiments/rocketmq-resource-leak-20260812-v2/README.zh-CN.md)
 - [Gate G limitation inventory](KNOWN_LIMITATIONS.md) |
   [Gate G 限制清单](KNOWN_LIMITATIONS.zh-CN.md)
 - [Security policy](SECURITY.md) | [安全策略](SECURITY.zh-CN.md)
