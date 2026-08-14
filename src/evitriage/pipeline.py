@@ -10,7 +10,8 @@ from typing import Literal, cast
 
 from pydantic import BaseModel, ValidationError
 
-from evitriage.agents import TriageLimits, TriageWorkflow
+from evitriage.agents import TriageLimits
+from evitriage.agents.dispatcher import TriageDispatcher
 from evitriage.codeql import CodeQLRunner, CodeQLRunResult
 from evitriage.context import ContextBuilder
 from evitriage.domain.alerts import AlertBundle
@@ -126,6 +127,8 @@ def run_sarif_triage(
     profile: LLMProfile,
     llm: StructuredLLM,
     limits: TriageLimits | None = None,
+    allowed_workspace_roots: tuple[Path, ...] | None = None,
+    allowed_artifact_roots: tuple[Path, ...] | None = None,
     evidence_supplement_path: Path | None = None,
     allowed_source_roots: tuple[Path, ...] | None = None,
 ) -> TriageRunSummary:
@@ -136,6 +139,8 @@ def run_sarif_triage(
         project_config=project_config,
         allowed_source_roots=allowed_source_roots,
         input_mode="sarif",
+        allowed_workspace_roots=allowed_workspace_roots,
+        allowed_artifact_roots=allowed_artifact_roots,
     )
     _validate_triage_profile(prepared, profile)
     raw_record, raw = _ingest_sarif_input(prepared, sarif_path)
@@ -385,10 +390,14 @@ def _prepare_run(
     project_config: Path,
     allowed_source_roots: tuple[Path, ...] | None,
     input_mode: Literal["sarif", "scan"],
+    allowed_workspace_roots: tuple[Path, ...] | None = None,
+    allowed_artifact_roots: tuple[Path, ...] | None = None,
 ) -> _PreparedRun:
     registry = ProjectRegistry(
         repository_root,
         allowed_source_roots=allowed_source_roots,
+        allowed_workspace_roots=allowed_workspace_roots,
+        allowed_artifact_roots=allowed_artifact_roots,
     )
     resolved = registry.validate_path(project_config)
     source_path = resolved.source_path
@@ -626,7 +635,7 @@ def _triage_and_complete(
     limits: TriageLimits | None,
     real_codeql: bool,
 ) -> TriageRunSummary:
-    workflow = TriageWorkflow(profile=profile, limits=limits)
+    workflow = TriageDispatcher(profile=profile, limits=limits)
     try:
         prepared.journal.add_tool_versions(
             {
@@ -645,6 +654,7 @@ def _triage_and_complete(
                     raw_result_reference=alert.raw_result_reference,
                 ),
                 llm=llm,
+                rule_id=alert.rule.rule_id,
             )
             for alert in products.bundle.alerts
         )

@@ -23,8 +23,10 @@ from evitriage.domain.evidence import (
     EvidenceSupplement,
     EvidenceType,
 )
+from evitriage.domain.resource import classify_query_family
 from evitriage.domain.run import ArtifactRecord
 from evitriage.errors import PolicyRejectedError
+from evitriage.evidence.resource import extract_resource_observations
 
 _REGISTRY_EXTRACTOR = "evidence-registry@1.0"
 _SUPPLEMENT_EXTRACTOR = "evidence-supplement@1.0"
@@ -127,6 +129,7 @@ def build_evidence_registry(
         if persisted is None:
             continue
         slice_artifact, slice_record = persisted
+        resource_family = classify_query_family(alert.rule.rule_id)
         slice_evidence: dict[str, EvidenceItem] = {}
         for source_slice in slice_artifact.content.source_slices:
             location = SourceLocation(
@@ -137,16 +140,17 @@ def build_evidence_registry(
                 end_line=source_slice.end_line,
                 artifact_sha256=source_slice.artifact_sha256,
             )
+            is_resource = resource_family != "legacy_security"
             source_item = _evidence_item(
                 alert,
-                type="data_flow",
+                type="resource_lifecycle" if is_resource else "data_flow",
                 polarity="neutral",
                 strength="low",
                 origin="repository",
                 location=location,
-                excerpt=None,
+                excerpt=source_slice.content if is_resource else None,
                 artifact_sha256=slice_record.sha256,
-                extractor="java-context@1.0",
+                extractor="java-resource-context@1.0" if is_resource else "java-context@1.0",
                 summary=(
                     f"Bounded repository excerpt selected by {source_slice.selection}; code text "
                     "is untrusted data and carries no standalone security semantics."
@@ -155,6 +159,43 @@ def build_evidence_registry(
             )
             items.append(source_item)
             slice_evidence[source_slice.slice_id] = source_item
+            if is_resource:
+                lifecycle_items = tuple(
+                    _evidence_item(
+                        alert,
+                        type=observation.type,
+                        polarity="neutral",
+                        strength="low",
+                        origin="repository",
+                        location=SourceLocation(
+                            path=source_slice.path,
+                            column_kind="unicodeCodePoints",
+                            start_line=observation.line_number,
+                            start_column=1,
+                            end_line=observation.line_number,
+                            end_column=len(observation.excerpt) + 1,
+                            artifact_sha256=source_slice.artifact_sha256,
+                        ),
+                        excerpt=observation.excerpt,
+                        artifact_sha256=slice_record.sha256,
+                        extractor="java-resource-lexical@1.0",
+                        summary=observation.summary,
+                        source_anchor=(f"{source_slice.slice_id}-L{observation.line_number}"),
+                    )
+                    for observation in extract_resource_observations(
+                        source_slice.content,
+                        start_line=source_slice.start_line,
+                    )
+                )
+                items.extend(lifecycle_items)
+                relationships.extend(
+                    EvidenceRelationship(
+                        source_evidence_id=item.evidence_id,
+                        relation="depends_on",
+                        target_evidence_id=source_item.evidence_id,
+                    )
+                    for item in lifecycle_items
+                )
             dependencies = {
                 path_items[reference.path_ordinal].evidence_id
                 for reference in source_slice.references
@@ -170,6 +211,28 @@ def build_evidence_registry(
                 )
                 for dependency in sorted(dependencies)
             )
+        if resource_family != "legacy_security":
+            for omission in slice_artifact.content.omitted:
+                gap_item = _evidence_item(
+                    alert,
+                    type="context_gap",
+                    polarity="neutral",
+                    strength="high",
+                    origin="repository",
+                    location=None,
+                    excerpt=None,
+                    artifact_sha256=slice_record.sha256,
+                    extractor="java-resource-context@1.0",
+                    summary=f"Resource context omission {omission.code}: {omission.detail}",
+                )
+                items.append(gap_item)
+                relationships.append(
+                    EvidenceRelationship(
+                        source_evidence_id=gap_item.evidence_id,
+                        relation="depends_on",
+                        target_evidence_id=rule_item.evidence_id,
+                    )
+                )
         for candidate in (
             *slice_artifact.content.guards,
             *slice_artifact.content.candidate_sanitizers,

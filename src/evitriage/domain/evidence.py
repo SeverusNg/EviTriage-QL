@@ -25,6 +25,17 @@ EvidenceType = Literal[
     "verification",
     "rebuttal",
     "rule_semantics",
+    "resource_lifecycle",
+    "resource_acquisition",
+    "resource_release",
+    "control_flow_exit",
+    "exception_flow",
+    "release_coverage",
+    "ownership_transfer",
+    "resource_escape",
+    "callee_summary",
+    "lifecycle_contract",
+    "context_gap",
 ]
 EvidencePolarity = Literal["supports_tp", "supports_fp", "neutral"]
 EvidenceStrength = Literal["low", "medium", "high", "decisive"]
@@ -176,6 +187,17 @@ class Claim(EvidenceDomainModel):
         "sanitizer_effective",
         "sink_dangerous",
         "exploit_succeeds",
+        "resource_acquisition",
+        "resource_release",
+        "control_flow_exit",
+        "exception_flow",
+        "release_coverage",
+        "feasible_unreleased_exit",
+        "ownership_transfer",
+        "resource_escape",
+        "callee_summary",
+        "lifecycle_contract",
+        "context_gap",
     ]
     statement: Annotated[str, Field(min_length=1, max_length=20_000)]
     status: Literal["supported", "rebutted", "unresolved"]

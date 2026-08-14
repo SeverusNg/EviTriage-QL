@@ -23,11 +23,13 @@ from evitriage.domain.context import (
     SliceContent,
     SourceSlice,
 )
+from evitriage.domain.resource import classify_query_family
 from evitriage.errors import FeatureNotAvailableError, PathSafetyError
 
 _CONTEXT_VERSION: Literal["1.0"] = "1.0"
 _DEFAULT_MAXIMUM_SOURCE_BYTES = 1024 * 1024
 _DEFAULT_MAXIMUM_TOKEN_BUDGET = 24_000
+_MAXIMUM_RESOURCE_CALLEE_SLICES = 8
 _CONTROL_KEYWORDS = frozenset(
     {"catch", "do", "else", "for", "if", "new", "switch", "synchronized", "try", "while"}
 )
@@ -293,6 +295,44 @@ class ContextBuilder:
             )
             token_estimate += estimated
 
+        if classify_query_family(alert.rule.rule_id) != "legacy_security":
+            existing_ranges = {
+                (item.path, item.start_line, item.end_line) for item in source_slices
+            }
+            for primary_slice in tuple(source_slices):
+                cached = self._cache.get(primary_slice.path)
+                if not isinstance(cached, _SourceDocument):
+                    continue
+                expansions, expansion_omissions = _resource_same_file_callees(cached, primary_slice)
+                omissions.extend(expansion_omissions)
+                for selection, reference in expansions:
+                    identity = (cached.path, selection.start_line, selection.end_line)
+                    if identity in existing_ranges:
+                        continue
+                    content = "".join(cached.lines[selection.start_line - 1 : selection.end_line])
+                    estimated = _estimate_tokens(content)
+                    if token_estimate + estimated > self._maximum_token_budget:
+                        omissions.append(
+                            ContextOmission(
+                                code="token_budget_exceeded",
+                                path=cached.path,
+                                detail=(
+                                    f"omitted same-file callee {selection.enclosing_symbol} "
+                                    "because it exceeds the resource context token budget"
+                                ),
+                            )
+                        )
+                        continue
+                    source_slices.append(
+                        _source_slice(
+                            cached,
+                            selection=selection,
+                            content=content,
+                            references=(reference,),
+                        )
+                    )
+                    existing_ranges.add(identity)
+                    token_estimate += estimated
         guards, sanitizers = _lexical_candidates(tuple(source_slices))
         content_model = SliceContent(
             alert_fingerprint=alert.alert_fingerprint,
@@ -508,6 +548,99 @@ def _deduplicate_omissions(omissions: list[ContextOmission]) -> list[ContextOmis
             observed.add(identity)
             result.append(omission)
     return result
+
+
+def _resource_same_file_callees(
+    document: _SourceDocument,
+    source_slice: SourceSlice,
+) -> tuple[tuple[tuple[_Selection, ContextReference], ...], tuple[ContextOmission, ...]]:
+    """Find bounded same-file callable definitions without claiming semantic resolution."""
+
+    sanitized_slice = _strip_java_comments_and_literals(source_slice.content)
+    call_names = {
+        match.group(1)
+        for match in re.finditer(r"\b([A-Za-z_$][A-Za-z0-9_$]*)\s*\(", sanitized_slice)
+        if match.group(1) not in _CONTROL_KEYWORDS
+        and match.group(1) != source_slice.enclosing_symbol
+    }
+    sanitized_document = _strip_java_comments_and_literals(document.text)
+    line_starts = [0]
+    line_starts.extend(match.end() for match in re.finditer("\n", sanitized_document))
+
+    def line_number(offset: int) -> int:
+        low = 0
+        high = len(line_starts)
+        while low < high:
+            middle = (low + high) // 2
+            if line_starts[middle] <= offset:
+                low = middle + 1
+            else:
+                high = middle
+        return low
+
+    expansions: list[tuple[_Selection, ContextReference]] = []
+    omissions: list[ContextOmission] = []
+    for name in sorted(call_names):
+        definitions: set[tuple[int, int, str]] = set()
+        for occurrence in re.finditer(rf"\b{re.escape(name)}\s*\(", sanitized_document):
+            function = _enclosing_java_function(document.text, line_number(occurrence.start()))
+            if function is not None and function[2] == name:
+                definitions.add(function)
+        if len(definitions) > 1:
+            omissions.append(
+                ContextOmission(
+                    code="function_boundary_unresolved",
+                    path=document.path,
+                    detail=(
+                        f"same-file callee candidate {name} is overloaded; no lexical "
+                        "candidate was selected as the invoked implementation"
+                    ),
+                )
+            )
+            continue
+        if not definitions:
+            continue
+        start_line, end_line, symbol = next(iter(definitions))
+        call_match = re.search(rf"\b{re.escape(name)}\s*\(", sanitized_slice)
+        if call_match is None:
+            continue
+        call_line = source_slice.start_line + sanitized_slice.count("\n", 0, call_match.start())
+        original_line = document.lines[call_line - 1].rstrip("\r\n")
+        expansions.append(
+            (
+                _Selection(
+                    start_line=start_line,
+                    end_line=end_line,
+                    selection="enclosing_function",
+                    enclosing_symbol=symbol,
+                ),
+                ContextReference(
+                    kind="callee",
+                    location=SourceLocation(
+                        path=document.path,
+                        column_kind="unicodeCodePoints",
+                        start_line=call_line,
+                        start_column=1,
+                        end_line=call_line,
+                        end_column=len(original_line) + 1,
+                        artifact_sha256=document.artifact_sha256,
+                    ),
+                ),
+            )
+        )
+    if len(expansions) > _MAXIMUM_RESOURCE_CALLEE_SLICES:
+        omissions.append(
+            ContextOmission(
+                code="resource_context_bound",
+                path=document.path,
+                detail=(
+                    f"omitted {len(expansions) - _MAXIMUM_RESOURCE_CALLEE_SLICES} same-file "
+                    f"callee candidates beyond the {_MAXIMUM_RESOURCE_CALLEE_SLICES}-slice bound"
+                ),
+            )
+        )
+        expansions = expansions[:_MAXIMUM_RESOURCE_CALLEE_SLICES]
+    return tuple(expansions), tuple(omissions)
 
 
 def _lexical_candidates(

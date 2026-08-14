@@ -1,0 +1,227 @@
+{
+  "$defs": {
+    "ResourceAssessment": {
+      "additionalProperties": false,
+      "description": "Evidence-bound answer for one lifecycle question.",
+      "properties": {
+        "detail": {
+          "maxLength": 10000,
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "confirmed",
+            "absent",
+            "unknown",
+            "conflicting"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "detail",
+        "evidence_ids"
+      ],
+      "title": "ResourceAssessment",
+      "type": "object"
+    },
+    "ResourceClaimDraft": {
+      "additionalProperties": false,
+      "description": "Resource-specific claim content before code assigns a stable claim ID.",
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "resource_acquisition",
+            "resource_release",
+            "control_flow_exit",
+            "exception_flow",
+            "release_coverage",
+            "feasible_unreleased_exit",
+            "ownership_transfer",
+            "resource_escape",
+            "callee_summary",
+            "lifecycle_contract",
+            "context_gap"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "statement": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "supported",
+            "rebutted",
+            "unresolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "statement",
+        "status",
+        "evidence_ids"
+      ],
+      "title": "ResourceClaimDraft",
+      "type": "object"
+    },
+    "ResourceContextGap": {
+      "additionalProperties": false,
+      "description": "One explicit missing fact that prevents safe lifecycle reasoning.",
+      "properties": {
+        "detail": {
+          "maxLength": 10000,
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "resource_identity",
+            "acquisition_success",
+            "exception_path",
+            "early_exit",
+            "callee_behavior",
+            "ownership_contract",
+            "lifecycle_contract",
+            "third_party_source",
+            "generated_source",
+            "truncated_context",
+            "custom_protocol",
+            "conflicting_evidence"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "detail",
+        "evidence_ids"
+      ],
+      "title": "ResourceContextGap",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Resource Rebuttal result testing release and ownership counter-evidence.",
+  "properties": {
+    "callee_release_behavior": {
+      "$ref": "#/$defs/ResourceAssessment"
+    },
+    "claims": {
+      "items": {
+        "$ref": "#/$defs/ResourceClaimDraft"
+      },
+      "maxItems": 64,
+      "title": "Claims",
+      "type": "array"
+    },
+    "context_gaps": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ResourceContextGap"
+      },
+      "maxItems": 64,
+      "title": "Context Gaps",
+      "type": "array"
+    },
+    "lifecycle_contract": {
+      "$ref": "#/$defs/ResourceAssessment"
+    },
+    "ownership_transfer": {
+      "$ref": "#/$defs/ResourceAssessment"
+    },
+    "rebutted_claim_ids": {
+      "default": [],
+      "items": {
+        "pattern": "^cl_[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Rebutted Claim Ids",
+      "type": "array"
+    },
+    "release_coverage": {
+      "$ref": "#/$defs/ResourceAssessment"
+    },
+    "resource_escape": {
+      "$ref": "#/$defs/ResourceAssessment"
+    },
+    "resource_kind": {
+      "enum": [
+        "input",
+        "output",
+        "database",
+        "lock"
+      ],
+      "title": "Resource Kind",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "unknowns": {
+      "default": [],
+      "items": {
+        "maxLength": 10000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Unknowns",
+      "type": "array"
+    }
+  },
+  "required": [
+    "resource_kind",
+    "release_coverage",
+    "ownership_transfer",
+    "resource_escape",
+    "callee_release_behavior",
+    "lifecycle_contract",
+    "claims"
+  ],
+  "title": "ResourceRebuttalOutput",
+  "type": "object"
+}

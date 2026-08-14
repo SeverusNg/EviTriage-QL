@@ -249,6 +249,59 @@ bundle, not a general Replay-cache producer for arbitrary projects. A missing
 entry creates an auditable `MODEL_FAILED` run and never falls back to a remote
 provider.
 
+### Resource-leak existing-SARIF experiments
+
+The versioned resource path recognizes exact structured rule IDs for
+`java/input-resource-leak`, `java/output-resource-leak`,
+`java/database-resource-leak`, and `java/unreleased-lock`. Other rule IDs keep
+the legacy security workflow and its unchanged request/schema identity.
+Resource cases use separate strict Analyst, Rebuttal, and Judge schemas plus a
+fail-closed policy: a proved acquisition and feasible unreleased exit may be
+TP; complete release coverage or a proved ownership/lifecycle contract may be
+FP; missing identity, exit, callee, ownership, or lifecycle facts remain NMC.
+No result can set `auto_dismiss=true`.
+
+A strict manifest can preflight and run multiple existing-SARIF cases without
+using the wrapper-only scan path:
+
+```bash
+uv run evitriage experiment preflight \
+  --manifest configs/projects/private-resource-experiment.yaml \
+  --json
+
+uv run evitriage experiment run \
+  --manifest configs/projects/private-resource-experiment.yaml \
+  --dry-run \
+  --json
+```
+
+Preflight validates every Git commit/clean status, SARIF SHA-256, result count,
+query family, ProjectSpec, and output root before an LLM profile or credential
+is loaded. A real run executes cases sequentially, assigns a fresh run to each
+triage case, preserves zero-result cases, and reports model/transport failures
+as an incomplete experiment rather than fabricated NMC decisions. Human-label
+evaluation is a separate post-finalization command:
+
+```bash
+uv run evitriage experiment evaluate \
+  --manifest configs/projects/private-resource-experiment.yaml \
+  --json
+```
+
+The baseline is joined only by `(raw SARIF SHA-256, run_index, result_index)`
+after automatic decisions are read-only; it is never model evidence or policy
+input. See the [resource-leak guide](docs/resource-leak-triage.md),
+[experiment protocol](docs/experiments/rocketmq-resource-leak-v2-protocol.md),
+and [ADR 0014](docs/adr/0014-resource-leak-v2-closed-loop.md).
+
+An operator-authorized 2026-08-14 RocketMQ run completed all 37 triage
+occurrences with 111 accepted DeepSeek calls and no repair in the successful
+attempt. The fail-closed policy produced 37 NMC decisions even though Judge
+candidates were 25 FP, 1 TP, and 11 NMC, because required lifecycle evidence
+remained unknown, unresolved, or incomplete. The post-freeze V1 comparison
+aligned 26 current occurrences and agreed on 3 (11.54%); this is engineering
+evidence about the present context/policy boundary, not an accuracy benchmark.
+
 ### Optional DeepSeek provider
 
 The opt-in adapter accepts the two fixed model IDs implemented by this
@@ -424,6 +477,10 @@ guide to what is available now.
 - [Deployment and operations](docs/deployment-guide.md) |
   [部署与运行](docs/deployment-guide.zh-CN.md)
 - [Architecture and trust boundaries](docs/architecture.md)
+- [Resource-leak triage and existing-SARIF batch guide](docs/resource-leak-triage.md) |
+  [资源泄露研判与 existing-SARIF 批处理指南](docs/resource-leak-triage.zh-CN.md)
+- [RocketMQ V2 experiment protocol](docs/experiments/rocketmq-resource-leak-v2-protocol.md) |
+  [RocketMQ V2 实验协议](docs/experiments/rocketmq-resource-leak-v2-protocol.zh-CN.md)
 - [Gate G limitation inventory](KNOWN_LIMITATIONS.md) |
   [Gate G 限制清单](KNOWN_LIMITATIONS.zh-CN.md)
 - [Security policy](SECURITY.md) | [安全策略](SECURITY.zh-CN.md)

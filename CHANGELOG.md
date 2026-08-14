@@ -1,10 +1,49 @@
 # Changelog
 
+[English](CHANGELOG.md) | [简体中文](CHANGELOG.zh-CN.md)
+
 All notable changes to this project will be documented in this file. The format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and tagged
 releases will follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+### Added
+
+- Added exact query-family dispatch for four Java resource-leak rules and
+  independent strict `resource-leak-1.0` Analyst/Rebuttal/Judge contracts.
+- Added bounded Java lifecycle evidence with complete enclosing-method source,
+  acquisition/release/exit candidates, same-file one-hop callee context, and
+  explicit omissions; repository text remains untrusted inert data.
+- Added a conservative resource policy for TP/FP/NMC and tests for TWR,
+  `finally`, early exits, sequential close failures, locks, ownership transfer,
+  unknown callees/frameworks, prompt injection, schema repair, and evidence IDs.
+- Added strict manifest-driven existing-SARIF preflight/run/evaluate commands,
+  per-case run isolation, zero-result closure, before/after comparison,
+  bilingual aggregate reports, and post-finalization V1-baseline evaluation.
+
+### Changed
+
+- Preserved legacy security schemas and canonical Replay identities by routing
+  resource rules through separate models and workflow code.
+- Added bounded transient DeepSeek transport retries for network errors, 429,
+  and 5xx responses; 401/403 are never retried.
+- Batch failures remain structured failures and mark the experiment incomplete;
+  successfully completed sibling decisions remain in the aggregate and are
+  never replaced with fabricated NMC rows.
+- Made non-empty evidence references visible in the resource JSON Schema and
+  included bounded field-level validation issues in the single repair request;
+  this fixed a live model/schema mismatch without weakening evidence closure or
+  changing legacy request identities.
+
+### Security
+
+- Preflight validates all source commits/clean status, SARIF hashes/counts,
+  query families, ProjectSpecs, and output roots before credential resolution.
+- V1 human labels can be opened only by the separate evaluation command after
+  automatic decisions are immutable and are never sent to a model.
+- Private target paths, source, SARIF, credentials, real model traffic,
+  workspaces, and artifacts remain excluded from Git.
 
 ## [0.2.0] - 2026-07-23
 

@@ -20,6 +20,7 @@ from evitriage.domain.alerts import (
 ContextPolicyName = Literal["fixed_window", "path_function_slice"]
 ContextOmissionCode = Literal[
     "source_file_missing",
+    "resource_context_bound",
     "source_not_regular",
     "source_too_large",
     "binary_source",
@@ -40,14 +41,14 @@ class ContextDomainModel(BaseModel):
 class ContextReference(ContextDomainModel):
     """Why one normalized source location selected a source slice."""
 
-    kind: Literal["primary", "additional", "related", "source", "sink", "path_step"]
+    kind: Literal["primary", "additional", "related", "source", "sink", "path_step", "callee"]
     location: SourceLocation
     path_ordinal: Annotated[int, Field(ge=0)] | None = None
     step_index: Annotated[int, Field(ge=0)] | None = None
 
     @model_validator(mode="after")
     def validate_path_coordinates(self) -> Self:
-        if self.kind in {"primary", "additional", "related"}:
+        if self.kind in {"primary", "additional", "related", "callee"}:
             if self.path_ordinal is not None or self.step_index is not None:
                 raise ValueError("non-path context references cannot identify a path step")
         elif self.path_ordinal is None or self.step_index is None:

@@ -233,6 +233,8 @@ class ProjectRegistry:
             (*self.projects_dir.glob("*.yaml"), *self.projects_dir.glob("*.yml")),
             key=lambda item: item.name,
         ):
+            if candidate.name.startswith("private-") or candidate.name.endswith(".private.yaml"):
+                continue
             resolved = self.load_path(candidate)
             ids.append(resolved.project_id)
         if len(ids) != len(set(ids)):

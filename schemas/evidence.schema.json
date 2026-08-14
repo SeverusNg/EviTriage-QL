@@ -24,7 +24,18 @@
             "path_feasible",
             "sanitizer_effective",
             "sink_dangerous",
-            "exploit_succeeds"
+            "exploit_succeeds",
+            "resource_acquisition",
+            "resource_release",
+            "control_flow_exit",
+            "exception_flow",
+            "release_coverage",
+            "feasible_unreleased_exit",
+            "ownership_transfer",
+            "resource_escape",
+            "callee_summary",
+            "lifecycle_contract",
+            "context_gap"
           ],
           "title": "Kind",
           "type": "string"
@@ -233,7 +244,18 @@
             "test",
             "verification",
             "rebuttal",
-            "rule_semantics"
+            "rule_semantics",
+            "resource_lifecycle",
+            "resource_acquisition",
+            "resource_release",
+            "control_flow_exit",
+            "exception_flow",
+            "release_coverage",
+            "ownership_transfer",
+            "resource_escape",
+            "callee_summary",
+            "lifecycle_contract",
+            "context_gap"
           ],
           "title": "Type",
           "type": "string"
