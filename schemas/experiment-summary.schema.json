@@ -1,0 +1,216 @@
+{
+  "$defs": {
+    "ExperimentCaseResult": {
+      "additionalProperties": false,
+      "description": "One case outcome; model failures remain failures, never fake NMCs.",
+      "properties": {
+        "alert_count": {
+          "minimum": 0,
+          "title": "Alert Count",
+          "type": "integer"
+        },
+        "case_id": {
+          "title": "Case Id",
+          "type": "string"
+        },
+        "decisions_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decisions Path"
+        },
+        "decisions_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decisions Sha256"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Code"
+        },
+        "fp_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Fp Count",
+          "type": "integer"
+        },
+        "invocation_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Invocation Count",
+          "type": "integer"
+        },
+        "nmc_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Nmc Count",
+          "type": "integer"
+        },
+        "raw_sarif_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Raw Sarif Sha256",
+          "type": "string"
+        },
+        "run_artifact_root": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Artifact Root"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "skip_reason": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Skip Reason"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "failed",
+            "audit_only",
+            "preflight_only"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "tp_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Tp Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "case_id",
+        "status",
+        "raw_sarif_sha256",
+        "alert_count"
+      ],
+      "title": "ExperimentCaseResult",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Aggregate completion status and per-case durable run identities.",
+  "properties": {
+    "baseline_evaluated": {
+      "const": false,
+      "default": false,
+      "title": "Baseline Evaluated",
+      "type": "boolean"
+    },
+    "cases": {
+      "items": {
+        "$ref": "#/$defs/ExperimentCaseResult"
+      },
+      "title": "Cases",
+      "type": "array"
+    },
+    "completed_at": {
+      "format": "date-time",
+      "title": "Completed At",
+      "type": "string"
+    },
+    "decided_alert_count": {
+      "minimum": 0,
+      "title": "Decided Alert Count",
+      "type": "integer"
+    },
+    "experiment_id": {
+      "title": "Experiment Id",
+      "type": "string"
+    },
+    "invocation_count": {
+      "minimum": 0,
+      "title": "Invocation Count",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "incomplete",
+        "dry_run"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "triage_alert_count": {
+      "minimum": 0,
+      "title": "Triage Alert Count",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "experiment_id",
+    "status",
+    "started_at",
+    "completed_at",
+    "triage_alert_count",
+    "decided_alert_count",
+    "invocation_count",
+    "cases"
+  ],
+  "title": "ExperimentSummary",
+  "type": "object"
+}

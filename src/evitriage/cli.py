@@ -34,6 +34,7 @@ from evitriage.errors import (
     PathSafetyError,
     StorageError,
 )
+from evitriage.experiment_cli import register_experiment_commands
 from evitriage.llm import DeepSeekLLM, ReplayLLM, StructuredLLM
 from evitriage.observability import configure_logging, redact
 from evitriage.pipeline import (
@@ -54,9 +55,11 @@ app = typer.Typer(
 project_app = typer.Typer(help="Validate trusted project boundaries.", no_args_is_help=True)
 db_app = typer.Typer(help="Manage the local metadata database.", no_args_is_help=True)
 credentials_app = typer.Typer(help="Manage repository-external encrypted credentials.")
+experiment_app = typer.Typer(help="Run manifest-bound existing-SARIF experiments.")
 app.add_typer(project_app, name="project")
 app.add_typer(db_app, name="db")
 app.add_typer(credentials_app, name="credentials")
+app.add_typer(experiment_app, name="experiment")
 
 
 def _emit_json(payload: object, *, error: bool = False) -> None:
@@ -231,6 +234,14 @@ def _operator_input_path(repository_root: Path, requested: Path) -> Path:
 
     candidate = requested if requested.is_absolute() else repository_root / requested
     return Path(os.path.abspath(candidate))
+
+
+register_experiment_commands(
+    experiment_app,
+    repository_root=lambda: find_repository_root(),
+    operator_path=lambda root, requested: _operator_input_path(root, requested),
+    emit_json=lambda payload: _emit_json(payload),
+)
 
 
 def _emit_run_summary(payload: ContextRunSummary | TriageRunSummary, *, as_json: bool) -> None:

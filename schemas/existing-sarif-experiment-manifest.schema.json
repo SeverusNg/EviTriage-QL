@@ -1,0 +1,264 @@
+{
+  "$defs": {
+    "BaselineEvaluationSpec": {
+      "additionalProperties": false,
+      "description": "Deferred input: the path is never opened by preflight or model execution.",
+      "properties": {
+        "baseline_path": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Baseline Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "baseline_path"
+      ],
+      "title": "BaselineEvaluationSpec",
+      "type": "object"
+    },
+    "ExperimentCase": {
+      "additionalProperties": false,
+      "description": "One immutable existing-SARIF triage or audit-only case.",
+      "properties": {
+        "baseline_id_prefix": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Baseline Id Prefix"
+        },
+        "expected_query_family": {
+          "anyOf": [
+            {
+              "enum": [
+                "resource_input",
+                "resource_output",
+                "resource_database",
+                "resource_lock",
+                "legacy_security"
+              ],
+              "type": "string"
+            },
+            {
+              "const": "mixed_audit",
+              "type": "string"
+            }
+          ],
+          "title": "Expected Query Family"
+        },
+        "expected_result_count": {
+          "minimum": 0,
+          "title": "Expected Result Count",
+          "type": "integer"
+        },
+        "id": {
+          "maxLength": 100,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "triage",
+            "audit_only"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "project_spec": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Project Spec",
+          "type": "string"
+        },
+        "sarif_path": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Sarif Path",
+          "type": "string"
+        },
+        "sarif_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sarif Sha256",
+          "type": "string"
+        },
+        "source_commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Source Commit",
+          "type": "string"
+        },
+        "source_root": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Source Root",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "source_root",
+        "source_commit",
+        "sarif_path",
+        "sarif_sha256",
+        "expected_query_family",
+        "expected_result_count",
+        "mode",
+        "project_spec"
+      ],
+      "title": "ExperimentCase",
+      "type": "object"
+    },
+    "HistoricalComparisonSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "after_case_id": {
+          "title": "After Case Id",
+          "type": "string"
+        },
+        "before_case_id": {
+          "title": "Before Case Id",
+          "type": "string"
+        },
+        "full_after_case_id": {
+          "title": "Full After Case Id",
+          "type": "string"
+        },
+        "full_before_case_id": {
+          "title": "Full Before Case Id",
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/HistoricalTarget"
+        }
+      },
+      "required": [
+        "before_case_id",
+        "after_case_id",
+        "full_before_case_id",
+        "full_after_case_id",
+        "target"
+      ],
+      "title": "HistoricalComparisonSpec",
+      "type": "object"
+    },
+    "HistoricalTarget": {
+      "additionalProperties": false,
+      "description": "Manifest-only target used for automatic before/after comparison.",
+      "properties": {
+        "enclosing_symbol": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Enclosing Symbol",
+          "type": "string"
+        },
+        "rule_id": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "source_path": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Source Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_id",
+        "source_path",
+        "enclosing_symbol"
+      ],
+      "title": "HistoricalTarget",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Top-level preflight-closed experiment specification.",
+  "properties": {
+    "artifact_root": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "title": "Artifact Root",
+      "type": "string"
+    },
+    "baseline_evaluation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BaselineEvaluationSpec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "cases": {
+      "items": {
+        "$ref": "#/$defs/ExperimentCase"
+      },
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Cases",
+      "type": "array"
+    },
+    "experiment_id": {
+      "maxLength": 100,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "title": "Experiment Id",
+      "type": "string"
+    },
+    "historical_comparison": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HistoricalComparisonSpec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "llm_profile": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "title": "Llm Profile",
+      "type": "string"
+    },
+    "run_artifact_root": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "title": "Run Artifact Root",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "workspace_root": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "title": "Workspace Root",
+      "type": "string"
+    }
+  },
+  "required": [
+    "experiment_id",
+    "llm_profile",
+    "artifact_root",
+    "run_artifact_root",
+    "workspace_root",
+    "cases"
+  ],
+  "title": "ExistingSarifExperimentManifest",
+  "type": "object"
+}

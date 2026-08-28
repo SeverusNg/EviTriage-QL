@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal, Self, cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from evitriage.domain.alerts import NormalizedAlert, Sha256
 from evitriage.domain.context import ContextOmission, ContextPolicyName, SliceArtifact
 from evitriage.domain.evidence import EvidenceItem
-from evitriage.domain.triage import TriageResult, materialize_claim
+from evitriage.domain.triage import ClaimDraft, TriageResult, materialize_claim
 
 
 class ReportDomainModel(BaseModel):
@@ -125,10 +125,11 @@ class AlertReport(ReportDomainModel):
         known_evidence = set(evidence_ids)
         claims = (*self.triage.analyst_claims, *self.triage.rebuttal_claims)
         expected_analyst_claims = tuple(
-            materialize_claim(draft, produced_by="analyst") for draft in self.triage.analyst.claims
+            materialize_claim(cast(ClaimDraft, draft), produced_by="analyst")
+            for draft in self.triage.analyst.claims
         )
         expected_rebuttal_claims = tuple(
-            materialize_claim(draft, produced_by="rebuttal")
+            materialize_claim(cast(ClaimDraft, draft), produced_by="rebuttal")
             for draft in self.triage.rebuttal.claims
         )
         if self.triage.analyst_claims != expected_analyst_claims:

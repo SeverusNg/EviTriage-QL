@@ -60,7 +60,18 @@
             "path_feasible",
             "sanitizer_effective",
             "sink_dangerous",
-            "exploit_succeeds"
+            "exploit_succeeds",
+            "resource_acquisition",
+            "resource_release",
+            "control_flow_exit",
+            "exception_flow",
+            "release_coverage",
+            "feasible_unreleased_exit",
+            "ownership_transfer",
+            "resource_escape",
+            "callee_summary",
+            "lifecycle_contract",
+            "context_gap"
           ],
           "title": "Kind",
           "type": "string"
@@ -197,6 +208,7 @@
         "code": {
           "enum": [
             "source_file_missing",
+            "resource_context_bound",
             "source_not_regular",
             "source_too_large",
             "binary_source",
@@ -241,7 +253,8 @@
             "related",
             "source",
             "sink",
-            "path_step"
+            "path_step",
+            "callee"
           ],
           "title": "Kind",
           "type": "string"
@@ -473,7 +486,18 @@
             "test",
             "verification",
             "rebuttal",
-            "rule_semantics"
+            "rule_semantics",
+            "resource_lifecycle",
+            "resource_acquisition",
+            "resource_release",
+            "control_flow_exit",
+            "exception_flow",
+            "release_coverage",
+            "ownership_transfer",
+            "resource_escape",
+            "callee_summary",
+            "lifecycle_contract",
+            "context_gap"
           ],
           "title": "Type",
           "type": "string"
@@ -569,7 +593,15 @@
               "judge_label_accepted",
               "judge_requested_nmc",
               "tp_support_missing",
-              "unknown_or_unresolved"
+              "unknown_or_unresolved",
+              "resource_acquisition_missing",
+              "resource_context_incomplete",
+              "resource_evidence_conflict",
+              "resource_fp_basis_missing",
+              "resource_ownership_confirmed",
+              "resource_release_coverage_confirmed",
+              "resource_tp_basis_confirmed",
+              "resource_unreleased_exit_missing"
             ],
             "type": "string"
           },
@@ -1390,6 +1422,549 @@
       "title": "ReportVerificationSummary",
       "type": "object"
     },
+    "ResourceAnalystOutput": {
+      "additionalProperties": false,
+      "description": "Resource Analyst result with explicit acquisition and path obligations.",
+      "properties": {
+        "acquisition_condition": {
+          "maxLength": 10000,
+          "minLength": 1,
+          "title": "Acquisition Condition",
+          "type": "string"
+        },
+        "acquisition_evidence_ids": {
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Acquisition Evidence Ids",
+          "type": "array"
+        },
+        "acquisition_succeeds": {
+          "enum": [
+            "yes",
+            "no",
+            "unknown"
+          ],
+          "title": "Acquisition Succeeds",
+          "type": "string"
+        },
+        "callee_release_behavior": {
+          "$ref": "#/$defs/ResourceAssessment"
+        },
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/ResourceClaimDraft"
+          },
+          "maxItems": 64,
+          "title": "Claims",
+          "type": "array"
+        },
+        "context_gaps": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ResourceContextGap"
+          },
+          "maxItems": 64,
+          "title": "Context Gaps",
+          "type": "array"
+        },
+        "feasible_unreleased_exit": {
+          "$ref": "#/$defs/ResourceExitAssessment"
+        },
+        "lifecycle_contract": {
+          "$ref": "#/$defs/ResourceAssessment"
+        },
+        "ownership_transfer": {
+          "$ref": "#/$defs/ResourceAssessment"
+        },
+        "release_coverage": {
+          "$ref": "#/$defs/ResourceAssessment"
+        },
+        "release_sites": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ResourceReleaseSite"
+          },
+          "maxItems": 64,
+          "title": "Release Sites",
+          "type": "array"
+        },
+        "resource_escape": {
+          "$ref": "#/$defs/ResourceAssessment"
+        },
+        "resource_kind": {
+          "enum": [
+            "input",
+            "output",
+            "database",
+            "lock"
+          ],
+          "title": "Resource Kind",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "unknowns": {
+          "default": [],
+          "items": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Unknowns",
+          "type": "array"
+        }
+      },
+      "required": [
+        "resource_kind",
+        "acquisition_succeeds",
+        "acquisition_condition",
+        "acquisition_evidence_ids",
+        "release_coverage",
+        "feasible_unreleased_exit",
+        "ownership_transfer",
+        "resource_escape",
+        "callee_release_behavior",
+        "lifecycle_contract",
+        "claims"
+      ],
+      "title": "ResourceAnalystOutput",
+      "type": "object"
+    },
+    "ResourceAssessment": {
+      "additionalProperties": false,
+      "description": "Evidence-bound answer for one lifecycle question.",
+      "properties": {
+        "detail": {
+          "maxLength": 10000,
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "confirmed",
+            "absent",
+            "unknown",
+            "conflicting"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "detail",
+        "evidence_ids"
+      ],
+      "title": "ResourceAssessment",
+      "type": "object"
+    },
+    "ResourceClaimDraft": {
+      "additionalProperties": false,
+      "description": "Resource-specific claim content before code assigns a stable claim ID.",
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "resource_acquisition",
+            "resource_release",
+            "control_flow_exit",
+            "exception_flow",
+            "release_coverage",
+            "feasible_unreleased_exit",
+            "ownership_transfer",
+            "resource_escape",
+            "callee_summary",
+            "lifecycle_contract",
+            "context_gap"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "statement": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "supported",
+            "rebutted",
+            "unresolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "statement",
+        "status",
+        "evidence_ids"
+      ],
+      "title": "ResourceClaimDraft",
+      "type": "object"
+    },
+    "ResourceContextGap": {
+      "additionalProperties": false,
+      "description": "One explicit missing fact that prevents safe lifecycle reasoning.",
+      "properties": {
+        "detail": {
+          "maxLength": 10000,
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "resource_identity",
+            "acquisition_success",
+            "exception_path",
+            "early_exit",
+            "callee_behavior",
+            "ownership_contract",
+            "lifecycle_contract",
+            "third_party_source",
+            "generated_source",
+            "truncated_context",
+            "custom_protocol",
+            "conflicting_evidence"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "detail",
+        "evidence_ids"
+      ],
+      "title": "ResourceContextGap",
+      "type": "object"
+    },
+    "ResourceExitAssessment": {
+      "additionalProperties": false,
+      "description": "Whether a feasible acquired-resource exit lacks a matching release.",
+      "properties": {
+        "detail": {
+          "maxLength": 10000,
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "exit_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "normal",
+                "return",
+                "throw",
+                "break",
+                "continue"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exit Kind"
+        },
+        "status": {
+          "enum": [
+            "confirmed",
+            "absent",
+            "unknown",
+            "conflicting"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "detail",
+        "evidence_ids"
+      ],
+      "title": "ResourceExitAssessment",
+      "type": "object"
+    },
+    "ResourceJudgeOutput": {
+      "additionalProperties": false,
+      "description": "Untrusted resource Judge candidate evaluated by deterministic policy.",
+      "properties": {
+        "critical_claim_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^cl_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "maxItems": 128,
+          "title": "Critical Claim Ids",
+          "type": "array"
+        },
+        "critical_evidence_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "maxItems": 128,
+          "title": "Critical Evidence Ids",
+          "type": "array"
+        },
+        "fix_guidance": {
+          "default": [],
+          "items": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Fix Guidance",
+          "type": "array"
+        },
+        "label": {
+          "enum": [
+            "TP",
+            "FP",
+            "NMC"
+          ],
+          "title": "Label",
+          "type": "string"
+        },
+        "next_actions": {
+          "default": [],
+          "items": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Next Actions",
+          "type": "array"
+        },
+        "raw_confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Raw Confidence",
+          "type": "number"
+        },
+        "reasoning_summary": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Reasoning Summary",
+          "type": "string"
+        },
+        "resource_kind": {
+          "enum": [
+            "input",
+            "output",
+            "database",
+            "lock"
+          ],
+          "title": "Resource Kind",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "unknowns": {
+          "default": [],
+          "items": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Unknowns",
+          "type": "array"
+        }
+      },
+      "required": [
+        "resource_kind",
+        "label",
+        "raw_confidence",
+        "reasoning_summary"
+      ],
+      "title": "ResourceJudgeOutput",
+      "type": "object"
+    },
+    "ResourceRebuttalOutput": {
+      "additionalProperties": false,
+      "description": "Resource Rebuttal result testing release and ownership counter-evidence.",
+      "properties": {
+        "callee_release_behavior": {
+          "$ref": "#/$defs/ResourceAssessment"
+        },
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/ResourceClaimDraft"
+          },
+          "maxItems": 64,
+          "title": "Claims",
+          "type": "array"
+        },
+        "context_gaps": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ResourceContextGap"
+          },
+          "maxItems": 64,
+          "title": "Context Gaps",
+          "type": "array"
+        },
+        "lifecycle_contract": {
+          "$ref": "#/$defs/ResourceAssessment"
+        },
+        "ownership_transfer": {
+          "$ref": "#/$defs/ResourceAssessment"
+        },
+        "rebutted_claim_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^cl_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Rebutted Claim Ids",
+          "type": "array"
+        },
+        "release_coverage": {
+          "$ref": "#/$defs/ResourceAssessment"
+        },
+        "resource_escape": {
+          "$ref": "#/$defs/ResourceAssessment"
+        },
+        "resource_kind": {
+          "enum": [
+            "input",
+            "output",
+            "database",
+            "lock"
+          ],
+          "title": "Resource Kind",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "unknowns": {
+          "default": [],
+          "items": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Unknowns",
+          "type": "array"
+        }
+      },
+      "required": [
+        "resource_kind",
+        "release_coverage",
+        "ownership_transfer",
+        "resource_escape",
+        "callee_release_behavior",
+        "lifecycle_contract",
+        "claims"
+      ],
+      "title": "ResourceRebuttalOutput",
+      "type": "object"
+    },
+    "ResourceReleaseSite": {
+      "additionalProperties": false,
+      "description": "One candidate release operation for a specific resource identity.",
+      "properties": {
+        "condition": {
+          "maxLength": 10000,
+          "minLength": 1,
+          "title": "Condition",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^ev_[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "operation": {
+          "maxLength": 10000,
+          "minLength": 1,
+          "title": "Operation",
+          "type": "string"
+        },
+        "resource_identity": {
+          "maxLength": 10000,
+          "minLength": 1,
+          "title": "Resource Identity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "resource_identity",
+        "operation",
+        "condition",
+        "evidence_ids"
+      ],
+      "title": "ResourceReleaseSite",
+      "type": "object"
+    },
     "RuleMetadata": {
       "additionalProperties": false,
       "description": "Rule metadata resolved from the result and its tool driver.",
@@ -1820,7 +2395,15 @@
       "description": "Complete in-memory Gate D result for one exact alert occurrence.",
       "properties": {
         "analyst": {
-          "$ref": "#/$defs/AnalystOutput"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnalystOutput"
+            },
+            {
+              "$ref": "#/$defs/ResourceAnalystOutput"
+            }
+          ],
+          "title": "Analyst"
         },
         "analyst_claims": {
           "items": {
@@ -1842,10 +2425,26 @@
           "type": "array"
         },
         "judge": {
-          "$ref": "#/$defs/JudgeOutput"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JudgeOutput"
+            },
+            {
+              "$ref": "#/$defs/ResourceJudgeOutput"
+            }
+          ],
+          "title": "Judge"
         },
         "rebuttal": {
-          "$ref": "#/$defs/RebuttalOutput"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RebuttalOutput"
+            },
+            {
+              "$ref": "#/$defs/ResourceRebuttalOutput"
+            }
+          ],
+          "title": "Rebuttal"
         },
         "rebuttal_claims": {
           "items": {

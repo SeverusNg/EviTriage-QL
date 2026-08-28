@@ -123,7 +123,15 @@
           "judge_label_accepted",
           "judge_requested_nmc",
           "tp_support_missing",
-          "unknown_or_unresolved"
+          "unknown_or_unresolved",
+          "resource_acquisition_missing",
+          "resource_context_incomplete",
+          "resource_evidence_conflict",
+          "resource_fp_basis_missing",
+          "resource_ownership_confirmed",
+          "resource_release_coverage_confirmed",
+          "resource_tp_basis_confirmed",
+          "resource_unreleased_exit_missing"
         ],
         "type": "string"
       },

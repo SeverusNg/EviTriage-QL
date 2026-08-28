@@ -222,6 +222,52 @@ schema。仓库只包含固定的合成演示包，不提供任意项目通用�
 生产器。缺失条目会生成可审计的 `MODEL_FAILED` 运行，绝不会回退到远程
 提供方。
 
+### 资源泄露 existing-SARIF 实验
+
+版本化资源路径按结构化 rule ID 精确识别 `java/input-resource-leak`、
+`java/output-resource-leak`、`java/database-resource-leak` 和
+`java/unreleased-lock`；其他 rule ID 继续使用 legacy security 工作流及其
+不变的请求/schema 身份。资源案例使用独立的严格 Analyst、Rebuttal、Judge
+schema 和保守策略：已证明获取成功且存在可行未释放退出可判 TP；全路径释放
+覆盖或已证明的所有权/生命周期契约可判 FP；资源身份、退出、callee、所有权
+或生命周期事实缺失时保持 NMC。任何结果都不能设置 `auto_dismiss=true`。
+
+严格 manifest 可批量预检和运行 existing-SARIF，而不绕过 wrapper-only 扫描
+安全边界：
+
+```bash
+uv run evitriage experiment preflight \
+  --manifest configs/projects/private-resource-experiment.yaml \
+  --json
+
+uv run evitriage experiment run \
+  --manifest configs/projects/private-resource-experiment.yaml \
+  --dry-run \
+  --json
+```
+
+preflight 会在加载 LLM Profile 或凭据前校验每个 Git commit/clean 状态、
+SARIF SHA-256、结果数、查询族、ProjectSpec 与输出根。真实运行顺序处理 case，
+为每个 triage case 分配新 run，保留零结果 case；模型/传输失败会使实验标记
+为 incomplete，绝不会伪造成 NMC。人工标签评估是独立的固化后命令：
+
+```bash
+uv run evitriage experiment evaluate \
+  --manifest configs/projects/private-resource-experiment.yaml \
+  --json
+```
+
+基线只能在自动决策只读后按 `(raw SARIF SHA-256, run_index, result_index)`
+连接，绝不成为模型证据或策略输入。参见[资源泄露指南](docs/resource-leak-triage.zh-CN.md)、
+[可安全提交的实验目录](experiments/rocketmq-resource-leak-20260812-v2/README.zh-CN.md)和
+[ADR 0014](docs/adr/0014-resource-leak-v2-closed-loop.zh-CN.md)。
+
+2026-08-14 经操作员授权的 RocketMQ 运行完成全部 37 条研判，成功尝试包含
+111 次已接受 DeepSeek 调用且无 repair。尽管 Judge 候选为 25 FP、1 TP、11 NMC，
+保守策略仍因所需生命周期证据 unknown、unresolved 或 incomplete 而输出 37 NMC。
+固化后的 V1 比较对齐 26 条当前告警，其中 3 条一致（11.54%）；这只是当前
+context/policy 边界的工程证据，不是准确率基准。
+
 ### 可选 DeepSeek 提供方
 
 可选启用的适配器只接受当前代码实现的两个固定模型 ID：
@@ -377,6 +423,10 @@ migrations/        最小本地 SQLite schema
 - [部署与运行](docs/deployment-guide.zh-CN.md) |
   [Deployment and operations](docs/deployment-guide.md)
 - [架构与信任边界（英文）](docs/architecture.md)
+- [资源泄露研判与 existing-SARIF 批处理指南](docs/resource-leak-triage.zh-CN.md) |
+  [Resource-leak triage and existing-SARIF batch guide](docs/resource-leak-triage.md)
+- [RocketMQ V2 实验目录](experiments/rocketmq-resource-leak-20260812-v2/README.zh-CN.md) |
+  [RocketMQ V2 experiment package](experiments/rocketmq-resource-leak-20260812-v2/README.md)
 - [Gate G 限制清单](KNOWN_LIMITATIONS.zh-CN.md) |
   [Gate G limitation inventory](KNOWN_LIMITATIONS.md)
 - [安全策略](SECURITY.zh-CN.md) | [Security policy](SECURITY.md)

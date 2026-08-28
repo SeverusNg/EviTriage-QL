@@ -332,6 +332,60 @@ def test_deepseek_key_and_error_body_never_enter_structured_errors(
     assert echoed_payload not in serialized
 
 
+def test_deepseek_retries_429_but_never_retries_401(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    profile = _profile("deepseek")
+    calls = 0
+    success = {
+        "choices": [
+            {
+                "finish_reason": "stop",
+                "message": {"content": json.dumps(_response())},
+            }
+        ]
+    }
+
+    def post_with_429(_request: bytes) -> bytes:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise ModelError(
+                "DeepSeek API returned a non-success status", details={"http_status": 429}
+            )
+        return json.dumps(success).encode()
+
+    adapter = DeepSeekLLM(profile, api_key="test-key")
+    monkeypatch.setattr(adapter, "_post", post_with_429)
+    monkeypatch.setattr("evitriage.llm.structured.time.sleep", lambda _delay: None)
+    result = adapter.complete(
+        system_prompt="Return JSON only.",
+        user_payload={"target": "fixture"},
+        response_model=AnalystOutput,
+        invocation_context=_context(profile),
+    )
+    assert result.claims == ()
+    assert calls == 2
+
+    calls = 0
+
+    def post_with_401(_request: bytes) -> bytes:
+        nonlocal calls
+        calls += 1
+        raise ModelError("DeepSeek API returned a non-success status", details={"http_status": 401})
+
+    monkeypatch.setattr(adapter, "_post", post_with_401)
+    with pytest.raises(ModelError) as raised:
+        adapter.complete(
+            system_prompt="Return JSON only.",
+            user_payload={},
+            response_model=AnalystOutput,
+            invocation_context=_context(profile),
+        )
+    assert raised.value.details["transport_attempt"] == 1
+    assert calls == 1
+
+
 def test_llm_profile_requires_explicit_remote_policy_for_deepseek() -> None:
     with pytest.raises(ValidationError, match="remote_llm_allowed"):
         LLMProfile(

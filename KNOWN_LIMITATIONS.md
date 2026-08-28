@@ -4,6 +4,34 @@
 
 This document describes the **v0.1.0 Gate G release on the Gate F-hardened
 offline P0 vertical path**: integrated reporting, both fresh triage inputs, the
+resource-leak V2 offline implementation, and the historical release boundary.
+The live RocketMQ V2 DeepSeek experiment is not complete until an explicitly
+authorized remote run, immutable aggregate, and deferred baseline evaluation
+exist. Items below are intentional scope boundaries or unresolved verification
+gaps, not completion claims.
+
+## Resource-leak V2 boundary
+
+- Resource extraction is bounded and lexical, not a Java compiler, AST/CFG,
+  alias analysis, or interprocedural ownership proof. Candidate keywords never
+  become verified semantics without model claims and deterministic policy.
+- Same-file one-hop callees are bounded by count and token budget. Missing,
+  overloaded, dynamically dispatched, generated, bytecode-only, or third-party
+  behavior becomes an explicit context gap and normally forces NMC.
+- No `javap`/JAR semantic adapter is implemented. The system never downloads
+  third-party source or lets model common knowledge substitute for provenance.
+- Complete release coverage, acquisition success, feasible exits, identity,
+  ownership, and lifecycle contracts depend on available bounded evidence.
+  Unknown/conflicting assessments or partial source force NMC regardless of
+  model confidence.
+- The experiment runner is existing-SARIF only and sequential. It has no
+  continuation/checkpoint facility and deliberately does not use `--scan` for
+  RocketMQ, whose repository lacks the required checked-in Maven Wrapper.
+- Deferred V1 comparison measures engineering agreement, not unbiased accuracy:
+  the baseline is a human evidence review, not independently verified absolute
+  ground truth, and developers have seen the V1 cases.
+
+The prior Gate G boundary includes the
 deterministic six-case offline matrix, a directly selectable attack-class
 suite, and verified wheel/sdist/SBOM/example/test release evidence.
 Items below are intentional scope boundaries or unresolved verification gaps,

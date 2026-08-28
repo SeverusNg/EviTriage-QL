@@ -1,0 +1,104 @@
+{
+  "additionalProperties": false,
+  "description": "Untrusted resource Judge candidate evaluated by deterministic policy.",
+  "properties": {
+    "critical_claim_ids": {
+      "default": [],
+      "items": {
+        "pattern": "^cl_[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "maxItems": 128,
+      "title": "Critical Claim Ids",
+      "type": "array"
+    },
+    "critical_evidence_ids": {
+      "default": [],
+      "items": {
+        "pattern": "^ev_[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "maxItems": 128,
+      "title": "Critical Evidence Ids",
+      "type": "array"
+    },
+    "fix_guidance": {
+      "default": [],
+      "items": {
+        "maxLength": 10000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Fix Guidance",
+      "type": "array"
+    },
+    "label": {
+      "enum": [
+        "TP",
+        "FP",
+        "NMC"
+      ],
+      "title": "Label",
+      "type": "string"
+    },
+    "next_actions": {
+      "default": [],
+      "items": {
+        "maxLength": 10000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Next Actions",
+      "type": "array"
+    },
+    "raw_confidence": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Raw Confidence",
+      "type": "number"
+    },
+    "reasoning_summary": {
+      "maxLength": 20000,
+      "minLength": 1,
+      "title": "Reasoning Summary",
+      "type": "string"
+    },
+    "resource_kind": {
+      "enum": [
+        "input",
+        "output",
+        "database",
+        "lock"
+      ],
+      "title": "Resource Kind",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "unknowns": {
+      "default": [],
+      "items": {
+        "maxLength": 10000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Unknowns",
+      "type": "array"
+    }
+  },
+  "required": [
+    "resource_kind",
+    "label",
+    "raw_confidence",
+    "reasoning_summary"
+  ],
+  "title": "ResourceJudgeOutput",
+  "type": "object"
+}

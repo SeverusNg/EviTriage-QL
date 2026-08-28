@@ -11,8 +11,18 @@ from pydantic import BaseModel
 from evitriage.domain.alerts import AlertBundle
 from evitriage.domain.context import ContextIndex, SliceArtifact
 from evitriage.domain.evidence import EvidenceRegistry, EvidenceSupplement
+from evitriage.domain.experiment import (
+    ExistingSarifExperimentManifest,
+    ExperimentPreflight,
+    ExperimentSummary,
+)
 from evitriage.domain.project import ProjectSpec
 from evitriage.domain.report import AlertReport, TriageReportBundle
+from evitriage.domain.resource import (
+    ResourceAnalystOutput,
+    ResourceJudgeOutput,
+    ResourceRebuttalOutput,
+)
 from evitriage.domain.run import ContextRunSummary, NormalizedRunSummary, RunManifest
 from evitriage.domain.triage import (
     AnalystOutput,
@@ -38,6 +48,9 @@ _SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "evidence-supplement.schema.json": EvidenceSupplement,
     "final-decision.schema.json": FinalDecision,
     "judge-output.schema.json": JudgeOutput,
+    "existing-sarif-experiment-manifest.schema.json": ExistingSarifExperimentManifest,
+    "experiment-preflight.schema.json": ExperimentPreflight,
+    "experiment-summary.schema.json": ExperimentSummary,
     "judged-run-artifact.schema.json": JudgedRunArtifact,
     "llm-profile.schema.json": LLMProfile,
     "normalized-run-summary.schema.json": NormalizedRunSummary,
@@ -47,6 +60,9 @@ _SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "run-manifest.schema.json": RunManifest,
     "slice-artifact.schema.json": SliceArtifact,
     "triage-result.schema.json": TriageResult,
+    "resource-analyst-output.schema.json": ResourceAnalystOutput,
+    "resource-judge-output.schema.json": ResourceJudgeOutput,
+    "resource-rebuttal-output.schema.json": ResourceRebuttalOutput,
     "triage-report-bundle.schema.json": TriageReportBundle,
     "triage-run-summary.schema.json": TriageRunSummary,
 }

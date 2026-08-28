@@ -10,6 +10,11 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from evitriage.domain.alerts import RawResultReference, Sha256
 from evitriage.domain.evidence import Claim, ClaimId, EvidenceId
+from evitriage.domain.resource import (
+    ResourceAnalystOutput,
+    ResourceJudgeOutput,
+    ResourceRebuttalOutput,
+)
 from evitriage.domain.run import ArtifactRecord
 
 AgentRole = Literal["analyst", "rebuttal", "judge"]
@@ -26,6 +31,14 @@ PolicyFlag = Literal[
     "judge_requested_nmc",
     "tp_support_missing",
     "unknown_or_unresolved",
+    "resource_acquisition_missing",
+    "resource_context_incomplete",
+    "resource_evidence_conflict",
+    "resource_fp_basis_missing",
+    "resource_ownership_confirmed",
+    "resource_release_coverage_confirmed",
+    "resource_tp_basis_confirmed",
+    "resource_unreleased_exit_missing",
 ]
 
 
@@ -187,11 +200,11 @@ class TriageResult(TriageDomainModel):
 
     schema_version: Literal["1.0"] = "1.0"
     target: TriageTarget
-    analyst: AnalystOutput
+    analyst: AnalystOutput | ResourceAnalystOutput
     analyst_claims: tuple[Claim, ...]
-    rebuttal: RebuttalOutput
+    rebuttal: RebuttalOutput | ResourceRebuttalOutput
     rebuttal_claims: tuple[Claim, ...]
-    judge: JudgeOutput
+    judge: JudgeOutput | ResourceJudgeOutput
     final_decision: FinalDecision
     invocations: Annotated[tuple[ModelInvocationRecord, ...], Field(min_length=3, max_length=6)]
 
@@ -216,7 +229,7 @@ class AnalystStageRecord(TriageDomainModel):
     """Persistable Analyst output and invocation trace for one occurrence."""
 
     target: TriageTarget
-    output: AnalystOutput
+    output: AnalystOutput | ResourceAnalystOutput
     claims: tuple[Claim, ...]
     invocations: Annotated[tuple[ModelInvocationRecord, ...], Field(min_length=1, max_length=2)]
 
@@ -234,7 +247,7 @@ class RebuttalStageRecord(TriageDomainModel):
     """Persistable Rebuttal output and invocation trace for one occurrence."""
 
     target: TriageTarget
-    output: RebuttalOutput
+    output: RebuttalOutput | ResourceRebuttalOutput
     claims: tuple[Claim, ...]
     invocations: Annotated[tuple[ModelInvocationRecord, ...], Field(min_length=1, max_length=2)]
 

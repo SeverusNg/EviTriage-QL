@@ -8,6 +8,7 @@ import http.client
 import json
 import os
 import stat
+import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,6 +28,8 @@ _DEEPSEEK_API_HOST = "api.deepseek.com"
 _DEEPSEEK_API_PATH = "/chat/completions"
 _DEEPSEEK_TIMEOUT_SECONDS = 120
 _DEEPSEEK_MODELS = frozenset({"deepseek-v4-flash", "deepseek-v4-pro"})
+_DEEPSEEK_MAXIMUM_TRANSPORT_ATTEMPTS = 3
+_DEEPSEEK_RETRY_DELAY_SECONDS = (1.0, 2.0)
 _ResponseModelT = TypeVar("_ResponseModelT", bound=BaseModel)
 
 
@@ -375,7 +378,23 @@ class DeepSeekLLM:
                 "DeepSeek request exceeds the provider size limit",
                 details={"maximum_bytes": _MAXIMUM_PROVIDER_REQUEST_BYTES},
             )
-        raw = self._post(request_body)
+        raw: bytes | None = None
+        last_error: ModelError | None = None
+        for transport_attempt in range(_DEEPSEEK_MAXIMUM_TRANSPORT_ATTEMPTS):
+            try:
+                raw = self._post(request_body)
+                break
+            except ModelError as error:
+                error.details.setdefault("transport_attempt", transport_attempt + 1)
+                error.details.setdefault(
+                    "maximum_transport_attempts", _DEEPSEEK_MAXIMUM_TRANSPORT_ATTEMPTS
+                )
+                if not _deepseek_retryable(error) or transport_attempt >= 2:
+                    raise
+                last_error = error
+                time.sleep(_DEEPSEEK_RETRY_DELAY_SECONDS[transport_attempt])
+        if raw is None:
+            raise last_error or ModelError("DeepSeek transport retry failed")
         content = _deepseek_response_content(raw)
         return _validate_response(content.encode("utf-8"), response_model)
 
@@ -416,6 +435,13 @@ class DeepSeekLLM:
                 details={"http_status": response.status},
             )
         return raw
+
+
+def _deepseek_retryable(error: ModelError) -> bool:
+    status = error.details.get("http_status")
+    if isinstance(status, int):
+        return status == 429 or 500 <= status <= 599
+    return error.message == "DeepSeek HTTPS request failed"
 
 
 class _DeepSeekMessage(BaseModel):

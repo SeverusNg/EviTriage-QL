@@ -1,0 +1,126 @@
+{
+  "$defs": {
+    "ExperimentPreflightCase": {
+      "additionalProperties": false,
+      "description": "Resolved identities checked before any model adapter is created.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "triage",
+            "audit_only"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "project_spec": {
+          "title": "Project Spec",
+          "type": "string"
+        },
+        "result_count": {
+          "minimum": 0,
+          "title": "Result Count",
+          "type": "integer"
+        },
+        "rule_counts": {
+          "additionalProperties": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": "Rule Counts",
+          "type": "object"
+        },
+        "sarif_path": {
+          "title": "Sarif Path",
+          "type": "string"
+        },
+        "sarif_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sarif Sha256",
+          "type": "string"
+        },
+        "source_clean": {
+          "const": true,
+          "default": true,
+          "title": "Source Clean",
+          "type": "boolean"
+        },
+        "source_commit": {
+          "title": "Source Commit",
+          "type": "string"
+        },
+        "source_root": {
+          "title": "Source Root",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "source_root",
+        "source_commit",
+        "sarif_path",
+        "sarif_sha256",
+        "result_count",
+        "rule_counts",
+        "mode",
+        "project_spec"
+      ],
+      "title": "ExperimentPreflightCase",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Complete preflight result safe to persist before model authorization.",
+  "properties": {
+    "cases": {
+      "items": {
+        "$ref": "#/$defs/ExperimentPreflightCase"
+      },
+      "title": "Cases",
+      "type": "array"
+    },
+    "experiment_id": {
+      "title": "Experiment Id",
+      "type": "string"
+    },
+    "maximum_model_calls": {
+      "minimum": 0,
+      "title": "Maximum Model Calls",
+      "type": "integer"
+    },
+    "minimum_model_calls": {
+      "minimum": 0,
+      "title": "Minimum Model Calls",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "status": {
+      "const": "ok",
+      "default": "ok",
+      "title": "Status",
+      "type": "string"
+    },
+    "triage_alert_count": {
+      "minimum": 0,
+      "title": "Triage Alert Count",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "experiment_id",
+    "triage_alert_count",
+    "minimum_model_calls",
+    "maximum_model_calls",
+    "cases"
+  ],
+  "title": "ExperimentPreflight",
+  "type": "object"
+}
